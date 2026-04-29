@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <title>飞速盘点 · 授权版</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{background:linear-gradient(135deg,#667eea,#764ba2);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;margin:0;padding:0;min-height:100vh;overflow:hidden;position:fixed;inset:0;width:100%;height:100%}
+        .main-card{background:#fff;width:100%;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+        .header-fixed{flex-shrink:0;background:#fff;z-index:20}
+        .bottom-fixed-btns{position:fixed;bottom:0;left:0;right:0;background:#fff;padding:12px 16px;box-shadow:0 -4px 20px rgba(0,0,0,.15);z-index:100;border-top:1px solid #e2e8f0;transition:bottom .3s ease-out}
+        .keyboard-open .bottom-fixed-btns{bottom:400px}
+        @media (max-width:640px){.keyboard-open .bottom-fixed-btns{bottom:350px}}
+        .scrollable-area{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:0 16px 16px}
+        .table-container{background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow-x:auto;overflow-y:auto;position:relative;width:100%;margin-bottom:16px}
+        table{border-collapse:collapse;width:100%;min-width:100%}
+        th{position:sticky;top:0;z-index:50;background:linear-gradient(135deg,#1e293b,#0f172a);color:#fff;border:1px solid #334155;padding:12px;font-size:13px;text-align:left;font-weight:600;white-space:nowrap}
+        td{border:1px solid #e2e8f0;padding:8px;white-space:nowrap}
+        .qty-input{width:100%;min-width:80px;max-width:120px;height:50px;border:3px solid #3b82f6!important;text-align:center;font-size:1.3rem;font-weight:900;color:#1e40af;border-radius:10px;background:#f0f9ff}
+        .qty-input:focus{background:#fef9c3;transform:scale(1.02);border-color:#ef4444!important;outline:none}
+        .row-focus{background:linear-gradient(90deg,#fef08a,#fde047)!important}
+        #toast{position:fixed;top:20%;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:10px 20px;border-radius:40px;z-index:10000;display:none;font-weight:700;white-space:nowrap;box-shadow:0 5px 20px rgba(0,0,0,.3);pointer-events:none;font-size:14px;backdrop-filter:blur(10px)}
+        #colModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+        .modal-content{background:#fff;border-radius:24px;max-width:90%;width:350px;max-height:70vh;overflow:auto}
+        .scan-frame{position:absolute;top:25%;left:50%;transform:translate(-50%,-50%);width:80%;height:220px;border:3px solid #3b82f6;border-radius:20px;box-shadow:0 0 0 2000px rgba(0,0,0,.75);z-index:10;pointer-events:none}
+        .scan-line{position:absolute;width:100%;height:4px;background:linear-gradient(90deg,transparent,#3b82f6,#60a5fa,#3b82f6,transparent);top:0;animation:scanLineMove 1.2s infinite ease-in-out}
+        @keyframes scanLineMove{0%,100%{top:5%}50%{top:95%}}
+        .col-item{background:#fff;margin-bottom:8px;border-radius:12px;border:1px solid #e2e8f0;cursor:move;touch-action:none}
+        .version-badge{background:rgba(255,255,255,.2);padding:2px 8px;border-radius:16px;font-size:10px;font-weight:700}
+        .btn-group-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0}
+        .action-btn{padding:12px 4px;border-radius:12px;font-weight:700;font-size:13px;text-align:center;cursor:pointer}
+        .bottom-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:600px;margin:0 auto}
+        .bottom-btn{padding:14px 4px;border-radius:14px;font-weight:700;font-size:16px;text-align:center;cursor:pointer}
+        .cam-btn-large{background:#3b82f6;color:#fff;font-size:28px}
+        .keyboard-btn{background:#8b5cf6;color:#fff;font-size:28px}
+        .close-scan-btn{background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 4px 15px rgba(239,68,68,.5);font-size:18px;font-weight:900;padding:12px 24px;border-radius:50px;border:2px solid #fff;cursor:pointer}
+        .scan-header{background:linear-gradient(135deg,#000,#1a1a1a);border-bottom:3px solid #3b82f6}
+        .scan-success{animation:flash .2s ease}
+        @keyframes flash{0%,100%{border-color:#3b82f6}50%{border-color:#10b981;box-shadow:0 0 0 2000px rgba(16,185,129,.3)}}
+        #manualInput{width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:16px;font-weight:700;outline:none}
+        #manualInput:focus{border-color:#3b82f6}
+        .scan-tool-btn{background:#1e3a8a;color:#fff;border:1px solid #60a5fa;border-radius:9999px;padding:8px 12px;font-size:12px;font-weight:700}
+        .focus-guide{position:absolute;top:10px;left:0;right:0;text-align:center;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);padding:6px 12px;border-radius:20px;width:fit-content;margin:0 auto;font-size:11px;color:#fff;z-index:20;pointer-events:none}
+        #authModal{position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:20000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
+        .auth-box{background:#fff;border-radius:32px;padding:32px;width:90%;max-width:380px;text-align:center}
+        .auth-box input{width:100%;padding:14px;margin:20px 0;border:2px solid #e2e8f0;border-radius:20px;font-size:18px;text-align:center}
+        .auth-box button{background:#3b82f6;color:#fff;border:none;padding:12px 24px;border-radius:32px;font-weight:bold;width:100%;cursor:pointer}
+        .error-msg{color:#dc2626;margin-top:12px;font-size:14px}
+    </style>
+</head>
+<body>
+<div id="toast"></div>
+<div id="colModal"><div class="modal-content p-5"><h2 class="text-xl font-bold mb-3 text-center">📋 列管理</h2><p class="text-xs text-gray-500 text-center mb-3">💡 拖动排序 | 点击按钮删除</p><div id="colList" class="space-y-2 mb-4 max-h-80 overflow-auto"></div><div class="flex gap-2 p-2 bg-gray-100 rounded-lg"><input type="text" id="newColName" placeholder="新列名..." class="flex-1 bg-white rounded-lg px-3 py-2 font-bold text-sm outline-none" /><button onclick="window._addCol()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm">添加</button></div><button onclick="window._closeCol()" class="w-full mt-4 bg-gray-900 text-white py-3 rounded-xl font-bold text-base">完成</button></div></div>
+
+<div class="main-card"><div class="header-fixed"><div class="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white"><div class="flex items-center justify-center gap-3"><span class="text-2xl">⚡</span><h1 class="text-2xl font-black tracking-tight">飞速盘点</h1><div class="version-badge">授权版</div></div></div><div style="padding:16px 16px 0 16px"><input type="text" id="manualInput" placeholder="📱 输入条码/编码/名称..." /><div class="btn-group-4"><button onclick="window._openCol()" class="action-btn bg-gray-700 text-white shadow-md">📊 列管理</button><label class="action-btn bg-emerald-600 text-white shadow-md cursor-pointer">📂 导入<input type="file" id="fileInput" class="hidden" accept=".xlsx,.xls" /></label><button onclick="window._export()" class="action-btn bg-emerald-600 text-white shadow-md">💾 导出</button><button id="confirmBtn" class="action-btn bg-blue-600 text-white shadow-md">✅ 确认</button></div></div></div><div class="scrollable-area"><div class="table-container"><table id="mainTable"><thead id="tHead"></thead><tbody id="tBody"></tbody></table></div></div></div>
+<div class="bottom-fixed-btns"><div class="bottom-btns"><button id="scanBtn" class="bottom-btn bg-blue-600 text-white shadow-lg cam-btn-large">📷 扫码</button><button onclick="window._resetAll()" class="bottom-btn bg-red-600 text-white shadow-lg">🗑️ 重置</button><button id="showKeyboardBtn" class="bottom-btn bg-purple-600 text-white shadow-lg keyboard-btn">⌨️ 键盘</button></div></div>
+<div id="scanUI" class="fixed inset-0 bg-black z-[999] hidden flex-col"><div class="scan-header p-4 flex justify-between items-center"><span class="font-bold text-blue-400 text-lg">🔍 安全扫描引擎</span><button onclick="window._stopScan(true)" class="close-scan-btn text-white font-bold">✕ 关闭扫描</button></div><div class="relative flex-1 bg-black"><video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video><div class="focus-guide">💡 点击辅助对焦 | 扫码速率 20ms</div><div class="scan-frame" id="scanFrame"><div class="scan-line"></div></div><div class="absolute bottom-8 left-0 right-0 text-center"><div class="bg-black/70 backdrop-blur text-white px-4 py-2 rounded-full inline-block text-sm font-bold border-2 border-blue-500">📷 对准条码</div><div class="mt-3"><button id="torchBtn" type="button" class="scan-tool-btn">🔦 补光</button></div></div></div></div>
+
+<div id="authModal" style="display: flex;">
+    <div class="auth-box">
+        <div style="font-size: 36px;">🔐</div>
+        <h2 class="text-xl font-bold mt-2">请输入使用码</h2>
+        <input type="text" id="authCode" placeholder="使用码" autocomplete="off">
+        <button id="authBtn">验证</button>
+        <div id="authError" class="error-msg"></div>
+    </div>
+</div>
+
+<script>
+(function(){
+    // ========== 授权配置 ==========
+    // 有效使用码列表（可设置多个，群内公布一个即可）
+    const VALID_CODES = ["SUPER2026", "G2025", "FAST888"];
+    const AUTH_STORAGE_KEY = "FeiSu_Auth_V2";
+    const AUTH_VALID_DAYS = 30;  // 授权有效期30天
+    
+    // 域名白名单（防止直接复制到其他网站）
+    const ALLOWED_HOSTS = ["localhost", "127.0.0.1", "yourdomain.vercel.app", "your-custom.com"];
+    let host = location.hostname;
+    if(!ALLOWED_HOSTS.includes(host) && !host.endsWith(".vercel.app") && !host.endsWith(".vercel.app")){
+        document.body.innerHTML = '<div style="text-align:center;margin-top:50px;color:red;">⚠️ 未授权使用</div>';
+        throw new Error("Domain not allowed");
+    }
+    
+    let authorized = false;
+    
+    function showAuthModal() { document.getElementById('authModal').style.display = 'flex'; }
+    function hideAuthModal() { document.getElementById('authModal').style.display = 'none'; }
+    
+    function isLocalAuthValid() {
+        try {
+            let auth = localStorage.getItem(AUTH_STORAGE_KEY);
+            if(!auth) return false;
+            let data = JSON.parse(auth);
+            if(!data.code || !data.expire) return false;
+            if(Date.now() > data.expire) return false;
+            return VALID_CODES.includes(data.code);
+        } catch(e){ return false; }
+    }
+    
+    function saveAuth(code) {
+        let expire = Date.now() + AUTH_VALID_DAYS * 24 * 60 * 60 * 1000;
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ code, expire }));
+    }
+    
+    function verifyCode(inputCode) {
+        return VALID_CODES.includes(String(inputCode).trim());
+    }
+    
+    function onAuth() {
+        let input = document.getElementById('authCode');
+        let code = input.value.trim();
+        let errorDiv = document.getElementById('authError');
+        if(!code){ errorDiv.innerText = '请输入使用码'; return; }
+        if(verifyCode(code)){
+            saveAuth(code);
+            hideAuthModal();
+            startMainApp();
+        } else {
+            errorDiv.innerText = '使用码无效';
+            input.value = '';
+        }
+    }
+    
+    function initAuth() {
+        if(isLocalAuthValid()){
+            hideAuthModal();
+            startMainApp();
+        } else {
+            showAuthModal();
+            document.getElementById('authBtn').onclick = onAuth;
+            document.getElementById('authCode').addEventListener('keypress', (e) => { if(e.key === 'Enter') onAuth(); });
+        }
+    }
+    
+    // 主应用（完整业务代码）
+    function startMainApp() {
+        if(authorized) return;
+        authorized = true;
+        // 以下为原有完整业务逻辑（条码扫描、表格、列管理等）
+        // 注意：所有函数挂载到 window 以便 HTML 调用
+        let db = [], columns = [], scanning = false, reader = null, lastCode = "", lastTime = 0, focusInt = null, jumpIdx = null, curInput = null, track = null;
+        let origHeight = window.innerHeight;
+        let isAndroid = /Android/i.test(navigator.userAgent);
+        
+        function t(msg, err){ let el=document.getElementById('toast'); el.textContent=msg; el.style.background=err?'#dc2626':'#10b981'; el.style.display='block'; setTimeout(()=>el.style.display='none',1500); }
+        function beep(ok){ try{ let ac=new (window.AudioContext||window.webkitAudioContext)(), osc=ac.createOscillator(), gain=ac.createGain(); osc.connect(gain); gain.connect(ac.destination); osc.frequency.value=ok?1200:400; gain.gain.value=0.4; osc.start(); gain.gain.exponentialRampToValueAtTime(0.00001,ac.currentTime+0.2); osc.stop(ac.currentTime+0.2); ac.resume(); }catch(e){} }
+        function vib(){ if(navigator.vibrate) navigator.vibrate(30); }
+        function pre(c){ if(!c)return c; let r=c.replace(/[^\w\d\-]/g,''); if(r.startsWith('*')&&r.endsWith('*')) r=r.slice(1,-1); if(r.length===12&&/^\d+$/.test(r)) r='0'+r; return r; }
+        function exact(code,dbv){ if(!code||!dbv)return false; let cs=String(code).trim(), ds=String(dbv).trim(); if(cs===ds)return true; if(pre(cs)===pre(ds))return true; if(cs.toLowerCase()===ds.toLowerCase())return true; if(/^\d+$/.test(cs)&&/^\d+$/.test(ds)){ let cn=cs.replace(/^0+/,''), dn=ds.replace(/^0+/,''); if(cn===dn&&cn.length>0)return true; } return false; }
+        function findRow(code){ if(!code||!db.length)return -1; let cs=String(code).trim(); for(let i=0;i<db.length;i++){ let row=db[i]; for(let k in row){ let v=String(row[k]||'').trim(); if(exact(cs,v)) return i; } } return -1; }
+        function normPos(){ if(!columns.length)return; let q='实际数量', t='5/EMPTY/3'; let qi=columns.indexOf(q); if(qi===-1)return; columns.splice(qi,1); let ti=columns.indexOf(t); if(ti===-1) columns.unshift(q); else columns.splice(ti+1,0,q); }
+        function save(){ try{ localStorage.setItem("FEI_"+VERSION,JSON.stringify({db,columns})); }catch(e){ t("存储失败",true); } }
+        function load(){ try{ let s=localStorage.getItem("FEI_"+VERSION); if(s){ let d=JSON.parse(s); db=d.db||[]; columns=d.columns||[]; } }catch(e){} if(!columns.length) columns=['实际数量','商品名称','编码','价格']; normPos(); db.forEach(r=>{ if(r['实际数量']===undefined) r['实际数量']=''; }); }
+        function searchable(row){ return Object.keys(row||{}).map(k=>String(row[k]||'').trim()).join(' ').toLowerCase(); }
+        function bestMatch(q){ if(!q||!db.length)return -1; let token=String(q).trim(); if(!token)return -1; let exactIdx=findRow(token); if(exactIdx!==-1)return exactIdx; let norm=pre(token).toLowerCase(); for(let i=0;i<db.length;i++){ let row=db[i]||{}, vals=Object.keys(row).map(k=>String(row[k]||'').trim()); for(let v of vals){ let vv=v.toLowerCase(), pv=pre(v).toLowerCase(); if((norm&&(vv.startsWith(norm)||pv.startsWith(norm)))||vv.startsWith(token.toLowerCase())) return i; } } for(let i=0;i<db.length;i++) if(searchable(db[i]).includes(token.toLowerCase())) return i; return -1; }
+        function jump(idx){ let row=document.getElementById(`row-${idx}`); if(row){ document.querySelectorAll('#mainTable tbody tr').forEach(tr=>tr.classList.remove('row-focus')); row.classList.add('row-focus'); row.scrollIntoView({behavior:'smooth',block:'center'}); let inp=document.getElementById(`qty-${idx}`); if(inp){ curInput=inp; setTimeout(()=>{ inp.focus(); inp.select(); inp.style.transform='scale(1.02)'; inp.style.borderColor='#10b981'; inp.style.backgroundColor='#fef9c3'; let done=e=>{ if(e.type==='blur'||(e.type==='keypress'&&e.key==='Enter')){ document.activeElement?.blur(); document.body.classList.remove('keyboard-open'); inp.removeEventListener('blur',done); inp.removeEventListener('keypress',done); } }; inp.addEventListener('blur',done); inp.addEventListener('keypress',done); setTimeout(()=>{ if(inp){ inp.style.transform=''; inp.style.borderColor=''; inp.style.backgroundColor=''; } },500); },300); } return true; } return false; }
+        function stopAndJump(idx){ jumpIdx=idx; scanning=false; if(focusInt) clearInterval(focusInt); if(reader) try{reader.reset();}catch(e){} reader=null; let v=document.getElementById('video'); if(v&&v.srcObject){ v.srcObject.getTracks().forEach(t=>t.stop()); v.srcObject=null; } document.getElementById('scanUI').style.display='none'; setTimeout(()=>{ jump(idx); jumpIdx=null; },150); }
+        function handle(code, fromCam){ if(!code)return false; let now=Date.now(); let cs=String(code).trim(); if(cs===lastCode&&(now-lastTime)<200)return false; lastCode=cs; lastTime=now; let idx=bestMatch(cs); if(idx===-1){ beep(false); t(`❌ 无此条码: ${cs.substring(0,20)}`,true); setTimeout(()=>{ let m=document.getElementById('manualInput'); if(m){ m.focus(); m.select(); curInput=m; } },100); return false; } if(idx!==-1){ beep(true); vib(); let pn=db[idx]['商品名称']||db[idx]['名称']||cs; t(`✅ ${pn}`,false); let f=document.getElementById('scanFrame'); if(f){ f.classList.add('scan-success'); setTimeout(()=>f.classList.remove('scan-success'),200); } if(fromCam) stopAndJump(idx); else jump(idx); return true; } return false; }
+        function camCtrl(tr){ track=tr; let btn=document.getElementById('torchBtn'); if(btn){ btn.onclick=async()=>{ if(!track||!track.getCapabilities){ t('不支持补光',true); return; } let caps=track.getCapabilities(); if(!caps.torch){ t('无手电筒',true); return; } let on=!btn.classList.contains('active'); try{ await track.applyConstraints({advanced:[{torch:on}]}); btn.classList.toggle('active',on); btn.textContent=on?'🔦 关补光':'🔦 补光'; }catch(e){ t('补光失败',true); } }; } let con=document.querySelector('#scanUI .relative'); if(con){ con.addEventListener('click',async()=>{ if(track&&track.getCapabilities&&track.getCapabilities().focusMode){ try{ await track.applyConstraints({advanced:[{focusMode:'manual',focusDistance:1.0}]}); setTimeout(()=>{ if(track) track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{}); },500); t("🎯 对焦",false); }catch(e){} } }); } }
+        async function startScan(){ if(scanning){ t("扫描已运行",false); return; } document.getElementById('scanUI').style.display='flex'; scanning=true; if(reader) try{await reader.reset();}catch(e){} reader=null; try{ let cons={video:{facingMode:{exact:"environment"},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}}}; let hints=new Map(); hints.set(ZXing.DecodeHintType.TRY_HARDER,true); hints.set(ZXing.DecodeHintType.CHARACTER_SET,"UTF-8"); hints.set(ZXing.DecodeHintType.ALLOWED_LENGTHS,null); hints.set(ZXing.DecodeHintType.RETURN_CODABAR_START_END,true); hints.set(ZXing.DecodeHintType.ALSO_INVERTED,true); hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_93,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.ITF,ZXing.BarcodeFormat.CODABAR,ZXing.BarcodeFormat.QR_CODE]); reader=new ZXing.BrowserMultiFormatReader(hints); reader.timeBetweenDecodingAttempts=20; await reader.decodeFromConstraints(cons,'video',(res,err)=>{ if(res&&scanning){ let code=res.getText(); if(code) handle(code,true); } }); t("极速引擎已启动",false); let v=document.getElementById('video'); setTimeout(()=>{ let t2=v?.srcObject?.getVideoTracks?.()[0]; if(t2){ camCtrl(t2); if(t2.getCapabilities) try{ let caps=t2.getCapabilities(); let adv=[]; if(caps.focusMode?.includes('continuous')) adv.push({focusMode:'continuous'}); if(caps.exposureMode?.includes('continuous')) adv.push({exposureMode:'continuous'}); if(adv.length) t2.applyConstraints({advanced:adv}).catch(()=>{}); }catch(e){} } },300); focusInt=setInterval(()=>{ if(!scanning){clearInterval(focusInt);return;} let v2=document.getElementById('video'); if(v2&&v2.srcObject){ let t3=v2.srcObject.getVideoTracks()[0]; if(t3&&t3.getCapabilities){ let caps=t3.getCapabilities(); if(caps.focusMode?.includes('continuous')) t3.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{}); } } },300); }catch(e){ t("摄像头启动失败",true); window._stopScan(true); } }
+        function stopScan(m){ scanning=false; if(focusInt) clearInterval(focusInt); if(reader) try{reader.reset();}catch(e){} reader=null; let v=document.getElementById('video'); if(v&&v.srcObject){ v.srcObject.getTracks().forEach(t=>t.stop()); v.srcObject=null; } document.getElementById('scanUI').style.display='none'; track=null; }
+        function render(){ let th=document.getElementById('tHead'), tb=document.getElementById('tBody'); if(!columns.length){ tb.innerHTML='<tr><td colspan="10" class="text-center p-6 text-gray-500">暂无数据</td></tr>'; return; } th.innerHTML=`<tr>${columns.map(c=>`<th>${c}</th>`).join('')}</tr>`; tb.innerHTML=db.map((row,idx)=>`<tr id="row-${idx}">${columns.map(col=>`<td>${col==='实际数量'?`<input id="qty-${idx}" type="number" value="${row[col]||''}" class="qty-input" onchange="window._updQty(${idx},this.value)" onfocus="this.select()" placeholder="0" inputmode="numeric">`:`<input type="text" value="${(row[col]||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]||m))}" class="w-full p-2 text-sm outline-none bg-transparent" style="min-width:80px;" onchange="window._updCell(${idx},'${col}',this.value)">`}</td>`).join('')}</tr>`).join(''); setTimeout(()=>{ let t=document.getElementById('mainTable'); if(!t)return; let hs=t.querySelectorAll('thead th'), rs=t.querySelectorAll('tbody tr'); let wds=new Array(columns.length).fill(0); hs.forEach((th,i)=>{if(i<columns.length) wds[i]=Math.max(wds[i],Math.min((th.textContent.length*14+40),200));}); rs.forEach(r=>{ r.querySelectorAll('td').forEach((c,i)=>{ if(i>=columns.length)return; let inp=c.querySelector('input'); let txt=inp?(inp.value||inp.placeholder||''):(c.textContent||''); let w=0; for(let ch of txt){ let cc=ch.charCodeAt(0); if(cc>=0x4e00&&cc<=0x9fff) w+=16; else if(cc>=48&&cc<=57) w+=8; else w+=10; } w=Math.min(250,Math.max(w+30,80)); if(w>wds[i]) wds[i]=w; }); }); hs.forEach((th,i)=>{ if(i<columns.length && wds[i]>0){ th.style.width=wds[i]+'px'; th.style.minWidth=wds[i]+'px'; } }); },50); if(jumpIdx!==null) setTimeout(()=>{ jump(jumpIdx); jumpIdx=null; },100); }
+        function updQty(i,v){ db[i]['实际数量']=v; save(); t("已保存",false); document.activeElement?.blur(); document.body.classList.remove('keyboard-open'); }
+        function updCell(i,c,v){ db[i][c]=v; save(); }
+        function openCol(){ let container=document.getElementById('colList'); container.innerHTML=columns.map((c,idx)=>`<div class="col-item p-3" draggable="true" data-index="${idx}"><div class="flex items-center justify-between"><div class="flex items-center gap-2 flex-1"><span class="drag-handle text-xl cursor-move">☰</span><span class="font-bold text-sm">${idx+1}. ${c}</span></div><div class="flex gap-1"><button onclick="window._moveUp(${idx})" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">⬆️</button><button onclick="window._moveDown(${idx})" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">⬇️</button><button onclick="window._delCol('${c}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs">删</button></div></div></div>`).join(''); document.querySelectorAll('.col-item').forEach(el=>{ el.setAttribute('draggable','true'); el.addEventListener('dragstart',e=>{ e.dataTransfer.setData('text/plain',el.getAttribute('data-index')); el.style.opacity='0.5'; }); el.addEventListener('dragend',e=>{ el.style.opacity=''; }); el.addEventListener('dragover',e=>e.preventDefault()); el.addEventListener('drop',e=>{ e.preventDefault(); let from=parseInt(e.dataTransfer.getData('text/plain')), to=parseInt(el.getAttribute('data-index')); if(!isNaN(from)&&!isNaN(to)){ let tmp=columns[from]; columns[from]=columns[to]; columns[to]=tmp; openCol(); render(); save(); t("列顺序已更新",false); } }); }); document.getElementById('colModal').style.display='flex'; }
+        function closeCol(){ document.getElementById('colModal').style.display='none'; render(); }
+        function addCol(){ let n=document.getElementById('newColName').value.trim(); if(n&&!columns.includes(n)){ columns.push(n); db.forEach(r=>r[n]=''); openCol(); render(); save(); t(`已添加: ${n}`,false); document.getElementById('newColName').value=''; } else if(columns.includes(n)) t("列已存在",true); }
+        function delCol(cn){ if(confirm(`删除列 "${cn}" ？`)){ let i=columns.indexOf(cn); if(i!==-1){ columns.splice(i,1); db.forEach(r=>delete r[cn]); openCol(); render(); save(); t(`已删除: ${cn}`,false); } } }
+        function moveUp(i){ if(i>0){ let t=columns[i]; columns[i]=columns[i-1]; columns[i-1]=t; openCol(); render(); save(); t("顺序已更新",false); } }
+        function moveDown(i){ if(i<columns.length-1){ let t=columns[i]; columns[i]=columns[i+1]; columns[i+1]=t; openCol(); render(); save(); t("顺序已更新",false); } }
+        function exportExcel(){ if(!db.length){ t("无数据",true); return; } let ws=XLSX.utils.json_to_sheet(db,{header:columns}); let wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"盘点数据"); XLSX.writeFile(wb,`飞速盘点_${new Date().toLocaleDateString()}.xlsx`); t("✅ 导出成功",false); }
+        function resetAll(){ if(confirm("清空所有数据？")){ localStorage.removeItem("FEI_"+VERSION); db=[]; columns=['实际数量','商品名称','编码','价格']; normPos(); save(); render(); t("已重置",false); } }
+        function handleFile(e){ let f=e.target.files[0]; if(!f)return; t("导入中...",false); let fr=new FileReader(); fr.onload=function(ev){ try{ let data=new Uint8Array(ev.target.result); let wb=XLSX.read(data,{type:'array'}); let sheet=wb.Sheets[wb.SheetNames[0]]; let json=XLSX.utils.sheet_to_json(sheet,{defval:""}); if(json.length){ columns=Object.keys(json[0]); if(!columns.includes('实际数量')) columns.unshift('实际数量'); normPos(); db=json.map(row=>{ let nr={...row}; if(nr['实际数量']===undefined) nr['实际数量']=''; return nr; }); save(); render(); t(`✅ 导入 ${db.length} 条`,false); } else t("文件无数据",true); }catch(err){ t("解析失败",true); } }; fr.onerror=()=>t("读取失败",true); fr.readAsArrayBuffer(f); e.target.value=''; }
+        
+        window._updQty = updQty; window._updCell = updCell; window._openCol = openCol; window._closeCol = closeCol; window._addCol = addCol; window._moveUp = moveUp; window._moveDown = moveDown; window._delCol = delCol; window._export = exportExcel; window._resetAll = resetAll; window._startScan = startScan; window._stopScan = stopScan; window._handleBarcode = handle;
+        document.getElementById('fileInput').onchange = handleFile;
+        document.getElementById('confirmBtn').onclick = ()=>{ let inp=document.getElementById('manualInput'); if(inp.value.trim()){ handle(inp.value,false); inp.value=''; } document.activeElement?.blur(); };
+        document.getElementById('manualInput').onkeypress = (e)=>{ if(e.key==='Enter'){ let inp=e.target; if(inp.value.trim()){ handle(inp.value,false); inp.value=''; } document.activeElement?.blur(); } };
+        document.getElementById('scanBtn').onclick = ()=>{ if(scanning) stopScan(true); else startScan(); document.activeElement?.blur(); };
+        document.getElementById('showKeyboardBtn').onclick = ()=>{ let m=document.getElementById('manualInput'); if(m){ m.focus(); m.select(); curInput=m; } };
+        window.addEventListener('beforeunload', ()=>{ if(scanning) stopScan(true); });
+        document.addEventListener('touchstart', (e)=>{ if(curInput && !e.target.closest('.qty-input') && !e.target.closest('#manualInput')){ document.activeElement?.blur(); document.body.classList.remove('keyboard-open'); } });
+        
+        load(); render();
+        // 键盘监听
+        if(window.visualViewport){
+            window.visualViewport.addEventListener('resize',()=>{ let kh=origHeight-window.visualViewport.height; if(kh>150) document.body.classList.add('keyboard-open'); else document.body.classList.remove('keyboard-open'); });
+        }
+        window.addEventListener('resize',()=>{ let kh=origHeight-window.innerHeight; if(kh>150) document.body.classList.add('keyboard-open'); else document.body.classList.remove('keyboard-open'); });
+    }
+    
+    const VERSION = "FEI_AUTH_V1";
+    initAuth();
+})();
+</script>
+</body>
+</html>
