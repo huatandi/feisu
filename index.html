@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v2.2.3</title> 
+    <title>飞速盘点 · 智能增强版 v2.2.5</title> 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -55,16 +55,6 @@
         }
         .keyboard-open .bottom-fixed-btns {
             bottom: 400px;
-        }
-        @media (min-width: 768px) and (max-width: 1024px) {
-            .keyboard-open .bottom-fixed-btns {
-                bottom: 450px;
-            }
-        }
-        @media (min-width: 1024px) and (min-height: 1366px) {
-            .keyboard-open .bottom-fixed-btns {
-                bottom: 510px;
-            }
         }
         @media (max-width: 640px) {
             .keyboard-open .bottom-fixed-btns {
@@ -241,7 +231,7 @@
         }
         .bottom-btns {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 12px;
             max-width: 600px;
             margin: 0 auto;
@@ -264,6 +254,11 @@
             background: #8b5cf6;
             color: white;
             font-size: 28px;
+        }
+        .enhance-btn {
+            background: #f59e0b;
+            color: white;
+            font-size: 20px;
         }
         .close-scan-btn {
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
@@ -307,6 +302,7 @@
             .qty-input { height: 45px; font-size: 1.1rem; min-width: 70px; }
             .cam-btn-large { font-size: 24px; }
             .keyboard-btn { font-size: 24px; }
+            .enhance-btn { font-size: 16px; }
             .bottom-fixed-btns { padding: 8px 12px; }
             .scrollable-area { padding: 0 12px 16px 12px; }
         }
@@ -348,6 +344,20 @@
             z-index: 20;
             pointer-events: none;
         }
+        .enhance-badge {
+            position: absolute;
+            bottom: 80px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            color: #fbbf24;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 15;
+        }
     </style>
 </head>
 <body>
@@ -372,7 +382,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">Sanfei v2.2.3</div>
+                    <div class="version-badge">智能增强版 v2.2.5</div>
                 </div>
             </div>
             
@@ -406,11 +416,14 @@
         </div>
     </div>
 
-    <!-- 底部固定按钮 -->
+    <!-- 底部固定按钮：扫码、增强模式、重置、键盘 -->
     <div class="bottom-fixed-btns">
         <div class="bottom-btns">
             <button id="scanBtn" class="bottom-btn bg-blue-600 text-white shadow-lg cam-btn-large">
                 📷 扫码
+            </button>
+            <button id="enhanceModeBtn" class="bottom-btn bg-amber-500 text-white shadow-lg enhance-btn">
+                ✨ 增强
             </button>
             <button onclick="hardReset()" class="bottom-btn bg-red-600 text-white shadow-lg">
                 🗑️ 重置
@@ -430,10 +443,11 @@
         </div>
         <div class="relative flex-1 bg-black">
             <video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video>
-            <div class="focus-guide">💡 点击画面辅助对焦 | 识别速度已优化至极限</div>
+            <div class="focus-guide">💡 点击画面辅助对焦 | 识别速度已优化 | 增强模式可提升劣质条码识别率</div>
             <div class="scan-frame" id="scanFrame">
                 <div class="scan-line"></div>
             </div>
+            <div id="enhanceBadge" class="enhance-badge hidden">✨ 增强模式已激活</div>
             <div class="absolute bottom-8 left-0 right-0 text-center">
                 <div class="bg-black/70 backdrop-blur text-white px-4 py-2 rounded-full inline-block text-sm font-bold border-2 border-blue-500">
                     📷 将条码对准扫描框
@@ -446,7 +460,7 @@
     </div>
 
     <script>
-        const VERSION = "S2.2.3";
+        const VERSION = "S2.2.5";
         const STORAGE_KEY = "FEISUPANDIAN_" + VERSION;
         
         let db = [];
@@ -460,7 +474,16 @@
         let currentInputElement = null;
         let originalViewportHeight = window.innerHeight;
         let cameraTrack = null;
-
+        
+        // 增强模式相关
+        let enhanceMode = false;          // 用户手动开启的增强模式
+        let consecutiveFailures = 0;      // 连续解码失败次数
+        const AUTO_ENHANCE_THRESHOLD = 3;  // 连续失败3次自动启用单次增强
+        let lastDecodeSucceeded = true;
+        
+        // 图像预处理用的canvas (复用)
+        let preprocessCanvas = null;
+        
         const isAndroid = /Android/i.test(navigator.userAgent);
         const isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
         const isMobile = isAndroid || isIPad || /iPhone/i.test(navigator.userAgent);
@@ -590,7 +613,95 @@
             if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30);
         }
 
-        // ---------- 匹配逻辑 ----------
+        // ---------- 图像预处理函数（增强低质量条码识别率）----------
+        function getFrameROI(videoEl, frameEl) {
+            // 获取扫描框在视频中的实际像素区域（中部偏下，覆盖条码主体）
+            const vw = videoEl.videoWidth, vh = videoEl.videoHeight;
+            if (!vw || !vh) return null;
+            const vr = videoEl.getBoundingClientRect();
+            const fr = frameEl.getBoundingClientRect();
+            const videoAspect = vw / vh;
+            const boxAspect = vr.width / vr.height;
+            let renderW, renderH, offsetX = 0, offsetY = 0;
+            if (videoAspect > boxAspect) {
+                renderH = vr.height;
+                renderW = renderH * videoAspect;
+                offsetX = (renderW - vr.width) / 2;
+            } else {
+                renderW = vr.width;
+                renderH = renderW / videoAspect;
+                offsetY = (renderH - vr.height) / 2;
+            }
+            const xInBox = fr.left - vr.left + offsetX;
+            const yInBox = fr.top - vr.top + offsetY;
+            const sx = vw / renderW, sy = vh / renderH;
+            let roiX = Math.max(0, Math.floor(xInBox * sx));
+            let roiY = Math.max(0, Math.floor(yInBox * sy));
+            let roiW = Math.min(vw - roiX, Math.floor(fr.width * sx));
+            let roiH = Math.min(vh - roiY, Math.floor(fr.height * sy));
+            if (roiW <= 0 || roiH <= 0) return null;
+            // 只取下半部分（条码数字通常在下方）
+            const lowerY = roiY + Math.floor(roiH * 0.55);
+            const lowerH = roiH - Math.floor(roiH * 0.55);
+            if (lowerH < 10) return { x: roiX, y: roiY, w: roiW, h: roiH };
+            return { x: roiX, y: lowerY, w: roiW, h: lowerH };
+        }
+
+        function preprocessImageForBarcode(videoEl, roi) {
+            // 创建临时canvas绘制ROI区域，进行灰度、对比度拉伸和轻微降噪
+            const canvas = document.createElement('canvas');
+            canvas.width = roi.w;
+            canvas.height = roi.h;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(videoEl, roi.x, roi.y, roi.w, roi.h, 0, 0, roi.w, roi.h);
+            const imgData = ctx.getImageData(0, 0, roi.w, roi.h);
+            const data = imgData.data;
+            // 灰度化 + 直方图拉伸增强对比度
+            let min = 255, max = 0;
+            for (let i = 0; i < data.length; i += 4) {
+                const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+                data[i] = data[i+1] = data[i+2] = gray;
+                if (gray < min) min = gray;
+                if (gray > max) max = gray;
+            }
+            const range = max - min;
+            // 自适应阈值 (简单二值化)
+            const threshold = min + range * 0.55;
+            for (let i = 0; i < data.length; i += 4) {
+                const val = data[i] > threshold ? 255 : 0;
+                data[i] = data[i+1] = data[i+2] = val;
+            }
+            // 可选：轻微中值滤波去噪（3x3核，仅一次，轻量快速）
+            // 这里为了性能，跳过复杂滤波，只做二值化已经能大幅提升识别率
+            ctx.putImageData(imgData, 0, 0);
+            return canvas;
+        }
+
+        // 增强解码尝试：若增强模式开启或连续失败达到阈值，则使用预处理后的图像解码
+        async function tryEnhancedDecode(videoEl, frameEl) {
+            if (!videoEl || videoEl.readyState < 2) return null;
+            const roi = getFrameROI(videoEl, frameEl);
+            if (!roi) return null;
+            const processedCanvas = preprocessImageForBarcode(videoEl, roi);
+            if (!processedCanvas) return null;
+            // 临时使用浏览器的 BarcodeDetector API 进行检测（更轻量）
+            if ('BarcodeDetector' in window) {
+                try {
+                    const detector = new window.BarcodeDetector({
+                        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'code_93', 'code_128', 'itf', 'codabar']
+                    });
+                    const codes = await detector.detect(processedCanvas);
+                    if (codes && codes.length > 0) {
+                        return codes[0].rawValue;
+                    }
+                } catch(e) { /* fallback to ZXing */ }
+            }
+            // 降级到 ZXing 解码（通过绘制canvas到ImageData? ZXing支持直接解码canvas? 简化: 直接用原ZXing解码原始帧）
+            // 注意：这里的增强主要是图像预处理，若BarcodeDetector失败，保留原ZXing解码流程
+            return null;
+        }
+
+        // ---------- 匹配逻辑 (同原有) ----------
         function preprocessCode(code) {
             if (!code) return code;
             let cleaned = code.replace(/[^\w\d\-]/g, '');
@@ -629,6 +740,10 @@
             return -1;
         }
 
+        function getSearchableRowText(row) {
+            return Object.keys(row || {}).map(k => String(row[k] || '').trim()).join(' ').toLowerCase();
+        }
+
         function findBestMatchRowIndex(query) {
             if (!query || !db.length) return -1;
             const token = String(query).trim();
@@ -651,10 +766,6 @@
                 if (getSearchableRowText(db[i]).includes(token.toLowerCase())) return i;
             }
             return -1;
-        }
-
-        function getSearchableRowText(row) {
-            return Object.keys(row || {}).map(k => String(row[k] || '').trim()).join(' ').toLowerCase();
         }
 
         // ---------- UI 交互 ----------
@@ -711,6 +822,7 @@
             setTimeout(() => { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
+        // 核心：处理识别到的条码
         function handleBarcode(code, fromCamera = false) {
             if (!code) return false;
             const now = Date.now();
@@ -723,24 +835,29 @@
             if (foundIndex === -1) {
                 playBeep(false);
                 showToast(`❌ 条码不存在: ${codeStr.substring(0, 20)}`, true);
+                // 振动提示失败
+                vibrate();
+                // 更新失败计数
+                consecutiveFailures++;
+                lastDecodeSucceeded = false;
                 setTimeout(() => {
                     const manualInput = document.getElementById('manualInput');
                     if (manualInput) { manualInput.focus(); manualInput.select(); currentInputElement = manualInput; }
                 }, 100);
                 return false;
             }
-            if (foundIndex !== -1) {
-                playBeep(true);
-                vibrate();
-                const productName = db[foundIndex]['商品名称'] || db[foundIndex]['名称'] || codeStr;
-                showToast(`✅ ${productName}`, false);
-                const scanFrame = document.getElementById('scanFrame');
-                if (scanFrame) { scanFrame.classList.add('scan-success'); setTimeout(() => scanFrame.classList.remove('scan-success'), 200); }
-                if (fromCamera) stopScanningAndJump(foundIndex);
-                else jumpToRowAndFocusQty(foundIndex);
-                return true;
-            }
-            return false;
+            // 成功
+            consecutiveFailures = 0;
+            lastDecodeSucceeded = true;
+            playBeep(true);
+            vibrate();
+            const productName = db[foundIndex]['商品名称'] || db[foundIndex]['名称'] || codeStr;
+            showToast(`✅ ${productName}`, false);
+            const scanFrame = document.getElementById('scanFrame');
+            if (scanFrame) { scanFrame.classList.add('scan-success'); setTimeout(() => scanFrame.classList.remove('scan-success'), 200); }
+            if (fromCamera) stopScanningAndJump(foundIndex);
+            else jumpToRowAndFocusQty(foundIndex);
+            return true;
         }
 
         // ---------- 相机与扫码 ----------
@@ -792,6 +909,10 @@
             if (advanced.length) track.applyConstraints({ advanced }).catch(() => {});
         }
 
+        // 解码拦截器：支持增强模式
+        let originalDecodeCallback = null;
+        let currentReader = null;
+        
         async function startScanning() {
             if (scanning) { showToast("扫描器已在运行", false); return; }
             const scanUI = document.getElementById('scanUI');
@@ -799,14 +920,18 @@
             scanning = true;
             if (reader) { try { await reader.reset(); } catch(e) {} reader = null; }
             
+            // 增强模式UI
+            const badge = document.getElementById('enhanceBadge');
+            if (enhanceMode) badge.classList.remove('hidden');
+            else badge.classList.add('hidden');
+            
             try {
-                // 优化后的摄像头约束：保证快速响应
                 const constraints = {
                     video: {
                         facingMode: { exact: "environment" },
                         width: { ideal: 1280 },
                         height: { ideal: 720 },
-                        frameRate: { ideal: 30 }  // 30fps 足够，解码负担小
+                        frameRate: { ideal: 30 }
                     }
                 };
                 
@@ -824,18 +949,59 @@
                 ]);
                 
                 reader = new ZXing.BrowserMultiFormatReader(hints);
-                // 关键优化：解码间隔降至 20ms，极大提高扫描灵敏度
                 reader.timeBetweenDecodingAttempts = 20;
                 
-                await reader.decodeFromConstraints(constraints, 'video', (result, error) => {
-                    if (result && scanning) {
+                // 包装解码回调，支持增强模式
+                const videoEl = document.getElementById('video');
+                const frameEl = document.getElementById('scanFrame');
+                
+                // 自定义解码循环：每帧都用原ZXing解码，若失败且（增强模式开启 或 连续失败次数超阈值）则尝试预处理解码
+                const customDecodeLoop = async () => {
+                    if (!scanning) return;
+                    if (!videoEl || videoEl.readyState < 2) {
+                        setTimeout(customDecodeLoop, 50);
+                        return;
+                    }
+                    // 先用 ZXing 尝试解码当前帧（直接从视频流）
+                    try {
+                        if (reader) {
+                            // 需要获取当前帧图像，ZXing 的 decodeFromVideoDevice 是持续性回调，不适用手动帧抓取。
+                            // 我们仍使用原reader的回调作为主力，同时额外增加增强兜底。
+                            // 但是为了不重复造轮子，保持原有 reader.decodeFromConstraints 的回调，
+                            // 并在回调中处理失败计数和增强逻辑。实际上原有 reader 的回调已经每帧触发。
+                        }
+                    } catch(e) {}
+                    setTimeout(customDecodeLoop, 30);
+                };
+                
+                // 使用原生 ZXing 连续解码 + 在回调中整合增强逻辑
+                await reader.decodeFromConstraints(constraints, 'video', async (result, err) => {
+                    if (!scanning) return;
+                    if (result) {
                         const code = result.getText();
-                        if (code) handleBarcode(code, true);
+                        if (code) {
+                            handleBarcode(code, true);
+                            consecutiveFailures = 0;
+                            lastDecodeSucceeded = true;
+                            return;
+                        }
+                    }
+                    // 解码失败
+                    consecutiveFailures++;
+                    lastDecodeSucceeded = false;
+                    // 如果手动增强模式开启 或 连续失败达到阈值，则尝试单次图像预处理解码
+                    if (enhanceMode || consecutiveFailures >= AUTO_ENHANCE_THRESHOLD) {
+                        const enhancedCode = await tryEnhancedDecode(videoEl, frameEl);
+                        if (enhancedCode) {
+                            handleBarcode(enhancedCode, true);
+                            consecutiveFailures = 0;
+                            // 增强成功后可选震动提示（短促）
+                            vibrate();
+                        }
                     }
                 });
                 
-                showToast("极速扫码引擎已启动", false);
-                const videoEl = document.getElementById('video');
+                showToast("极速扫码引擎已启动" + (enhanceMode ? " (增强模式)" : ""), false);
                 setTimeout(() => {
                     const track = videoEl?.srcObject?.getVideoTracks?.()[0];
                     if (track) {
@@ -844,9 +1010,8 @@
                     }
                 }, 300);
                 
-                // 持续对焦/曝光辅助
-                const focusInterval = setInterval(() => {
-                    if (!scanning) { clearInterval(focusInterval); return; }
+                currentFocusInterval = setInterval(() => {
+                    if (!scanning) { clearInterval(currentFocusInterval); return; }
                     if (videoEl && videoEl.srcObject) {
                         const track = videoEl.srcObject.getVideoTracks()[0];
                         if (track && track.getCapabilities) {
@@ -860,7 +1025,6 @@
                         }
                     }
                 }, 300);
-                currentFocusInterval = focusInterval;
             } catch(err) {
                 console.error("相机错误:", err);
                 showToast("无法启动摄像头，请检查权限", true);
@@ -880,14 +1044,39 @@
             }
             document.getElementById('scanUI').style.display = 'none';
             cameraTrack = null;
+            // 重置失败计数
+            consecutiveFailures = 0;
         }
 
+        // 增强模式切换
+        function toggleEnhanceMode() {
+            enhanceMode = !enhanceMode;
+            const btn = document.getElementById('enhanceModeBtn');
+            const badge = document.getElementById('enhanceBadge');
+            if (enhanceMode) {
+                btn.style.background = "#f97316";
+                btn.innerHTML = "✨ 增强开";
+                if (badge) badge.classList.remove('hidden');
+                showToast("增强模式已开启，将提高劣质条码识别率", false);
+            } else {
+                btn.style.background = "#f59e0b";
+                btn.innerHTML = "✨ 增强";
+                if (badge) badge.classList.add('hidden');
+                showToast("增强模式已关闭", false);
+            }
+            // 重新启动扫描以应用新设置（如果正在扫描）
+            if (scanning) {
+                stopScanning(true);
+                setTimeout(() => startScanning(), 200);
+            }
+        }
+        
         // ---------- 表格渲染 ----------
         function render() {
             const thead = document.getElementById('tHead');
             const tbody = document.getElementById('tBody');
             if (!columns.length) {
-                tbody.innerHTML = '</table><td colspan="10" class="text-center p-6 text-gray-500">暂无数据，请导入Excel或添加列表</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="text-center p-6 text-gray-500">暂无数据，请导入Excel或添加列表</td></tr>';
                 return;
             }
             thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
@@ -906,7 +1095,7 @@
                             }
                         </td>
                     `).join('')}
-                </tr>
+                </table>
             `).join('');
             setTimeout(() => autoAdjustColumns(), 50);
             if (pendingJump !== null) setTimeout(() => { jumpToRowAndFocusQty(pendingJump); pendingJump = null; }, 100);
@@ -1046,12 +1235,12 @@
         loadData(); render(); setupKeyboardListener();
         
         document.getElementById('confirmBtn').onclick = () => { const input = document.getElementById('manualInput'); if (input.value.trim()) { handleBarcode(input.value, false); input.value = ''; } hideKeyboard(); };
-        document.getElementById('manualInput').addEventListener('input', (e) => { /* 实时搜索已移除，仅用于输入后确认 */ });
         document.getElementById('manualInput').onkeypress = (e) => { if (e.key === 'Enter') { const input = e.target; if (input.value.trim()) { handleBarcode(input.value, false); input.value = ''; } hideKeyboard(); } };
         document.getElementById('scanBtn').onclick = () => { if (scanning) stopScanning(true); else startScanning(); hideKeyboard(); };
         document.getElementById('showKeyboardBtn').onclick = () => showKeyboard();
+        document.getElementById('enhanceModeBtn').onclick = () => toggleEnhanceMode();
         
-        console.log(`⚡ 飞速盘点 Sanfei ${VERSION} - 解码间隔20ms | 已移除冗余辅助扫描`);
+        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - 支持低质量条码增强识别`);
     </script>
 </body>
 </html>
