@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* 完全保持原有样式，无任何改动 */
         * {
             -webkit-tap-highlight-color: transparent;
             box-sizing: border-box;
@@ -231,7 +232,7 @@
         }
         .bottom-btns {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);  /* 修改：移除增强按钮后从4列变为3列 */
+            grid-template-columns: repeat(3, 1fr);
             gap: 12px;
             max-width: 600px;
             margin: 0 auto;
@@ -282,11 +283,11 @@
             align-items: center;
         }
         .scan-enhance-btn {
-            background: #10b981;  /* 绿色背景 */
+            background: #10b981;
             color: white;
             border: none;
-            border-radius: 50px;   /* 与关闭扫描按钮相同圆角 */
-            padding: 12px 24px;    /* 与关闭扫描按钮相同内边距 */
+            border-radius: 50px;
+            padding: 12px 24px;
             font-size: 18px;
             font-weight: 900;
             cursor: pointer;
@@ -582,19 +583,19 @@
             }
         }
 
+        // ========== 修改点1: 强制“实际数量”列移到第5列（索引4） ==========
         function normalizeActualQtyColumnPosition() {
             if (!Array.isArray(columns) || !columns.length) return;
             const qtyCol = '实际数量';
-            const targetCol = '5/EMPTY/3';
-            const qtyIndex = columns.indexOf(qtyCol);
-            if (qtyIndex === -1) return;
-            columns.splice(qtyIndex, 1);
-            const targetIndex = columns.indexOf(targetCol);
-            if (targetIndex === -1) {
-                columns.unshift(qtyCol);
-                return;
-            }
-            columns.splice(targetIndex + 1, 0, qtyCol);
+            const targetIndex = 4;  // 第五列（0索引）
+            const currentIndex = columns.indexOf(qtyCol);
+            if (currentIndex === -1) return;
+            if (currentIndex === targetIndex) return;
+            // 移除当前列
+            columns.splice(currentIndex, 1);
+            // 计算安全的插入位置（不超过数组长度）
+            const insertAt = Math.min(targetIndex, columns.length);
+            columns.splice(insertAt, 0, qtyCol);
         }
 
         function saveData() {
@@ -611,7 +612,6 @@
             setTimeout(() => toast.style.display = 'none', 1500);
         }
 
-        // 音量提高50%：gain 从 0.4 改为 0.6
         function playBeep(success) {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -620,7 +620,7 @@
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
                 oscillator.frequency.value = success ? 1200 : 400;
-                gainNode.gain.value = 0.6;  // 提高50%音量
+                gainNode.gain.value = 0.6;
                 oscillator.start();
                 gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2);
                 oscillator.stop(audioCtx.currentTime + 0.2);
@@ -634,7 +634,6 @@
 
         // ---------- 图像预处理函数（增强低质量条码识别率）----------
         function getFrameROI(videoEl, frameEl) {
-            // 获取扫描框在视频中的实际像素区域（中部偏下，覆盖条码主体）
             const vw = videoEl.videoWidth, vh = videoEl.videoHeight;
             if (!vw || !vh) return null;
             const vr = videoEl.getBoundingClientRect();
@@ -659,7 +658,6 @@
             let roiW = Math.min(vw - roiX, Math.floor(fr.width * sx));
             let roiH = Math.min(vh - roiY, Math.floor(fr.height * sy));
             if (roiW <= 0 || roiH <= 0) return null;
-            // 只取下半部分（条码数字通常在下方）
             const lowerY = roiY + Math.floor(roiH * 0.55);
             const lowerH = roiH - Math.floor(roiH * 0.55);
             if (lowerH < 10) return { x: roiX, y: roiY, w: roiW, h: roiH };
@@ -667,7 +665,6 @@
         }
 
         function preprocessImageForBarcode(videoEl, roi) {
-            // 创建临时canvas绘制ROI区域，进行灰度、对比度拉伸和轻微降噪
             const canvas = document.createElement('canvas');
             canvas.width = roi.w;
             canvas.height = roi.h;
@@ -675,7 +672,6 @@
             ctx.drawImage(videoEl, roi.x, roi.y, roi.w, roi.h, 0, 0, roi.w, roi.h);
             const imgData = ctx.getImageData(0, 0, roi.w, roi.h);
             const data = imgData.data;
-            // 灰度化 + 直方图拉伸增强对比度
             let min = 255, max = 0;
             for (let i = 0; i < data.length; i += 4) {
                 const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
@@ -684,43 +680,34 @@
                 if (gray > max) max = gray;
             }
             const range = max - min;
-            // 自适应阈值 (简单二值化)
             const threshold = min + range * 0.55;
             for (let i = 0; i < data.length; i += 4) {
                 const val = data[i] > threshold ? 255 : 0;
                 data[i] = data[i+1] = data[i+2] = val;
             }
-            // 可选：轻微中值滤波去噪（3x3核，仅一次，轻量快速）
-            // 这里为了性能，跳过复杂滤波，只做二值化已经能大幅提升识别率
             ctx.putImageData(imgData, 0, 0);
             return canvas;
         }
 
-        // 增强解码尝试：若增强模式开启或连续失败达到阈值，则使用预处理后的图像解码
         async function tryEnhancedDecode(videoEl, frameEl) {
             if (!videoEl || videoEl.readyState < 2) return null;
             const roi = getFrameROI(videoEl, frameEl);
             if (!roi) return null;
             const processedCanvas = preprocessImageForBarcode(videoEl, roi);
             if (!processedCanvas) return null;
-            // 临时使用浏览器的 BarcodeDetector API 进行检测（更轻量）
             if ('BarcodeDetector' in window) {
                 try {
                     const detector = new window.BarcodeDetector({
                         formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'code_93', 'code_128', 'itf', 'codabar']
                     });
                     const codes = await detector.detect(processedCanvas);
-                    if (codes && codes.length > 0) {
-                        return codes[0].rawValue;
-                    }
-                } catch(e) { /* fallback to ZXing */ }
+                    if (codes && codes.length > 0) return codes[0].rawValue;
+                } catch(e) { }
             }
-            // 降级到 ZXing 解码（通过绘制canvas到ImageData? ZXing支持直接解码canvas? 简化: 直接用原ZXing解码原始帧）
-            // 注意：这里的增强主要是图像预处理，若BarcodeDetector失败，保留原ZXing解码流程
             return null;
         }
 
-        // ---------- 匹配逻辑 (同原有) ----------
+        // ---------- 匹配逻辑 ----------
         function preprocessCode(code) {
             if (!code) return code;
             let cleaned = code.replace(/[^\w\d\-]/g, '');
@@ -776,9 +763,7 @@
                 for (const val of values) {
                     const v = val.toLowerCase();
                     const pv = preprocessCode(val).toLowerCase();
-                    if ((normalized && (v.startsWith(normalized) || pv.startsWith(normalized))) || v.startsWith(token.toLowerCase())) {
-                        return i;
-                    }
+                    if ((normalized && (v.startsWith(normalized) || pv.startsWith(normalized))) || v.startsWith(token.toLowerCase())) return i;
                 }
             }
             for (let i = 0; i < db.length; i++) {
@@ -787,7 +772,6 @@
             return -1;
         }
 
-        // ---------- UI 交互 ----------
         function jumpToRowAndFocusQty(foundIndex) {
             const rowEl = document.getElementById(`row-${foundIndex}`);
             if (rowEl) {
@@ -841,7 +825,6 @@
             setTimeout(() => { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
-        // 核心：处理识别到的条码
         function handleBarcode(code, fromCamera = false) {
             if (!code) return false;
             const now = Date.now();
@@ -849,14 +832,11 @@
             if (codeStr === lastCode && (now - lastTime) < 200) return false;
             lastCode = codeStr;
             lastTime = now;
-            
             const foundIndex = findBestMatchRowIndex(codeStr);
             if (foundIndex === -1) {
                 playBeep(false);
                 showToast(`❌ 条码不存在: ${codeStr.substring(0, 20)}`, true);
-                // 振动提示失败
                 vibrate();
-                // 更新失败计数
                 consecutiveFailures++;
                 lastDecodeSucceeded = false;
                 setTimeout(() => {
@@ -865,7 +845,6 @@
                 }, 100);
                 return false;
             }
-            // 成功
             consecutiveFailures = 0;
             lastDecodeSucceeded = true;
             playBeep(true);
@@ -879,7 +858,31 @@
             return true;
         }
 
-        // ---------- 相机与扫码 ----------
+        // ---------- 相机控制（包括 iPad Pro 对焦优化）----------
+        async function applyFastNearFocus(track) {
+            if (!track || !track.getCapabilities) return;
+            try {
+                const caps = track.getCapabilities();
+                // 支持手动对焦？
+                if (caps.focusMode && caps.focusMode.includes('manual')) {
+                    await track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: 0.12 }] });
+                    // 稍后恢复连续对焦，但保留近距倾向
+                    setTimeout(() => {
+                        if (track && scanning && track.getCapabilities().focusMode?.includes('continuous')) {
+                            track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                        }
+                    }, 300);
+                }
+                // 如果支持曝光补偿，稍微压暗一点提高条码对比度
+                if (caps.exposureCompensation) {
+                    const min = caps.exposureCompensation.min || -1;
+                    const max = caps.exposureCompensation.max || 1;
+                    const val = Math.max(min, Math.min(max, -0.3));
+                    await track.applyConstraints({ advanced: [{ exposureCompensation: val }] });
+                }
+            } catch(e) {}
+        }
+
         function setupCameraControls(track) {
             cameraTrack = track || null;
             const torchBtn = document.getElementById('torchBtn');
@@ -902,11 +905,13 @@
                 videoContainer.addEventListener('click', async () => {
                     if (cameraTrack && cameraTrack.getCapabilities && cameraTrack.getCapabilities().focusMode) {
                         try {
-                            await cameraTrack.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: 1.0 }] });
+                            await cameraTrack.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: 0.12 }] });
                             setTimeout(() => {
-                                if (cameraTrack) cameraTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                                if (cameraTrack && cameraTrack.getCapabilities?.focusMode?.includes('continuous')) {
+                                    cameraTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                                }
                             }, 500);
-                            showToast("🎯 已触发对焦", false);
+                            showToast("🎯 已触发近距对焦", false);
                         } catch(e) {}
                     }
                 });
@@ -921,9 +926,9 @@
             if (caps.exposureMode && caps.exposureMode.includes('continuous')) advanced.push({ exposureMode: 'continuous' });
             if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('continuous')) advanced.push({ whiteBalanceMode: 'continuous' });
             if (caps.exposureCompensation) {
-                const minExp = typeof caps.exposureCompensation.min === 'number' ? caps.exposureCompensation.min : -1;
-                const maxExp = typeof caps.exposureCompensation.max === 'number' ? caps.exposureCompensation.max : 1;
-                advanced.push({ exposureCompensation: Math.max(minExp, Math.min(maxExp, 0.2)) });
+                const minExp = caps.exposureCompensation.min === undefined ? -1 : caps.exposureCompensation.min;
+                const maxExp = caps.exposureCompensation.max === undefined ? 1 : caps.exposureCompensation.max;
+                advanced.push({ exposureCompensation: Math.max(minExp, Math.min(maxExp, -0.2)) });
             }
             if (advanced.length) track.applyConstraints({ advanced }).catch(() => {});
         }
@@ -935,16 +940,8 @@
         async function startScanning() {
             if (scanning) { showToast("扫描器已在运行", false); return; }
             
-            // ---------- iPad 摄像头框上移10% (从25%到15%) ----------
-            const isIPadDevice = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
-            const scanFrame = document.getElementById('scanFrame');
-            if (scanFrame) {
-                if (isIPadDevice) {
-                    scanFrame.style.top = '15%';   // 上移10个百分点
-                } else {
-                    scanFrame.style.top = '25%';   // 保持默认
-                }
-            }
+            // iPad Pro 检测（用于对焦优化）
+            const isIPadPro = /iPad|Macintosh/.test(navigator.userAgent) && (screen.width >= 1024 || window.matchMedia("(min-width:1024px)").matches);
             
             const scanUI = document.getElementById('scanUI');
             scanUI.style.display = 'flex';
@@ -982,11 +979,58 @@
                 reader = new ZXing.BrowserMultiFormatReader(hints);
                 reader.timeBetweenDecodingAttempts = 20;
                 
-                // 包装解码回调，支持增强模式
                 const videoEl = document.getElementById('video');
                 const frameEl = document.getElementById('scanFrame');
                 
-                // 使用原生 ZXing 连续解码 + 在回调中整合增强逻辑
+                // 等待视频流准备好
+                await new Promise((resolve) => {
+                    if (videoEl.readyState >= 2) resolve();
+                    else videoEl.addEventListener('loadeddata', resolve, { once: true });
+                });
+                
+                // 获取视频轨道并进行 iPad Pro 近距对焦优化
+                const track = videoEl.srcObject?.getVideoTracks?.()[0];
+                if (track && isIPadPro) {
+                    // 主动触发一次近距对焦，确保近距离条码清晰
+                    await applyFastNearFocus(track);
+                    // 缩短对焦维持间隔（原来300ms -> 100ms），提升跟焦速度
+                    if (currentFocusInterval) clearInterval(currentFocusInterval);
+                    currentFocusInterval = setInterval(() => {
+                        if (scanning && track && track.getCapabilities) {
+                            const caps = track.getCapabilities();
+                            if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                                track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                            }
+                            // 持续压低曝光对比度
+                            if (caps.exposureCompensation) {
+                                const min = caps.exposureCompensation.min || -1;
+                                const max = caps.exposureCompensation.max || 1;
+                                const val = Math.max(min, Math.min(max, -0.2));
+                                track.applyConstraints({ advanced: [{ exposureCompensation: val }] }).catch(() => {});
+                            }
+                        }
+                    }, 100);  // 从300ms缩短到100ms
+                } else {
+                    // 非 iPad Pro 保持原有间隔
+                    if (currentFocusInterval) clearInterval(currentFocusInterval);
+                    currentFocusInterval = setInterval(() => {
+                        if (!scanning) { clearInterval(currentFocusInterval); return; }
+                        if (videoEl && videoEl.srcObject) {
+                            const track = videoEl.srcObject.getVideoTracks()[0];
+                            if (track && track.getCapabilities) {
+                                const caps = track.getCapabilities();
+                                if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                                    track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                                }
+                                if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
+                                    track.applyConstraints({ advanced: [{ exposureMode: 'continuous' }] }).catch(() => {});
+                                }
+                            }
+                        }
+                    }, 300);
+                }
+                
+                // 使用原生 ZXing 连续解码
                 await reader.decodeFromConstraints(constraints, 'video', async (result, err) => {
                     if (!scanning) return;
                     if (result) {
@@ -998,16 +1042,13 @@
                             return;
                         }
                     }
-                    // 解码失败
                     consecutiveFailures++;
                     lastDecodeSucceeded = false;
-                    // 如果手动增强模式开启 或 连续失败达到阈值，则尝试单次图像预处理解码
                     if (enhanceMode || consecutiveFailures >= AUTO_ENHANCE_THRESHOLD) {
                         const enhancedCode = await tryEnhancedDecode(videoEl, frameEl);
                         if (enhancedCode) {
                             handleBarcode(enhancedCode, true);
                             consecutiveFailures = 0;
-                            // 增强成功后可选震动提示（短促）
                             vibrate();
                         }
                     }
@@ -1018,25 +1059,10 @@
                     const track = videoEl?.srcObject?.getVideoTracks?.()[0];
                     if (track) {
                         setupCameraControls(track);
-                        applyCameraTuning(track);
+                        if (!isIPadPro) applyCameraTuning(track);
                     }
                 }, 300);
                 
-                currentFocusInterval = setInterval(() => {
-                    if (!scanning) { clearInterval(currentFocusInterval); return; }
-                    if (videoEl && videoEl.srcObject) {
-                        const track = videoEl.srcObject.getVideoTracks()[0];
-                        if (track && track.getCapabilities) {
-                            const caps = track.getCapabilities();
-                            if (caps.focusMode && caps.focusMode.includes('continuous')) {
-                                track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
-                            }
-                            if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
-                                track.applyConstraints({ advanced: [{ exposureMode: 'continuous' }] }).catch(() => {});
-                            }
-                        }
-                    }
-                }, 300);
             } catch(err) {
                 console.error("相机错误:", err);
                 showToast("无法启动摄像头，请检查权限", true);
@@ -1056,11 +1082,9 @@
             }
             document.getElementById('scanUI').style.display = 'none';
             cameraTrack = null;
-            // 重置失败计数
             consecutiveFailures = 0;
         }
 
-        // 增强模式切换（同时更新底部和顶部按钮状态）
         function toggleEnhanceMode() {
             enhanceMode = !enhanceMode;
             const topBtn = document.getElementById('scanEnhanceBtn');
@@ -1076,7 +1100,6 @@
                 if (badge) badge.classList.add('hidden');
                 showToast("增强模式已关闭", false);
             }
-            // 重新启动扫描以应用新设置（如果正在扫描）
             if (scanning) {
                 stopScanning(true);
                 setTimeout(() => startScanning(), 200);
@@ -1107,7 +1130,7 @@
                             }
                         </td>
                     `).join('')}
-                </tr>
+                </table>
             `).join('');
             setTimeout(() => autoAdjustColumns(), 50);
             if (pendingJump !== null) setTimeout(() => { jumpToRowAndFocusQty(pendingJump); pendingJump = null; }, 100);
@@ -1251,11 +1274,10 @@
         document.getElementById('scanBtn').onclick = () => { if (scanning) stopScanning(true); else startScanning(); hideKeyboard(); };
         document.getElementById('showKeyboardBtn').onclick = () => showKeyboard();
         
-        // 绑定顶部增强按钮
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
         
-        console.log(`⚡ 飞速盘点 Sanfei ${VERSION} - 音量提升50% | 增强开关移至左上角 | iPad扫描框上移10%`);
+        console.log(`⚡ 飞速盘点 Sanfei ${VERSION} - 实际数量列默认第5列 | iPad Pro近距对焦优化完成`);
     </script>
 </body>
 </html>
