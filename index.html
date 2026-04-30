@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v2.2.5</title> 
+    <title>飞速盘点 · Sanfei v2.2.6</title> 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -400,7 +400,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">智能增强版 v2.2.5</div>
+                    <div class="version-badge">智能增强版 v2.2.6</div>
                 </div>
             </div>
             
@@ -585,16 +585,11 @@
         function normalizeActualQtyColumnPosition() {
             if (!Array.isArray(columns) || !columns.length) return;
             const qtyCol = '实际数量';
-            const targetCol = '5/EMPTY/3';
             const qtyIndex = columns.indexOf(qtyCol);
             if (qtyIndex === -1) return;
             columns.splice(qtyIndex, 1);
-            const targetIndex = columns.indexOf(targetCol);
-            if (targetIndex === -1) {
-                columns.unshift(qtyCol);
-                return;
-            }
-            columns.splice(targetIndex + 1, 0, qtyCol);
+            const targetIndex = 4;
+            columns.splice(Math.min(targetIndex, columns.length), 0, qtyCol);
         }
 
         function saveData() {
@@ -902,11 +897,15 @@
                 videoContainer.addEventListener('click', async () => {
                     if (cameraTrack && cameraTrack.getCapabilities && cameraTrack.getCapabilities().focusMode) {
                         try {
-                            await cameraTrack.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: 1.0 }] });
+                            const probe = [0.05, 0.08, 0.12, 0.18, 0.25, 0.35];
+                            for (const d of probe) {
+                                await cameraTrack.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: d }] });
+                                await new Promise(r => setTimeout(r, 60));
+                            }
                             setTimeout(() => {
                                 if (cameraTrack) cameraTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
-                            }, 500);
-                            showToast("🎯 已触发对焦", false);
+                            }, 600);
+                            showToast("🎯 近距扫描完成", false);
                         } catch(e) {}
                     }
                 });
@@ -1028,15 +1027,21 @@
                         const track = videoEl.srcObject.getVideoTracks()[0];
                         if (track && track.getCapabilities) {
                             const caps = track.getCapabilities();
-                            if (caps.focusMode && caps.focusMode.includes('continuous')) {
-                                track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
-                            }
-                            if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
-                                track.applyConstraints({ advanced: [{ exposureMode: 'continuous' }] }).catch(() => {});
+                            const step = Math.floor(Date.now() / 200) % 10;
+                            if (step < 4 && caps.focusMode && caps.focusMode.includes('manual')) {
+                                const dist = [0.05, 0.08, 0.12, 0.18][step];
+                                track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: dist }] }).catch(() => {});
+                            } else {
+                                if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                                    track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                                }
+                                if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
+                                    track.applyConstraints({ advanced: [{ exposureMode: 'continuous' }] }).catch(() => {});
+                                }
                             }
                         }
                     }
-                }, 300);
+                }, 200);
             } catch(err) {
                 console.error("相机错误:", err);
                 showToast("无法启动摄像头，请检查权限", true);
@@ -1236,7 +1241,17 @@
             e.target.value = '';
         };
 
-        function exportExcel() { if (!db.length) { showToast("暂无数据可导出", true); return; } const ws = XLSX.utils.json_to_sheet(db, { header: columns }); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "库存数据"); XLSX.writeFile(wb, `飞速盘点_${new Date().toLocaleDateString()}.xlsx`); showToast("✅ 导出成功", false); }
+        function exportExcel() {
+            if (!db.length) { showToast("暂无数据可导出", true); return; }
+            const defaultName = `飞速盘点_${new Date().toLocaleDateString()}`;
+            let name = prompt("请输入导出文件名：", defaultName);
+            if (!name || !name.trim()) name = defaultName;
+            const ws = XLSX.utils.json_to_sheet(db, { header: columns });
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "库存数据");
+            XLSX.writeFile(wb, name.trim() + ".xlsx");
+            showToast("✅ 导出成功", false);
+        }
         function hardReset() { if (confirm("⚠️ 确定清空所有数据吗？此操作不可恢复！")) { localStorage.removeItem(STORAGE_KEY); db = []; columns = ['实际数量', '商品名称', '编码', '价格']; normalizeActualQtyColumnPosition(); saveData(); render(); showToast("已清空所有数据", false); } }
 
         // ---------- 初始化事件 ----------
