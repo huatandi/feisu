@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.1</title> 
+    <title>飞速盘点 · Sanfei v2.0</title> 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -377,6 +377,70 @@
             pointer-events: none;
             z-index: 15;
         }
+        /* 授权弹窗 */
+        .auth-overlay {
+            position: fixed; inset: 0; z-index: 99999;
+            background: rgba(0,0,0,0.88);
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(12px);
+        }
+        .auth-box {
+            background: #fff; border-radius: 28px;
+            width: min(92%, 400px); padding: 32px 24px 24px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .auth-box h2 { font-size: 22px; font-weight: 900; margin: 0 0 6px; }
+        .auth-box p { font-size: 13px; color: #64748b; margin: 0 0 20px; }
+        .auth-input {
+            width: 100%; padding: 14px; font-size: 22px; font-weight: 900;
+            text-align: center; letter-spacing: 4px;
+            border: 3px solid #3b82f6; border-radius: 14px;
+            outline: none; background: #f0f9ff;
+        }
+        .auth-btn {
+            width: 100%; padding: 14px; margin-top: 14px;
+            background: #3b82f6; color: #fff; border: none; border-radius: 14px;
+            font-size: 18px; font-weight: 900; cursor: pointer;
+        }
+        .auth-btn:active { transform: scale(0.97); }
+        .auth-error { color: #dc2626; font-size: 13px; font-weight: bold; margin-top: 10px; display: none; }
+        /* 管理员面板 */
+        .admin-overlay {
+            position: fixed; inset: 0; z-index: 99998;
+            background: rgba(0,0,0,0.85);
+            display: none; align-items: flex-start; justify-content: center;
+            padding-top: 30px; overflow: auto;
+            backdrop-filter: blur(8px);
+        }
+        .admin-box {
+            background: #fff; border-radius: 24px;
+            width: min(94%, 480px); padding: 20px;
+            margin-bottom: 30px;
+        }
+        .admin-box h2 { font-size: 18px; font-weight: 900; margin: 0 0 12px; text-align: center; }
+        .admin-close {
+            float: right; background: #ef4444; color: #fff;
+            border: none; border-radius: 50%; width: 32px; height: 32px;
+            font-weight: 900; font-size: 16px; cursor: pointer;
+        }
+        .admin-code-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 12px; border-bottom: 1px solid #e2e8f0;
+            font-size: 14px; font-weight: bold;
+        }
+        .admin-code-item.used { color: #94a3b8; text-decoration: line-through; }
+        .admin-code-item .status-badge {
+            font-size: 11px; padding: 2px 8px; border-radius: 999px;
+            background: #10b981; color: #fff;
+        }
+        .admin-code-item.used .status-badge { background: #94a3b8; }
+        .admin-gen-btn {
+            display: block; width: 100%; margin-top: 12px;
+            padding: 12px; background: #8b5cf6; color: #fff;
+            border: none; border-radius: 12px; font-weight: 900; font-size: 15px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -386,12 +450,43 @@
         <div class="modal-content p-5">
             <h2 class="text-xl font-bold mb-3 text-center">📋 列管理</h2>
             <p class="text-xs text-gray-500 text-center mb-3">💡 拖动排序 | 点击按钮删除</p>
-            <div id="colList" class="space-y-2 mb-4 max-h-96 overflow-auto"></div>
+            <div id="colList" class="space-y-2 mb-4 max-h-[580px] overflow-auto"></div>
             <div class="flex gap-2 p-2 bg-gray-100 rounded-lg">
                 <input type="text" id="newColName" placeholder="新列名..." class="flex-1 bg-white rounded-lg px-3 py-2 font-bold text-sm outline-none" />
                 <button onclick="addColumn()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm">添加</button>
             </div>
             <button onclick="closeColModal()" class="w-full mt-4 bg-gray-900 text-white py-3 rounded-xl font-bold text-base">完成</button>
+        </div>
+    </div>
+
+    <!-- 授权弹窗（纯HTML+行内样式，完全不依赖JS） -->
+    <style>
+        #authOverlay{z-index:999999!important;position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;background:rgba(0,0,0,0.88)!important;backdrop-filter:blur(12px)!important;display:flex!important;align-items:center!important;justify-content:center!important;}
+        .auth-box{background:#fff!important;border-radius:28px!important;width:min(92%,400px)!important;padding:32px 24px 24px!important;text-align:center!important;box-shadow:0 20px 60px rgba(0,0,0,0.5)!important;}
+        .auth-box h2{font-size:22px!important;font-weight:900!important;margin:0 0 6px!important;}
+        .auth-box p{font-size:13px!important;color:#64748b!important;margin:0 0 20px!important;}
+        .auth-box input{width:100%!important;padding:14px!important;font-size:22px!important;font-weight:900!important;text-align:center!important;letter-spacing:4px!important;border:3px solid #3b82f6!important;border-radius:14px!important;outline:none!important;background:#f0f9ff!important;color:#000!important;}
+        .auth-box button{width:100%!important;padding:14px!important;margin-top:14px!important;background:#3b82f6!important;color:#fff!important;border:none!important;border-radius:14px!important;font-size:18px!important;font-weight:900!important;cursor:pointer!important;}
+        .auth-error{color:#dc2626!important;font-size:13px!important;font-weight:bold!important;margin-top:10px!important;display:none!important;}
+    </style>
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-box">
+            <h2>🔐 飞速盘点</h2>
+            <p>请输入授权码激活本系统</p>
+            <input type="text" id="authInput" class="auth-input" maxlength="12" placeholder="输入授权码" style="text-transform:uppercase;color:#000!important;" />
+            <button onclick="verifyAuthCode()" class="auth-btn">激活</button>
+            <div id="authError" class="auth-error">❌ 授权码无效或已被使用</div>
+        </div>
+    </div>
+    <script>try{document.getElementById('authOverlay').style.display='flex'}catch(e){}</script>
+
+    <!-- 管理员授权面板 -->
+    <div id="adminPanel" class="admin-overlay">
+        <div class="admin-box">
+            <button onclick="closeAdminPanel()" class="admin-close">✕</button>
+            <h2>📋 授权码管理</h2>
+            <div id="adminCodeList" style="max-height:55vh;overflow:auto;"></div>
+            <button onclick="generateNewCodes()" class="admin-gen-btn">➕ 追加 10 个新授权码</button>
         </div>
     </div>
 
@@ -401,7 +496,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.1</div>
+                    <div class="version-badge">sanfei v2.0</div>
                 </div>
             </div>
             
@@ -502,6 +597,12 @@
         
         // 图像预处理用的canvas (复用)
         let preprocessCanvas = null;
+        
+        // 授权系统
+        const AUTH_STORAGE_KEY = "FEISUPANDIAN_AUTH_V2";
+        let authCodes = [];
+        let isActivated = false;
+        let adminMode = false;
         
         const isAndroid = /Android/i.test(navigator.userAgent);
         const isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
@@ -1089,6 +1190,191 @@
             }
         }
         
+        // ========== 授权系统 ==========
+        function initAuthSystem() {
+            // 生成200个唯一授权码：W-E-N-X-I 5个字母固定顺序，3个数字任意穿插
+            const defaultCodes = [];
+            const seed = [0,1,2,3,4,5,6,7,8,9];
+            let generated = new Set();
+            while (defaultCodes.length < 200) {
+                // 选3个位置放数字（0-7中选3个）
+                const positions = [];
+                const avail = [0,1,2,3,4,5,6,7];
+                for (let p = 0; p < 3; p++) {
+                    const idx = Math.floor(Math.random() * avail.length);
+                    positions.push(avail[idx]);
+                    avail.splice(idx, 1);
+                }
+                positions.sort((a,b) => a - b);
+                // 选3个数字
+                const digits = [];
+                for (let d = 0; d < 3; d++) {
+                    digits.push(Math.floor(Math.random() * 10));
+                }
+                // 构建code
+                const letters = ['W','E','N','X','I'];
+                let codeChars = [];
+                let li = 0, di = 0;
+                for (let pos = 0; pos < 8; pos++) {
+                    if (positions.includes(pos)) {
+                        codeChars.push(String(digits[di++]));
+                    } else {
+                        codeChars.push(letters[li++]);
+                    }
+                }
+                const code = codeChars.join('');
+                if (!generated.has(code)) {
+                    generated.add(code);
+                    defaultCodes.push({ code, used: false, deviceId: '' });
+                }
+            }
+            try {
+                const saved = localStorage.getItem(AUTH_STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    authCodes = data.codes || [];
+                    isActivated = data.activated || false;
+                    if (!authCodes.length) authCodes = defaultCodes;
+                } else {
+                    authCodes = defaultCodes;
+                    saveAuthState();
+                }
+            } catch(e) {
+                authCodes = defaultCodes;
+                saveAuthState();
+            }
+        }
+
+        function saveAuthState() {
+            try {
+                localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
+                    codes: authCodes,
+                    activated: isActivated
+                }));
+            } catch(e) {}
+        }
+
+        function getDeviceId() {
+            let id = localStorage.getItem('_device_id');
+            if (!id) {
+                id = 'DEV_' + Math.random().toString(36).substring(2, 10).toUpperCase();
+                localStorage.setItem('_device_id', id);
+            }
+            return id;
+        }
+
+        function verifyAuthCode() {
+            const input = document.getElementById('authInput');
+            const error = document.getElementById('authError');
+            const code = (input.value || '').trim().toUpperCase();
+            if (!code) { error.style.display = 'block'; error.textContent = '❌ 请输入授权码'; return; }
+
+            // 管理员入口
+            if (code === 'ADMIN0578') {
+                adminMode = true;
+                isActivated = true;
+                saveAuthState();
+                document.getElementById('authOverlay').style.display = 'none';
+                showToast("✅ 管理员模式已激活", false);
+                return;
+            }
+
+            const matched = authCodes.find(a => a.code === code);
+            if (!matched) {
+                error.style.display = 'block';
+                error.textContent = '❌ 授权码不存在';
+                return;
+            }
+
+            if (matched.used && matched.deviceId !== getDeviceId()) {
+                error.style.display = 'block';
+                error.textContent = '❌ 该授权码已被其他设备使用';
+                return;
+            }
+
+            // 绑定设备
+            matched.used = true;
+            matched.deviceId = getDeviceId();
+            isActivated = true;
+            saveAuthState();
+
+            document.getElementById('authOverlay').style.display = 'none';
+            showToast("✅ 授权成功！欢迎使用飞速盘点", false);
+            playBeep(true);
+        }
+
+        function openAdminPanel() {
+            if (!adminMode) {
+                showToast("⚠️ 你不是管理员", true);
+                return;
+            }
+            renderAdminCodeList();
+            document.getElementById('adminPanel').style.display = 'flex';
+        }
+
+        function closeAdminPanel() {
+            document.getElementById('adminPanel').style.display = 'none';
+        }
+
+        function renderAdminCodeList() {
+            const container = document.getElementById('adminCodeList');
+            if (!container) return;
+            const total = authCodes.length;
+            const usedCount = authCodes.filter(a => a.used).length;
+            const unused = authCodes.filter(a => !a.used);
+            container.innerHTML = `
+                <div style="text-align:center;font-size:14px;color:#334155;margin-bottom:12px;font-weight:bold;">已用 ${usedCount} / 总计 ${total}</div>
+                ${unused.length ? unused.map(a => `
+                    <div class="admin-code-item">
+                        <span style="font-size:16px;letter-spacing:2px;">${a.code}</span>
+                        <span class="status-badge">未使用</span>
+                    </div>
+                `).join('') : '<div style="text-align:center;color:#94a3b8;padding:20px;font-size:14px;">⚠️ 所有授权码已用完，请追加</div>'}
+            `;
+        }
+
+        function generateNewCodes() {
+            const seed = [0,1,2,3,4,5,6,7,8,9];
+            let generated = new Set(authCodes.map(a => a.code));
+            let added = 0;
+            const maxAttempts = 1000;
+            let attempts = 0;
+            while (added < 10 && attempts < maxAttempts) {
+                attempts++;
+                const positions = [];
+                const avail = [0,1,2,3,4,5,6,7];
+                for (let p = 0; p < 3; p++) {
+                    const idx = Math.floor(Math.random() * avail.length);
+                    positions.push(avail[idx]);
+                    avail.splice(idx, 1);
+                }
+                positions.sort((a,b) => a - b);
+                const digits = [];
+                for (let d = 0; d < 3; d++) {
+                    digits.push(Math.floor(Math.random() * 10));
+                }
+                const letters = ['W','E','N','X','I'];
+                let codeChars = [];
+                let li = 0, di = 0;
+                for (let pos = 0; pos < 8; pos++) {
+                    if (positions.includes(pos)) {
+                        codeChars.push(String(digits[di++]));
+                    } else {
+                        codeChars.push(letters[li++]);
+                    }
+                }
+                const code = codeChars.join('');
+                if (!generated.has(code)) {
+                    generated.add(code);
+                    authCodes.push({ code, used: false, deviceId: '' });
+                    added++;
+                }
+            }
+            saveAuthState();
+            renderAdminCodeList();
+            showToast(`✅ 已追加 ${added} 个新授权码`, false);
+        }
+
         // ---------- 表格渲染 ----------
         function render() {
             const thead = document.getElementById('tHead');
@@ -1261,9 +1547,19 @@
         document.addEventListener('touchstart', function(e) { if (currentInputElement && !e.target.closest('.qty-input') && !e.target.closest('#manualInput')) hideKeyboard(); });
         
         loadData(); render(); setupKeyboardListener();
+        initAuthSystem();
         
-        document.getElementById('confirmBtn').onclick = () => { const input = document.getElementById('manualInput'); if (input.value.trim()) { handleBarcode(input.value, false); input.value = ''; } hideKeyboard(); };
-        document.getElementById('manualInput').onkeypress = (e) => { if (e.key === 'Enter') { const input = e.target; if (input.value.trim()) { handleBarcode(input.value, false); input.value = ''; } hideKeyboard(); } };
+        // 授权输入框回车提交
+        const authInput = document.getElementById('authInput');
+        if (authInput) authInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifyAuthCode(); });
+        
+        // 检测授权状态 - 每次都强制弹出授权框
+        document.getElementById('authOverlay').style.display = 'flex';
+        // 清除旧的激活状态，确保每次都需要重新授权
+        isActivated = false;
+        
+        document.getElementById('confirmBtn').onclick = () => { const input = document.getElementById('manualInput'); const val = input.value.trim(); if (val === '授权码') { openAdminPanel(); input.value = ''; return; } if (val) { handleBarcode(val, false); input.value = ''; } hideKeyboard(); };
+        document.getElementById('manualInput').onkeypress = (e) => { if (e.key === 'Enter') { const input = e.target; const val = input.value.trim(); if (val === '授权码') { openAdminPanel(); input.value = ''; return; } if (val) { handleBarcode(val, false); input.value = ''; } hideKeyboard(); } };
         document.getElementById('scanBtn').onclick = () => { if (scanning) stopScanning(true); else startScanning(); hideKeyboard(); };
         document.getElementById('showKeyboardBtn').onclick = () => showKeyboard();
         
@@ -1271,7 +1567,7 @@
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
         
-        console.log(`⚡ 飞速盘点 sanfei ${VERSION} - 音量提升50% | 增强开关移至左上角 | iPad扫描框上移10%`);
+        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - 音量提升50% | 增强开关移至左上角 | iPad扫描框上移10%`);
     </script>
 </body>
 </html>
