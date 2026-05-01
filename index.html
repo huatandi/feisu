@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v2.0</title> 
+    <title>飞速盘点 · Sanfei v3.0</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -461,7 +461,7 @@
 
     <!-- 授权弹窗（纯HTML+行内样式，完全不依赖JS） -->
     <style>
-        #authOverlay{z-index:999999!important;position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;background:rgba(0,0,0,0.88)!important;backdrop-filter:blur(12px)!important;display:flex!important;align-items:center!important;justify-content:center!important;}
+        #authOverlay{z-index:999999!important;position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;background:rgba(0,0,0,0.88)!important;backdrop-filter:blur(12px)!important;display:flex;align-items:center!important;justify-content:center!important;}
         .auth-box{background:#fff!important;border-radius:28px!important;width:min(92%,400px)!important;padding:32px 24px 24px!important;text-align:center!important;box-shadow:0 20px 60px rgba(0,0,0,0.5)!important;}
         .auth-box h2{font-size:22px!important;font-weight:900!important;margin:0 0 6px!important;}
         .auth-box p{font-size:13px!important;color:#64748b!important;margin:0 0 20px!important;}
@@ -478,7 +478,42 @@
             <div id="authError" class="auth-error">❌ 授权码无效或已被使用</div>
         </div>
     </div>
-    <script>try{document.getElementById('authOverlay').style.display='flex'}catch(e){}</script>
+    <script>/* 授权系统 — 独立于主脚本，立即生效 */
+    const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
+    function getAuthData(){try{var s=localStorage.getItem(AUTH_SKEY);if(s)return JSON.parse(s)}catch(e){}return null}
+    function saveAuthData(d){try{localStorage.setItem(AUTH_SKEY,JSON.stringify(d))}catch(e){}}
+    function getDid(){var d=localStorage.getItem('_device_id');if(!d){d='DEV_'+Math.random().toString(36).substring(2,10).toUpperCase();localStorage.setItem('_device_id',d)}return d}
+    function verifyAuthCode(){
+        var i=document.getElementById('authInput'),e=document.getElementById('authError'),c=(i.value||'').trim().toUpperCase();
+        if(!c){e.style.display='block';e.textContent='❌ 请输入授权码';return}
+        if(c==='ADMIN0578'){
+            var old=getAuthData()||{};
+            saveAuthData({codes:old.codes||[],admin:true,activated:true});
+            document.getElementById('authOverlay').style.display='none';
+            try{typeof showToast==='function'&&showToast("✅ 管理员模式已激活",false)}catch(_){}
+            return
+        }
+        var data=getAuthData(),codes=data&&data.codes?data.codes:[];
+        if(!codes.length){
+            e.style.display='block';e.textContent='❌ 系统初始化中，请稍后重试';return
+        }
+        var matched=null;
+        for(var j=0;j<codes.length;j++){if(codes[j].code===c){matched=codes[j];break}}
+        if(!matched){e.style.display='block';e.textContent='❌ 授权码不存在';return}
+        if(matched.used&&matched.deviceId!==getDid()){e.style.display='block';e.textContent='❌ 该授权码已被其他设备使用';return}
+        matched.used=true;matched.deviceId=getDid();
+        data.activated=true;saveAuthData(data);
+        document.getElementById('authOverlay').style.display='none';
+        try{typeof showToast==='function'&&showToast("✅ 授权成功！欢迎使用飞速盘点",false)}catch(_){}
+        try{typeof playBeep==='function'&&playBeep(true)}catch(_){}
+    }
+    var data=getAuthData();
+    if(data&&data.activated){
+        document.getElementById('authOverlay').style.display='none';
+    } else {
+        document.getElementById('authOverlay').style.display='flex';
+    }
+    </script>
 
     <!-- 管理员授权面板 -->
     <div id="adminPanel" class="admin-overlay">
@@ -496,7 +531,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v2.0</div>
+                    <div class="version-badge">sanfei v3.0</div>
                 </div>
             </div>
             
@@ -1190,14 +1225,13 @@
             }
         }
         
-        // ========== 授权系统 ==========
+        // ========== 授权系统（读取顶部脚本保存的授权状态）==========
         function initAuthSystem() {
-            // 生成200个唯一授权码：W-E-N-X-I 5个字母固定顺序，3个数字任意穿插
+            // 如果授权码列表为空，生成默认200个
             const defaultCodes = [];
             const seed = [0,1,2,3,4,5,6,7,8,9];
             let generated = new Set();
             while (defaultCodes.length < 200) {
-                // 选3个位置放数字（0-7中选3个）
                 const positions = [];
                 const avail = [0,1,2,3,4,5,6,7];
                 for (let p = 0; p < 3; p++) {
@@ -1206,12 +1240,10 @@
                     avail.splice(idx, 1);
                 }
                 positions.sort((a,b) => a - b);
-                // 选3个数字
                 const digits = [];
                 for (let d = 0; d < 3; d++) {
                     digits.push(Math.floor(Math.random() * 10));
                 }
-                // 构建code
                 const letters = ['W','E','N','X','I'];
                 let codeChars = [];
                 let li = 0, di = 0;
@@ -1228,28 +1260,46 @@
                     defaultCodes.push({ code, used: false, deviceId: '' });
                 }
             }
+            // 与顶部脚本共用同一个 storage key
+            const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
             try {
-                const saved = localStorage.getItem(AUTH_STORAGE_KEY);
+                const saved = localStorage.getItem(AUTH_SKEY);
                 if (saved) {
                     const data = JSON.parse(saved);
                     authCodes = data.codes || [];
+                    // 如果之前存了 codes 就用旧的，否则补默认
+                    if (!authCodes.length) {
+                        authCodes = defaultCodes;
+                        data.codes = authCodes;
+                        localStorage.setItem(AUTH_SKEY, JSON.stringify(data));
+                    }
                     isActivated = data.activated || false;
-                    if (!authCodes.length) authCodes = defaultCodes;
+                    adminMode = data.admin || false;
                 } else {
                     authCodes = defaultCodes;
-                    saveAuthState();
+                    localStorage.setItem(AUTH_SKEY, JSON.stringify({
+                        codes: authCodes, activated: false, admin: false
+                    }));
                 }
             } catch(e) {
                 authCodes = defaultCodes;
-                saveAuthState();
+            }
+            // 如果顶部脚本已授权/管理员，隐藏弹窗
+            if (isActivated) {
+                const overlay = document.getElementById('authOverlay');
+                if (overlay) overlay.style.display = 'none';
+                if (adminMode) showToast("✅ 管理员模式已激活", false);
             }
         }
 
         function saveAuthState() {
+            // 顶部独立脚本已负责保存，这里同步一下数据格式
+            const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
             try {
-                localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
+                localStorage.setItem(AUTH_SKEY, JSON.stringify({
                     codes: authCodes,
-                    activated: isActivated
+                    activated: isActivated,
+                    admin: adminMode
                 }));
             } catch(e) {}
         }
@@ -1263,46 +1313,8 @@
             return id;
         }
 
-        function verifyAuthCode() {
-            const input = document.getElementById('authInput');
-            const error = document.getElementById('authError');
-            const code = (input.value || '').trim().toUpperCase();
-            if (!code) { error.style.display = 'block'; error.textContent = '❌ 请输入授权码'; return; }
-
-            // 管理员入口
-            if (code === 'ADMIN0578') {
-                adminMode = true;
-                isActivated = true;
-                saveAuthState();
-                document.getElementById('authOverlay').style.display = 'none';
-                showToast("✅ 管理员模式已激活", false);
-                return;
-            }
-
-            const matched = authCodes.find(a => a.code === code);
-            if (!matched) {
-                error.style.display = 'block';
-                error.textContent = '❌ 授权码不存在';
-                return;
-            }
-
-            if (matched.used && matched.deviceId !== getDeviceId()) {
-                error.style.display = 'block';
-                error.textContent = '❌ 该授权码已被其他设备使用';
-                return;
-            }
-
-            // 绑定设备
-            matched.used = true;
-            matched.deviceId = getDeviceId();
-            isActivated = true;
-            saveAuthState();
-
-            document.getElementById('authOverlay').style.display = 'none';
-            showToast("✅ 授权成功！欢迎使用飞速盘点", false);
-            playBeep(true);
-        }
-
+        // verifyAuthCode 已由顶部独立脚本实现，此处不再重复定义（但顶部脚本会调用到下面的 adminMode 等变量，需在顶部脚本里自己也维护一份）
+        
         function openAdminPanel() {
             if (!adminMode) {
                 showToast("⚠️ 你不是管理员", true);
@@ -1552,11 +1564,6 @@
         // 授权输入框回车提交
         const authInput = document.getElementById('authInput');
         if (authInput) authInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifyAuthCode(); });
-        
-        // 检测授权状态 - 每次都强制弹出授权框
-        document.getElementById('authOverlay').style.display = 'flex';
-        // 清除旧的激活状态，确保每次都需要重新授权
-        isActivated = false;
         
         document.getElementById('confirmBtn').onclick = () => { const input = document.getElementById('manualInput'); const val = input.value.trim(); if (val === '授权码') { openAdminPanel(); input.value = ''; return; } if (val) { handleBarcode(val, false); input.value = ''; } hideKeyboard(); };
         document.getElementById('manualInput').onkeypress = (e) => { if (e.key === 'Enter') { const input = e.target; const val = input.value.trim(); if (val === '授权码') { openAdminPanel(); input.value = ''; return; } if (val) { handleBarcode(val, false); input.value = ''; } hideKeyboard(); } };
