@@ -448,14 +448,16 @@
 
     <div id="colModal">
         <div class="modal-content p-5">
-            <h2 class="text-xl font-bold mb-3 text-center">📋 列管理</h2>
-            <p class="text-xs text-gray-500 text-center mb-3">💡 拖动排序 | 点击按钮删除</p>
-            <div id="colList" class="space-y-2 mb-4 max-h-[580px] overflow-auto"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h2 class="text-xl font-bold">📋 列管理</h2>
+                <button onclick="closeColModal()" style="background:#1e293b;color:#fff;border:none;border-radius:999px;padding:8px 20px;font-weight:900;font-size:14px;cursor:pointer;">完成</button>
+            </div>
+            <p class="text-xs text-gray-500 text-center mb-3">💡 点击箭头上下排序</p>
+            <div id="colList" class="space-y-2 mb-4" style="max-height:55vh;overflow:auto;"></div>
             <div class="flex gap-2 p-2 bg-gray-100 rounded-lg">
                 <input type="text" id="newColName" placeholder="新列名..." class="flex-1 bg-white rounded-lg px-3 py-2 font-bold text-sm outline-none" />
                 <button onclick="addColumn()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm">添加</button>
             </div>
-            <button onclick="closeColModal()" class="w-full mt-4 bg-gray-900 text-white py-3 rounded-xl font-bold text-base">完成</button>
         </div>
     </div>
 
