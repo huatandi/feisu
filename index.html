@@ -488,24 +488,26 @@
     // 确保授权码列表已生成
     (function(){
         var ad=getAuthData();
-        if(!ad||!ad.codes||!ad.codes.length){
-            var codes=[],seed=[0,1,2,3,4,5,6,7,8,9],generated={};
-            while(codes.length<200){
-                var pos=[],avail=[0,1,2,3,4,5,6,7];
-                for(var p=0;p<3;p++){var idx=Math.floor(Math.random()*avail.length);pos.push(avail[idx]);avail.splice(idx,1)}
-                pos.sort(function(a,b){return a-b});
-                var digits=[];
-                for(var di2=0;di2<3;di2++)digits.push(Math.floor(Math.random()*10));
-                var letters=['W','E','N','X','I'],chars=[],li=0,di=0;
-                for(var p2=0;p2<8;p2++){
-                    if(pos.indexOf(p2)!==-1)chars.push(String(digits[di++]));
-                    else chars.push(letters[li++]);
-                }
-                var code=chars.join('');
-                if(!generated[code]){generated[code]=true;codes.push({code:code,used:false,deviceId:''})}
+        var presetList=["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];
+        var presetCodes=presetList.map(function(c){return {code:c,used:false,deviceId:''}});
+        // 始终使用预设码（覆盖旧随机码）确保所有设备同一套
+        var active=ad&&ad.activated?true:false,adm=ad&&ad.admin?true:false;
+        // 保留已使用的标记：把老的已用码在预设码里标记出来
+        if(ad&&ad.codes&&ad.codes.length){
+            var oldMap={};
+            for(var oi=0;oi<ad.codes.length;oi++){
+                var oc=ad.codes[oi];
+                if(oc.used) oldMap[oc.code]=oc.deviceId;
             }
-            saveAuthData({codes:codes,activated:false,admin:false})
+            for(var pi=0;pi<presetCodes.length;pi++){
+                var pc=presetCodes[pi];
+                if(oldMap[pc.code]){
+                    pc.used=true;
+                    pc.deviceId=oldMap[pc.code];
+                }
+            }
         }
+        saveAuthData({codes:presetCodes,activated:active,admin:adm})
     })();
     function verifyAuthCode(){
         var i=document.getElementById('authInput'),e=document.getElementById('authError'),c=(i.value||'').trim().toUpperCase();
@@ -1250,62 +1252,42 @@
         
         // ========== 授权系统（读取顶部脚本保存的授权状态）==========
         function initAuthSystem() {
-            // 如果授权码列表为空，生成默认200个
-            const defaultCodes = [];
-            const seed = [0,1,2,3,4,5,6,7,8,9];
-            let generated = new Set();
-            while (defaultCodes.length < 200) {
-                const positions = [];
-                const avail = [0,1,2,3,4,5,6,7];
-                for (let p = 0; p < 3; p++) {
-                    const idx = Math.floor(Math.random() * avail.length);
-                    positions.push(avail[idx]);
-                    avail.splice(idx, 1);
-                }
-                positions.sort((a,b) => a - b);
-                const digits = [];
-                for (let d = 0; d < 3; d++) {
-                    digits.push(Math.floor(Math.random() * 10));
-                }
-                const letters = ['W','E','N','X','I'];
-                let codeChars = [];
-                let li = 0, di = 0;
-                for (let pos = 0; pos < 8; pos++) {
-                    if (positions.includes(pos)) {
-                        codeChars.push(String(digits[di++]));
-                    } else {
-                        codeChars.push(letters[li++]);
-                    }
-                }
-                const code = codeChars.join('');
-                if (!generated.has(code)) {
-                    generated.add(code);
-                    defaultCodes.push({ code, used: false, deviceId: '' });
-                }
-            }
+            // 预设200个固定授权码（所有设备共享同一套）
+            const presetList = ["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];
+            const presetCodes = presetList.map(c => ({ code: c, used: false, deviceId: '' }));
             // 与顶部脚本共用同一个 storage key
             const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
             try {
                 const saved = localStorage.getItem(AUTH_SKEY);
                 if (saved) {
-                    const data = JSON.parse(saved);
-                    authCodes = data.codes || [];
-                    // 如果之前存了 codes 就用旧的，否则补默认
-                    if (!authCodes.length) {
-                        authCodes = defaultCodes;
-                        data.codes = authCodes;
-                        localStorage.setItem(AUTH_SKEY, JSON.stringify(data));
+                    const oldData = JSON.parse(saved);
+                    const oldCodes = oldData.codes || [];
+                    // 迁移旧的已用状态到预设码
+                    const oldUsedMap = {};
+                    for (let oc of oldCodes) {
+                        if (oc.used) oldUsedMap[oc.code] = oc.deviceId;
                     }
-                    isActivated = data.activated || false;
-                    adminMode = data.admin || false;
+                    for (let pc of presetCodes) {
+                        if (oldUsedMap[pc.code]) {
+                            pc.used = true;
+                            pc.deviceId = oldUsedMap[pc.code];
+                        }
+                    }
+                    authCodes = presetCodes;
+                    isActivated = oldData.activated || false;
+                    adminMode = oldData.admin || false;
+                    // 重新写入（统一为预设码格式）
+                    localStorage.setItem(AUTH_SKEY, JSON.stringify({
+                        codes: presetCodes, activated: isActivated, admin: adminMode
+                    }));
                 } else {
-                    authCodes = defaultCodes;
+                    authCodes = presetCodes;
                     localStorage.setItem(AUTH_SKEY, JSON.stringify({
                         codes: authCodes, activated: false, admin: false
                     }));
                 }
             } catch(e) {
-                authCodes = defaultCodes;
+                authCodes = presetCodes;
             }
             // 底部脚本不再控制弹窗显示/隐藏，由顶部独立脚本全权负责
         }
@@ -1371,38 +1353,14 @@
         }
 
         function generateNewCodes() {
-            const seed = [0,1,2,3,4,5,6,7,8,9];
-            let generated = new Set(authCodes.map(a => a.code));
+            // 使用预设的备用码，确保所有设备追加同样的码
+            const fallbackCodes = ["000WENXI","11W1ENXI","22WE2NXI","33WEN3XI","44WENX4I","55WENXI5","6W66ENXI","7W7E7NXI","8W8EN8XI","9W9ENX9I","0W0ENXI0","1WE11NXI","2WE2N2XI","3WE3NX3I","4WE4NXI4","5WEN55XI","6WEN6X6I","7WEN7XI7","8WENX88I","9WENX9I9","0WENXI00","W111ENXI","W22E2NXI","W33EN3XI","W44ENX4I","W55ENXI5","W6E66NXI","W7E7N7XI","W8E8NX8I","W9E9NXI9","W0EN00XI","W1EN1X1I","W2EN2XI2","W3ENX33I","W4ENX4I4","W5ENXI55","WE666NXI","WE77N7XI","WE88NX8I","WE99NXI9","WE0N00XI","WE1N1X1I","WE2N2XI2","WE3NX33I","WE4NX4I4","WE5NXI55","WEN666XI","WEN77X7I","WEN88XI8","WEN9X99I"];
             let added = 0;
-            const maxAttempts = 1000;
-            let attempts = 0;
-            while (added < 10 && attempts < maxAttempts) {
-                attempts++;
-                const positions = [];
-                const avail = [0,1,2,3,4,5,6,7];
-                for (let p = 0; p < 3; p++) {
-                    const idx = Math.floor(Math.random() * avail.length);
-                    positions.push(avail[idx]);
-                    avail.splice(idx, 1);
-                }
-                positions.sort((a,b) => a - b);
-                const digits = [];
-                for (let d = 0; d < 3; d++) {
-                    digits.push(Math.floor(Math.random() * 10));
-                }
-                const letters = ['W','E','N','X','I'];
-                let codeChars = [];
-                let li = 0, di = 0;
-                for (let pos = 0; pos < 8; pos++) {
-                    if (positions.includes(pos)) {
-                        codeChars.push(String(digits[di++]));
-                    } else {
-                        codeChars.push(letters[li++]);
-                    }
-                }
-                const code = codeChars.join('');
-                if (!generated.has(code)) {
-                    generated.add(code);
+            const existingSet = new Set(authCodes.map(a => a.code));
+            for (let code of fallbackCodes) {
+                if (added >= 10) break;
+                if (!existingSet.has(code)) {
+                    existingSet.add(code);
                     authCodes.push({ code, used: false, deviceId: '' });
                     added++;
                 }
