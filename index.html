@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.5</title>
+    <title>飞速盘点 · Sanfei v3.3</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -608,8 +608,8 @@
     </div>
 
     <script>
-        const VERSION = "S2.2.5";
-        const STORAGE_KEY = "FEISUPANDIAN_" + VERSION;
+        const VERSION = "S3.3";
+        const STORAGE_KEY = "FEISUPANDIAN_DATA";
         
         let db = [];
         let columns = [];
@@ -1310,10 +1310,17 @@
         // verifyAuthCode 已由顶部独立脚本实现，此处不再重复定义（但顶部脚本会调用到下面的 adminMode 等变量，需在顶部脚本里自己也维护一份）
         
         function openAdminPanel() {
-            if (!adminMode) {
+            const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
+            let isAdmin = false;
+            try {
+                const d = JSON.parse(localStorage.getItem(AUTH_SKEY));
+                if (d && d.admin) isAdmin = true;
+            } catch(e) {}
+            if (!isAdmin) {
                 showToast("⚠️ 你不是管理员", true);
                 return;
             }
+            adminMode = true;
             renderAdminCodeList();
             document.getElementById('adminPanel').style.display = 'flex';
         }
