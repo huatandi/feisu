@@ -534,10 +534,11 @@
         try{typeof playBeep==='function'&&playBeep(true)}catch(_){}
     }
     var data=getAuthData();
+    var authEl=document.getElementById('authOverlay');
     if(data&&data.activated){
-        // 已激活，不弹窗
+        authEl.style.display='none';
     } else {
-        document.getElementById('authOverlay').style.display='flex';
+        authEl.style.display='flex';
     }
     </script>
 
