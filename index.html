@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3</title>
+    <title>飞速盘点 · Sanfei v3.3.3</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -483,6 +483,28 @@
     function getAuthData(){try{var s=localStorage.getItem(AUTH_SKEY);if(s)return JSON.parse(s)}catch(e){}return null}
     function saveAuthData(d){try{localStorage.setItem(AUTH_SKEY,JSON.stringify(d))}catch(e){}}
     function getDid(){var d=localStorage.getItem('_device_id');if(!d){d='DEV_'+Math.random().toString(36).substring(2,10).toUpperCase();localStorage.setItem('_device_id',d)}return d}
+    // 确保授权码列表已生成
+    (function(){
+        var ad=getAuthData();
+        if(!ad||!ad.codes||!ad.codes.length){
+            var codes=[],seed=[0,1,2,3,4,5,6,7,8,9],generated={};
+            while(codes.length<200){
+                var pos=[],avail=[0,1,2,3,4,5,6,7];
+                for(var p=0;p<3;p++){var idx=Math.floor(Math.random()*avail.length);pos.push(avail[idx]);avail.splice(idx,1)}
+                pos.sort(function(a,b){return a-b});
+                var digits=[];
+                for(var di2=0;di2<3;di2++)digits.push(Math.floor(Math.random()*10));
+                var letters=['W','E','N','X','I'],chars=[],li=0,di=0;
+                for(var p2=0;p2<8;p2++){
+                    if(pos.indexOf(p2)!==-1)chars.push(String(digits[di++]));
+                    else chars.push(letters[li++]);
+                }
+                var code=chars.join('');
+                if(!generated[code]){generated[code]=true;codes.push({code:code,used:false,deviceId:''})}
+            }
+            saveAuthData({codes:codes,activated:false,admin:false})
+        }
+    })();
     function verifyAuthCode(){
         var i=document.getElementById('authInput'),e=document.getElementById('authError'),c=(i.value||'').trim().toUpperCase();
         if(!c){e.style.display='block';e.textContent='❌ 请输入授权码';return}
@@ -530,7 +552,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.5</div>
+                    <div class="version-badge">sanfei v3.3.3</div>
                 </div>
             </div>
             
@@ -608,7 +630,7 @@
     </div>
 
     <script>
-        const VERSION = "S3.3";
+        const VERSION = "S3.3.3";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         
         let db = [];
@@ -1487,8 +1509,14 @@
 
         function setupDragAndDrop() {
             const items = document.querySelectorAll('.col-item');
+            // iPad/iPhone 不支持 HTML5 拖拽，自动禁用拖拽
+            const isTouch = 'ontouchend' in document;
             let draggedItem = null;
             items.forEach(item => {
+                if (isTouch) {
+                    item.setAttribute('draggable', 'false');
+                    return;
+                }
                 item.setAttribute('draggable', 'true');
                 item.addEventListener('dragstart', (e) => { draggedItem = item; item.style.opacity = '0.5'; e.dataTransfer.effectAllowed = 'move'; });
                 item.addEventListener('dragend', (e) => { item.style.opacity = ''; draggedItem = null; });
