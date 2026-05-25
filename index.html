@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.7</title>
+    <title>飞速盘点 · Sanfei v3.3.8</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -187,7 +187,7 @@ var dd=gAD();if(dd&&dd.activated)document.getElementById('authOverlay').style.di
         <div class="flex items-center justify-center gap-3">
             <span class="text-2xl">⚡</span>
             <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-            <div class="version-badge">sanfei v3.3.7 智能扫码增强版</div>
+            <div class="version-badge">sanfei v3.3.8 智能扫码增强版</div>
         </div>
     </div>
     <div style="padding: 16px 16px 0 16px;">
@@ -219,7 +219,7 @@ var dd=gAD();if(dd&&dd.activated)document.getElementById('authOverlay').style.di
 <div id="scanUI" class="fixed inset-0 bg-black z-[999] hidden flex-col">
     <div class="scan-header">
         <div class="scan-header-left">
-            <span class="font-bold text-blue-400 text-lg">🔍 极速条码引擎 v3.3.7</span>
+            <span class="font-bold text-blue-400 text-lg">🔍 极速条码引擎 v3.3.8</span>
             <button id="scanEnhanceBtn" class="scan-enhance-btn">✨ 增强</button>
         </div>
         <button onclick="stopScanning(true)" class="close-scan-btn text-white font-bold">✕ 关闭扫描</button>
@@ -238,7 +238,7 @@ var dd=gAD();if(dd&&dd.activated)document.getElementById('authOverlay').style.di
 
 <script>
 // ============================================================
-// 飞速盘点 · Sanfei v3.3.7
+// 飞速盘点 · Sanfei v3.3.8
 // 智能扫码识别引擎 — iPad Pro M4 优化版
 // ============================================================
 
@@ -263,7 +263,7 @@ const AUTO_ENHANCE_THRESHOLD = 2;
 let lastDecodeSucceeded = true;
 
 // ============================================================
-// 智能扫码匹配引擎（v3.3.7 — 全面增强）
+// 智能扫码匹配引擎（v3.3.8 — 全面增强）
 // ============================================================
 
 function normalizeCode(str) {
@@ -844,7 +844,7 @@ async function startScanning() {
                     }
                 };
                 iPadLoop();
-                showToast(`📷 iPad 截帧扫码 v3.3.7 | 2x 变焦 25-30cm`, false);
+                showToast(`📷 iPad 截帧扫码 v3.3.8 | 2x 变焦 25-30cm`, false);
             } else {
                 // iPhone / 桌面端：直接 video 检测（更快 80ms）
                 const mainLoop = async () => {
@@ -1107,8 +1107,7 @@ const teb=document.getElementById('scanEnhanceBtn');if(teb)teb.onclick=()=>toggl
 
 console.log(`⚡ 飞速盘点 v${VERSION}`);
 console.log(`📌 ${db.length} 条商品 | 6级柔性匹配引擎 | 去前缀/后缀/校验位`);
-console.log(`📷 iPad 截帧扫码(v3.3.7) | 2x变焦 25-30cm | 连续自动对焦`);
+console.log(`📷 iPad 截帧扫码(v3.3.8) | 2x变焦 25-30cm | 连续自动对焦`);
 </script>
 </body>
 </html>
-
