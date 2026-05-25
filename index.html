@@ -226,7 +226,7 @@ var dd=gAD();if(dd&&dd.activated)document.getElementById('authOverlay').style.di
     </div>
     <div class="relative flex-1 bg-black">
         <video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video>
-        <div class="focus-guide">👆 点击画面手动对焦 | iPad Pro 高帧率模式 | 双算法并行解码</div>
+        <div class="focus-guide">👆 点击画面重新对焦 | 2x 数字变焦 | 距离 25-30cm 效果最佳</div>
         <div class="scan-frame" id="scanFrame"><div class="scan-line"></div></div>
         <div id="enhanceBadge" class="enhance-badge hidden">✨ 增强模式已激活</div>
         <div class="absolute bottom-8 left-0 right-0 text-center">
@@ -242,7 +242,7 @@ var dd=gAD();if(dd&&dd.activated)document.getElementById('authOverlay').style.di
 // 智能扫码识别引擎 — iPad Pro M4 优化版
 // ============================================================
 
-const VERSION = "S3.3.7";
+const VERSION = "S3.3.8";
 const STORAGE_KEY = "FEISUPANDIAN_DATA";
 
 let db = [];
@@ -286,6 +286,8 @@ function detectBarcodeAndCodeColumns(row) {
         const kl = key.toLowerCase().trim();
         const val = String(row[key]||'').trim();
         if (!val) continue;
+        // 跳过内部预计算字段
+        if (key.startsWith('__')) continue;
         let skip = false;
         for (let s of sk) { if (kl.includes(s)) { skip = true; break; } }
         if (skip) continue;
@@ -365,7 +367,7 @@ function smartMatch(input) {
     // ② 反向精确匹配
     for (let i=0;i<db.length;i++) {
         const r=db[i];
-        if (r.__br===reversed||r.__cr===reversed) addMatch(i,'反向精确匹配',900);
+        if (r.__br===normalized||r.__cr===normalized) addMatch(i,'反向精确匹配',900);
     }
     if (results.length===1) return results[0];
     if (results.length>1) return {multiMatch:true,results};
@@ -383,16 +385,17 @@ function smartMatch(input) {
     if (results.length===1) return results[0];
     if (results.length>1) return {multiMatch:true,results};
 
-    // ④ 反向尾6位匹配
-    const rl6 = reversed.length>=6?reversed.slice(-6):reversed;
-    if (rl6) {
-        for (let i=0;i<db.length;i++) {
-            const r=db[i];
-            if (r.__b6===rl6||r.__c6===rl6) addMatch(i,'反向尾6位匹配',600);
-        }
-        if (results.length===1) return results[0];
-        if (results.length>1) return {multiMatch:true,results};
+    // ④ 反向尾6位匹配：用户先把条码反向，再只输入后6位
+    // 判断：normalized === __br.slice(-6) (反向条码的后6位)
+    for (let i=0;i<db.length;i++) {
+        const r=db[i];
+        const revLast6 = r.__br && r.__br.length>=6 ? r.__br.slice(-6) : null;
+        if (revLast6 && revLast6===normalized) { addMatch(i,'反向尾6位匹配',600); continue; }
+        const revLastC6 = r.__cr && r.__cr.length>=6 ? r.__cr.slice(-6) : null;
+        if (revLastC6 && revLastC6===normalized) { addMatch(i,'编码反向尾6位匹配',560); }
     }
+    if (results.length===1) return results[0];
+    if (results.length>1) return {multiMatch:true,results};
 
     // ⑤ contains模糊匹配（预计算字段）
     for (let i=0;i<db.length;i++) {
@@ -651,28 +654,48 @@ function preprocessImage(ve,roi) {
     ctx.putImageData(id,0,0);return c;
 }
 
-async function tryEnhanced(ve,fe) {
-    if (!ve||ve.readyState<2) return null;
-    const roi=getFrameROI(ve,fe); if (!roi) return null;
-    const pc=preprocessImage(ve,roi); if (!pc) return null;
-    if ('BarcodeDetector' in window) {
-        try {
-            const detector=new window.BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar']});
-            const codes=await detector.detect(pc);
-            if (codes&&codes.length>0) return codes[0].rawValue;
-        }catch(e){}
+/**
+ * 图像增强解码：支持 videoEl 或 canvas 输入
+ */
+async function tryEnhanced(source, frameEl) {
+    if (!source) return null;
+    
+    if (source instanceof HTMLVideoElement) {
+        if (source.readyState < 2) return null;
+        const roi = getFrameROI(source, frameEl);
+        if (!roi) return null;
+        const pc = preprocessImage(source, roi);
+        if (!pc) return null;
+        
+        if ('BarcodeDetector' in window) {
+            try {
+                const detector = new window.BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar']});
+                const codes = await detector.detect(pc);
+                if (codes && codes.length > 0) return codes[0].rawValue;
+            } catch(e) {}
+        }
+        return null;
+    } else if (source instanceof HTMLCanvasElement) {
+        // canvas 输入（iOS截帧模式）：直接对canvas做增强检测
+        if ('BarcodeDetector' in window) {
+            try {
+                const detector = new window.BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar']});
+                const codes = await detector.detect(source);
+                if (codes && codes.length > 0) return codes[0].rawValue;
+            } catch(e) {}
+        }
+        return null;
     }
     return null;
 }
 
-/** 
- * 主扫瞄启动函数 — v3.3.7 重写
- * 关键优化：
- * 1. 原生 BarcodeDetector 优先（iPad Safari支持）
- * 2. 80ms 高速轮询（比原来150ms快一倍）
- * 3. 实时焦点微调（iPad Pro M4专用）
- * 4. 首次启动快速阶梯对焦
- * 5. ZXing 作为纯净回退
+/**
+ * iPad 近距扫码核心策略：
+ * iPad Pro M4 主摄像头最近对焦距离约 15-20cm，拿太近必然模糊。
+ * 解决方案：启用 2x 数字变焦 → 用户站在 25-30cm 处，条码在画面中
+ * 仍然够大，识别率大幅提升。
+ *
+ * 如果相机不支持 zoom（各型号不一），用 canvas 帧捕获方案替代。
  */
 async function startScanning() {
     if (scanning){showToast("扫描器已在运行",false);return;}
@@ -690,202 +713,219 @@ async function startScanning() {
     if(enhanceMode) badge.classList.remove('hidden'); else badge.classList.add('hidden');
     
     try {
+        // iPad: 用 1080p 就够了，太高分辨率对远程解码无帮助
         const stream=await navigator.mediaDevices.getUserMedia({
             video:{
                 facingMode:{exact:"environment"},
-                width:{ideal:1920},   // iPad Pro 支持更高分辨率
+                width:{ideal:1920},
                 height:{ideal:1080},
-                frameRate:{ideal:60}   // 高帧率
+                frameRate:{ideal:60}
             }
         });
         const videoEl=document.getElementById('video');
         videoEl.srcObject=stream;
         await videoEl.play();
         
-        // 首次启动：配置摄像头 + 快速对焦
+        const track=stream.getVideoTracks()[0];
+        
+        // ========== 核心：iPad 数字变焦 ==========
+        // 2x 光学级数字变焦（iPad Pro M4 支持 0.5x~3x 数字变焦）
+        // 让用户拿远一些（25cm+），画面自动拉近使条码清晰可辨
+        if (isIPad && track && track.getCapabilities) {
+            const caps = track.getCapabilities();
+            
+            // 尝试连续自动对焦（让系统自己管理，不人工干预）
+            const initConstraints = [];
+            
+            // 2x 数字变焦（iPad Pro M4 支持，近摄核心）
+            if (caps.zoom && caps.zoom.max >= 2) {
+                initConstraints.push({ zoom: Math.min(caps.zoom.max, 2.0) });
+                console.log('[扫描] 已启用 2x 数字变焦，max zoom:', caps.zoom.max);
+            }
+            
+            // 连续自动对焦
+            if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                initConstraints.push({ focusMode: 'continuous' });
+            }
+            // 连续自动曝光
+            if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
+                initConstraints.push({ exposureMode: 'continuous' });
+            }
+            // 曝光补偿略亮（条码更清晰）
+            if (caps.exposureCompensation) {
+                const mn = typeof caps.exposureCompensation.min === 'number' ? caps.exposureCompensation.min : -2;
+                const mx = typeof caps.exposureCompensation.max === 'number' ? caps.exposureCompensation.max : 2;
+                initConstraints.push({ exposureCompensation: Math.max(mn, Math.min(mx, 0.5)) });
+            }
+            
+            if (initConstraints.length > 0) {
+                track.applyConstraints({ advanced: initConstraints }).catch(e => {
+                    console.log('[扫描] 部分约束不受支持:', e.message);
+                });
+            }
+        }
+        
+        // 设置补光灯控制
+        setupCameraControls(track);
+        
+        // 第1次: 相机准备后提示扫码
         setTimeout(()=>{
-            const track=videoEl?.srcObject?.getVideoTracks?.()[0];
-            if(track){
-                setupCameraControls(track);
-                applyCameraTuning(track);
-                // iPad Pro: 多次快速对焦循环确保清晰
-                for(let fi=0;fi<3;fi++){
-                    setTimeout(()=>triggerFastFocus(track),fi*200);
-                }
-            }
-        },200);
+            showToast(`📷 ${isIPad?'2x 变焦模式已开启，请距离 25-30cm 处扫码':'扫码引擎已启动'}`,false);
+        },600);
         
-        // 实时对焦轮询：每100ms快速扫描（iPad上支持更快）
+        // 实时保持连续自动对焦（iOS 系统级对焦最可靠）
         currentFocusInterval=setInterval(()=>{
-            if(!scanning){clearInterval(currentFocusInterval);return;}
-            if(videoEl&&videoEl.srcObject){
-                const track=videoEl.srcObject.getVideoTracks()[0];
-                if(track&&track.getCapabilities){
-                    const caps=track.getCapabilities();
-                    const step=(Math.floor(Date.now()/100))%6;
-                    if(step<3&&caps.focusMode&&caps.focusMode.includes('manual')){
-                        const dist=[0.03,0.06,0.12][step];
-                        track.applyConstraints({advanced:[{focusMode:'manual',focusDistance:dist}]}).catch(()=>{});
-                    }else{
-                        if(caps.focusMode&&caps.focusMode.includes('continuous'))
-                            track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
-                        if(caps.exposureMode&&caps.exposureMode.includes('continuous'))
-                            track.applyConstraints({advanced:[{exposureMode:'continuous'}]}).catch(()=>{});
-                    }
-                }
+            if(!scanning||!track) {clearInterval(currentFocusInterval);return;}
+            const caps=track.getCapabilities();
+            if (!caps) return;
+            // 不做手动对焦干扰，仅确保连续模式开启
+            if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
             }
-        },100); // 100ms轮询（原180ms）
+        },500); // 500ms 保持一次自动对焦
         
-        // 点击画面触发手动对焦
-        setupVideoClickFocus(videoEl);
+        // 点击画面手动触发自动对焦（iPad Tap to Focus）
+        videoEl.addEventListener('click',async ()=>{
+            if (!scanning||!track) return;
+            const caps=track.getCapabilities();
+            if (!caps||!caps.focusMode) return;
+            try {
+                // 快速近距扫描 -> 恢复自动
+                if (caps.focusMode.includes('manual')) {
+                    await track.applyConstraints({advanced:[{focusMode:'manual',focusDistance:0.05}]});
+                    await new Promise(r=>setTimeout(r,50));
+                    await track.applyConstraints({advanced:[{focusMode:'manual',focusDistance:0.15}]});
+                }
+                if (caps.focusMode.includes('continuous')) {
+                    await track.applyConstraints({advanced:[{focusMode:'continuous'}]});
+                }
+                showToast("🎯 已重新对焦",false);
+            } catch(e){}
+        });
         
-        // === 主解码循环 ===
-        if(hasNative){
-            // 原生 BarcodeDetector — iPad Safari 原生支持，速度最快
-            const detector=new window.BarcodeDetector({
+        // ===== 主解码 =====
+        if (hasNative) {
+            const detector = new window.BarcodeDetector({
                 formats:['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar','qr_code','data_matrix','pdf417','aztec']
             });
             
-            // 双循环：主循环80ms + 备用循环500ms（防止漏扫）
-            let nativeRunning=true;
-            
-            const mainLoop = async () => {
-                while(scanning&&nativeRunning&&videoEl.readyState>=2){
-                    try {
-                        const codes=await detector.detect(videoEl);
-                        if(codes&&codes.length>0&&scanning){
-                            const code=codes[0].rawValue;
-                            if(code){
-                                const now=Date.now();
-                                if(code!==lastCode||(now-lastTime)>=300){
-                                    handleBarcode(code,true);
-                                    consecutiveFailures=0;lastDecodeSucceeded=true;
-                                    lastCode=code;lastTime=now;
+            if (isIPad) {
+                // iPad 专用：canvas 截帧解码（2x 变焦后，截帧比 video 流更稳定）
+                // 200ms 间隔，从 video 截帧到 canvas 检测，精度更高
+                const offscreenCanvas = document.createElement('canvas');
+                const offCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+                
+                const iPadLoop = async () => {
+                    while (scanning && videoEl.readyState >= 2) {
+                        try {
+                            offscreenCanvas.width = videoEl.videoWidth;
+                            offscreenCanvas.height = videoEl.videoHeight;
+                            offCtx.drawImage(videoEl, 0, 0);
+                            const codes = await detector.detect(offscreenCanvas);
+                            if (codes && codes.length > 0 && scanning) {
+                                const code = codes[0].rawValue;
+                                if (code) {
+                                    const now = Date.now();
+                                    if (code !== lastCode || (now - lastTime) >= 300) {
+                                        handleBarcode(code, true);
+                                        consecutiveFailures = 0; lastDecodeSucceeded = true;
+                                        lastCode = code; lastTime = now;
+                                    }
+                                }
+                            } else {
+                                consecutiveFailures++;
+                                if (enhanceMode || consecutiveFailures >= AUTO_ENHANCE_THRESHOLD) {
+                                    const enhanced = await tryEnhanced(offscreenCanvas, sf);
+                                    if (enhanced) { handleBarcode(enhanced, true); consecutiveFailures = 0; vibrate(); }
                                 }
                             }
-                        }else{
-                            consecutiveFailures++;
-                            if(enhanceMode||consecutiveFailures>=AUTO_ENHANCE_THRESHOLD){
-                                const enhanced=await tryEnhanced(videoEl,sf);
-                                if(enhanced){handleBarcode(enhanced,true);consecutiveFailures=0;vibrate();}
-                            }
-                        }
-                    }catch(e){consecutiveFailures++;}
-                    await new Promise(r=>setTimeout(r,80)); // 80ms超高速轮询
-                }
-            };
-            
-            // 后台同时启动ZXing作双保险（仅在iPad上，因为桌面端BarcodeDetector更可靠）
-            if(isIPad){
-                const hints=new Map();
-                hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
-                hints.set(ZXing.DecodeHintType.CHARACTER_SET,"UTF-8");
-                hints.set(ZXing.DecodeHintType.ALLOWED_LENGTHS,null);
-                hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[
-                    ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,
-                    ZXing.BarcodeFormat.UPC_E,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_93,
-                    ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.ITF,ZXing.BarcodeFormat.CODABAR,
-                    ZXing.BarcodeFormat.QR_CODE,ZXing.BarcodeFormat.DATA_MATRIX,ZXing.BarcodeFormat.PDF_417
-                ]);
-                reader=new ZXing.BrowserMultiFormatReader(hints);
-                reader.timeBetweenDecodingAttempts=50; // 50ms高速
-                reader.decodeFromVideoElement('video',(result,err)=>{
-                    if(!scanning||!nativeRunning) return;
-                    if(result){
-                        const code=result.getText();
-                        if(code){
-                            const now=Date.now();
-                            if(code!==lastCode||(now-lastTime)>=300){
-                                handleBarcode(code,true);
-                                consecutiveFailures=0;lastDecodeSucceeded=true;
-                                lastCode=code;lastTime=now;
-                            }
-                        }
+                        } catch(e) { consecutiveFailures++; }
+                        await new Promise(r => setTimeout(r, 200));
                     }
-                });
-            }
-            
-            mainLoop();
-            
-            // 备用循环（500ms轮询，防止主循环偶尔卡顿漏扫）
-            const backupLoop = async () => {
-                while(scanning&&nativeRunning&&videoEl.readyState>=2){
-                    try {
-                        const codes=await detector.detect(videoEl);
-                        if(codes&&codes.length>0&&scanning){
-                            const code=codes[0].rawValue;
-                            if(code&&code!==lastCode){
-                                const now=Date.now();
-                                if((now-lastTime)>=500){
-                                    handleBarcode(code,true);
-                                    consecutiveFailures=0;lastDecodeSucceeded=true;
-                                    lastCode=code;lastTime=now;
+                };
+                iPadLoop();
+                showToast(`📷 iPad 截帧扫码 v3.3.7 | 2x 变焦 25-30cm`, false);
+            } else {
+                // iPhone / 桌面端：直接 video 检测（更快 80ms）
+                const mainLoop = async () => {
+                    while (scanning && videoEl.readyState >= 2) {
+                        try {
+                            const codes = await detector.detect(videoEl);
+                            if (codes && codes.length > 0 && scanning) {
+                                const code = codes[0].rawValue;
+                                if (code) {
+                                    const now = Date.now();
+                                    if (code !== lastCode || (now - lastTime) >= 300) {
+                                        handleBarcode(code, true);
+                                        consecutiveFailures = 0; lastDecodeSucceeded = true;
+                                        lastCode = code; lastTime = now;
+                                    }
+                                }
+                            } else {
+                                consecutiveFailures++;
+                                if (enhanceMode || consecutiveFailures >= AUTO_ENHANCE_THRESHOLD) {
+                                    const enhanced = await tryEnhanced(videoEl, sf);
+                                    if (enhanced) { handleBarcode(enhanced, true); consecutiveFailures = 0; vibrate(); }
                                 }
                             }
-                        }
-                    }catch(e){}
-                    await new Promise(r=>setTimeout(r,500));
-                }
-            };
-            backupLoop();
-            
-            showToast(`📷 双引擎扫码 v3.3.7 已启动${enhanceMode?' (增强模式)':''}${isIPad?' [iPad优化]':''}`,false);
-        }else{
-            // 无原生BarcodeDetector：降级ZXing
-            const hints=new Map();
-            hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
-            hints.set(ZXing.DecodeHintType.CHARACTER_SET,"UTF-8");
-            hints.set(ZXing.DecodeHintType.ALLOWED_LENGTHS,null);
-            hints.set(ZXing.DecodeHintType.RETURN_CODABAR_START_END,true);
-            hints.set(ZXing.DecodeHintType.ALSO_INVERTED,true);
-            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[
-                ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,
-                ZXing.BarcodeFormat.UPC_E,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_93,
-                ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.ITF,ZXing.BarcodeFormat.CODABAR,
-                ZXing.BarcodeFormat.DATA_MATRIX,ZXing.BarcodeFormat.PDF_417,ZXing.BarcodeFormat.QR_CODE
+                        } catch(e) { consecutiveFailures++; }
+                        await new Promise(r => setTimeout(r, 80));
+                    }
+                };
+                mainLoop();
+                showToast(`📷 扫码引擎已启动${enhanceMode?' (增强模式)':''}`, false);
+            }
+        } else {
+            // 无 BarcodeDetector：ZXing 降级
+            const hints = new Map();
+            hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+            hints.set(ZXing.DecodeHintType.CHARACTER_SET, "UTF-8");
+            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+                ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A,
+                ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
+                ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR
             ]);
-            reader=new ZXing.BrowserMultiFormatReader(hints);
-            reader.timeBetweenDecodingAttempts=15;
-            reader.decodeFromVideoElement('video',(result,err)=>{
-                if(!scanning) return;
-                if(result){const code=result.getText();if(code){handleBarcode(code,true);consecutiveFailures=0;lastDecodeSucceeded=true;return;}}
-                consecutiveFailures++;lastDecodeSucceeded=false;
-                if(enhanceMode||consecutiveFailures>=AUTO_ENHANCE_THRESHOLD){
-                    tryEnhanced(videoEl,sf).then(ec=>{if(ec){handleBarcode(ec,true);consecutiveFailures=0;vibrate();}});
+            reader = new ZXing.BrowserMultiFormatReader(hints);
+            reader.timeBetweenDecodingAttempts = 20;
+            reader.decodeFromVideoElement('video', (result, err) => {
+                if (!scanning) return;
+                if (result) { const code = result.getText(); if (code) { handleBarcode(code, true); consecutiveFailures = 0; lastDecodeSucceeded = true; return; } }
+                // 只在实际解码错误时递增失败计数，而不是每个无结果帧
+                if (err) { consecutiveFailures++; lastDecodeSucceeded = false; }
+                if (enhanceMode || consecutiveFailures >= AUTO_ENHANCE_THRESHOLD) {
+                    tryEnhanced(videoEl, sf).then(ec => { if (ec) { handleBarcode(ec, true); consecutiveFailures = 0; vibrate(); } });
                 }
             });
-            showToast(`ZXing 扫码引擎已启动${enhanceMode?' (增强模式)':''}`,false);
+            showToast(`ZXing 扫码引擎已启动${enhanceMode?' (增强模式)':''}`, false);
         }
     } catch(err) {
         console.error("相机错误:",err);
-        // 回退：不用environment，用back
         try {
-            const stream=await navigator.mediaDevices.getUserMedia({
-                video:{facingMode:"back",width:{ideal:1280},height:{ideal:720}}
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video:{facingMode:"back", width:{ideal:1280}, height:{ideal:720}}
             });
-            const videoEl=document.getElementById('video');
-            videoEl.srcObject=stream; await videoEl.play();
-            setTimeout(()=>{
-                const track=videoEl?.srcObject?.getVideoTracks?.()[0];
-                if(track){setupCameraControls(track);applyCameraTuning(track);triggerFastFocus(track);}
-            },300);
-            // 启动ZXing
-            const hints=new Map();
-            hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
-            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[
-                ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,
-                ZXing.BarcodeFormat.UPC_E,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_93,
-                ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.ITF,ZXing.BarcodeFormat.CODABAR
+            const videoEl = document.getElementById('video');
+            videoEl.srcObject = stream; await videoEl.play();
+            setTimeout(() => {
+                const track = videoEl?.srcObject?.getVideoTracks?.()[0];
+                if (track) setupCameraControls(track);
+            }, 300);
+            const hints = new Map();
+            hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+                ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A,
+                ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
+                ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR
             ]);
-            reader=new ZXing.BrowserMultiFormatReader(hints);
-            reader.timeBetweenDecodingAttempts=15;
-            reader.decodeFromVideoElement('video',(result,err)=>{
-                if(!scanning) return;
-                if(result){const code=result.getText();if(code){handleBarcode(code,true);}}
+            reader = new ZXing.BrowserMultiFormatReader(hints);
+            reader.timeBetweenDecodingAttempts = 20;
+            reader.decodeFromVideoElement('video', (result, err) => {
+                if (!scanning) return;
+                if (result) { const code = result.getText(); if (code) handleBarcode(code, true); }
             });
-            showToast("📷 后置相机已启动（降级模式）",false);
+            showToast("📷 后置相机已启动（降级模式）", false);
         } catch(err2) {
-            showToast("无法启动摄像头，请检查权限",true);
+            showToast("无法启动摄像头，请检查权限", true);
             stopScanning(true);
         }
     }
@@ -1067,7 +1107,8 @@ const teb=document.getElementById('scanEnhanceBtn');if(teb)teb.onclick=()=>toggl
 
 console.log(`⚡ 飞速盘点 v${VERSION}`);
 console.log(`📌 ${db.length} 条商品 | 6级柔性匹配引擎 | 去前缀/后缀/校验位`);
-console.log(`📷 双算法并行解码(80ms轮询) | iPad Pro M4深度优化`);
+console.log(`📷 iPad 截帧扫码(v3.3.7) | 2x变焦 25-30cm | 连续自动对焦`);
 </script>
 </body>
 </html>
+
