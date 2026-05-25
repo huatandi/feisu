@@ -3,318 +3,164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.5</title>
+    <title>飞速盘点 · Sanfei v3.3.6</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        * {
-            -webkit-tap-highlight-color: transparent;
-            box-sizing: border-box;
-        }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         body { 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
             min-height: 100vh;
             overflow: hidden;
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; height: 100%;
         }
         .main-card {
             background: white;
-            width: 100%;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            position: relative;
+            width: 100%; height: 100vh;
+            display: flex; flex-direction: column;
+            overflow: hidden; position: relative;
         }
-        .header-fixed {
-            flex-shrink: 0;
-            background: white;
-            z-index: 20;
-        }
+        .header-fixed { flex-shrink: 0; background: white; z-index: 20; }
         .bottom-fixed-btns {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            padding: 12px 16px;
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: white; padding: 12px 16px;
             box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
-            z-index: 100;
-            border-top: 1px solid #e2e8f0;
+            z-index: 100; border-top: 1px solid #e2e8f0;
             transition: bottom 0.3s ease-out;
         }
-        .keyboard-open .bottom-fixed-btns {
-            bottom: 400px;
-        }
+        .keyboard-open .bottom-fixed-btns { bottom: 400px; }
         @media (max-width: 640px) {
-            .keyboard-open .bottom-fixed-btns {
-                bottom: 350px;
-            }
+            .keyboard-open .bottom-fixed-btns { bottom: 350px; }
         }
         .scrollable-area {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
+            flex: 1; overflow-y: auto; overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
             padding: 0 16px 16px 16px;
         }
         .table-container { 
-            background: white; 
-            border: 1px solid #e2e8f0; 
-            border-radius: 12px; 
-            overflow-x: auto;
-            overflow-y: auto;
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            overflow-x: auto; overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            position: relative;
-            width: 100%;
-            margin-bottom: 16px;
+            position: relative; width: 100%; margin-bottom: 16px;
         }
-        table { 
-            border-collapse: collapse; 
-            width: 100%;
-            min-width: 100%;
-            table-layout: auto;
-        }
+        table { border-collapse: collapse; width: 100%; min-width: 100%; table-layout: auto; }
         th { 
-            position: sticky; 
-            top: 0; 
-            z-index: 50; 
+            position: sticky; top: 0; z-index: 50;
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            color: white; 
-            border: 1px solid #334155; 
-            padding: 12px; 
-            font-size: 13px; 
-            text-align: left;
-            font-weight: 600;
-            white-space: nowrap;
+            color: white; border: 1px solid #334155;
+            padding: 12px; font-size: 13px; text-align: left;
+            font-weight: 600; white-space: nowrap;
         }
-        td { 
-            border: 1px solid #e2e8f0; 
-            padding: 8px;
-            white-space: nowrap;
-        }
+        td { border: 1px solid #e2e8f0; padding: 8px; white-space: nowrap; }
         .qty-input { 
-            width: 100%;
-            min-width: 80px;
-            max-width: 120px;
-            height: 50px; 
-            border: 3px solid #3b82f6 !important; 
-            text-align: center; 
-            font-size: 1.3rem; 
-            font-weight: 900; 
-            color: #1e40af; 
-            border-radius: 10px; 
-            background: #f0f9ff; 
+            width: 100%; min-width: 80px; max-width: 120px;
+            height: 50px; border: 3px solid #3b82f6 !important;
+            text-align: center; font-size: 1.3rem; font-weight: 900;
+            color: #1e40af; border-radius: 10px; background: #f0f9ff;
             transition: all 0.2s;
         }
         .qty-input:focus {
-            background: #fef9c3;
-            transform: scale(1.02);
-            border-color: #ef4444 !important;
-            outline: none;
+            background: #fef9c3; transform: scale(1.02);
+            border-color: #ef4444 !important; outline: none;
         }
-        .row-focus { 
-            background: linear-gradient(90deg, #fef08a 0%, #fde047 100%) !important;
-        }
+        .row-focus { background: linear-gradient(90deg, #fef08a 0%, #fde047 100%) !important; }
         #toast { 
-            position: fixed; 
-            top: 20%; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            background: #1f2937;
-            color: white; 
-            padding: 10px 20px; 
-            border-radius: 40px; 
-            z-index: 10000; 
-            display: none; 
-            font-weight: bold; 
-            text-align: center; 
-            white-space: nowrap;
+            position: fixed; top: 20%; left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937; color: white;
+            padding: 10px 20px; border-radius: 40px;
+            z-index: 10000; display: none; font-weight: bold;
+            text-align: center; white-space: nowrap;
             box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-            pointer-events: none;
-            font-size: 14px;
-            backdrop-filter: blur(10px);
+            pointer-events: none; font-size: 14px; backdrop-filter: blur(10px);
         }
         #colModal { 
-            display:none; 
-            position:fixed; 
-            inset:0; 
-            background:rgba(0,0,0,0.9); 
-            z-index:9999; 
-            align-items:center; 
-            justify-content:center;
+            display:none; position:fixed; inset:0;
+            background:rgba(0,0,0,0.9); z-index:9999;
+            align-items:center; justify-content:center;
             backdrop-filter: blur(8px);
         }
         .modal-content {
-            background: white;
-            border-radius: 24px;
-            max-width: 90%;
-            width: 350px;
-            max-height: 70vh;
-            overflow: auto;
+            background: white; border-radius: 24px;
+            max-width: 90%; width: 350px; max-height: 70vh; overflow: auto;
         }
         .scan-frame { 
-            position: absolute; 
-            top: 25%; 
-            left: 50%; 
-            transform: translate(-50%, -50%); 
-            width: 80%; 
-            height: 220px; 
-            border: 3px solid #3b82f6; 
-            border-radius: 20px; 
-            box-shadow: 0 0 0 2000px rgba(0,0,0,0.75); 
-            z-index: 10; 
-            pointer-events: none; 
-            background: rgba(0,0,0,0.1);
+            position: absolute; top: 25%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%; height: 220px;
+            border: 3px solid #3b82f6; border-radius: 20px;
+            box-shadow: 0 0 0 2000px rgba(0,0,0,0.75);
+            z-index: 10; pointer-events: none; background: rgba(0,0,0,0.1);
         }
         .scan-line { 
-            position: absolute; 
-            width: 100%; 
-            height: 4px; 
+            position: absolute; width: 100%; height: 4px;
             background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent);
-            top: 0; 
-            animation: scanLineMove 1.2s infinite ease-in-out; 
+            top: 0; animation: scanLineMove 1.2s infinite ease-in-out;
             box-shadow: 0 0 20px #3b82f6;
         }
-        @keyframes scanLineMove { 
-            0%, 100% { top: 5%; }
-            50% { top: 95%; }
-        }
+        @keyframes scanLineMove { 0%,100% { top: 5%; } 50% { top: 95%; } }
         .col-item {
-            background: white;
-            margin-bottom: 8px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            transition: all 0.2s;
-            cursor: move;
-            touch-action: none;
+            background: white; margin-bottom: 8px; border-radius: 12px;
+            border: 1px solid #e2e8f0; transition: all 0.2s; cursor: move; touch-action: none;
         }
-        .col-item.dragging {
-            opacity: 0.4;
-            transform: scale(0.98);
-            background: #dbeafe;
-        }
+        .col-item.dragging { opacity: 0.4; transform: scale(0.98); background: #dbeafe; }
         .version-badge {
             background: rgba(255,255,255,0.2);
-            padding: 2px 8px;
-            border-radius: 16px;
-            font-size: 10px;
-            font-weight: bold;
+            padding: 2px 8px; border-radius: 16px; font-size: 10px; font-weight: bold;
         }
         .btn-group-4 {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin: 16px 0;
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0;
         }
         .action-btn {
-            padding: 12px 4px;
-            border-radius: 12px;
-            font-weight: bold;
-            font-size: 13px;
-            text-align: center;
-            transition: all 0.1s;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            cursor: pointer;
+            padding: 12px 4px; border-radius: 12px; font-weight: bold; font-size: 13px;
+            text-align: center; transition: all 0.1s; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; cursor: pointer;
         }
         .bottom-btns {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);  /* 修改：移除增强按钮后从4列变为3列 */
-            gap: 12px;
-            max-width: 600px;
-            margin: 0 auto;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+            max-width: 600px; margin: 0 auto;
         }
         .bottom-btn {
-            padding: 14px 4px;
-            border-radius: 14px;
-            font-weight: bold;
-            font-size: 16px;
-            text-align: center;
-            transition: all 0.1s;
-            cursor: pointer;
+            padding: 14px 4px; border-radius: 14px; font-weight: bold; font-size: 16px;
+            text-align: center; transition: all 0.1s; cursor: pointer;
         }
-        .cam-btn-large {
-            background: #3b82f6;
-            color: white;
-            font-size: 28px;
-        }
-        .keyboard-btn {
-            background: #8b5cf6;
-            color: white;
-            font-size: 28px;
-        }
+        .cam-btn-large { background: #3b82f6; color: white; font-size: 28px; }
+        .keyboard-btn { background: #8b5cf6; color: white; font-size: 28px; }
         .close-scan-btn {
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             box-shadow: 0 4px 15px rgba(239, 68, 68, 0.5);
-            font-size: 18px;
-            font-weight: 900;
-            padding: 12px 24px;
-            border-radius: 50px;
-            border: 2px solid white;
-            cursor: pointer;
+            font-size: 18px; font-weight: 900; padding: 12px 24px;
+            border-radius: 50px; border: 2px solid white; cursor: pointer;
         }
-        .close-scan-btn:active, .action-btn:active, .bottom-btn:active {
-            transform: scale(0.97);
-        }
+        .close-scan-btn:active, .action-btn:active, .bottom-btn:active { transform: scale(0.97); }
         .scan-header {
             background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
             border-bottom: 3px solid #3b82f6;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
+            display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;
         }
-        .scan-header-left {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
+        .scan-header-left { display: flex; gap: 12px; align-items: center; }
         .scan-enhance-btn {
-            background: #10b981;  /* 绿色背景 */
-            color: white;
-            border: 2px solid white;
-            border-radius: 50px;
-            padding: 12px 24px;
-            font-size: 18px;
-            font-weight: 900;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.5);
-            transition: 0.1s;
+            background: #10b981; color: white; border: 2px solid white; border-radius: 50px;
+            padding: 12px 24px; font-size: 18px; font-weight: 900; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(16,185,129,0.5); transition: 0.1s;
         }
-        .scan-enhance-btn.active {
-            background: #f59e0b;
-        }
-        .scan-success {
-            animation: flash 0.2s ease;
-        }
+        .scan-enhance-btn.active { background: #f59e0b; }
+        .scan-success { animation: flash 0.2s ease; }
         @keyframes flash {
-            0%, 100% { border-color: #3b82f6; }
+            0%,100% { border-color: #3b82f6; }
             50% { border-color: #10b981; box-shadow: 0 0 0 2000px rgba(16,185,129,0.3); }
         }
         #manualInput {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            outline: none;
+            width: 100%; padding: 12px 16px;
+            border: 2px solid #e2e8f0; border-radius: 12px;
+            font-size: 16px; font-weight: bold; outline: none;
         }
-        #manualInput:focus {
-            border-color: #3b82f6;
-        }
+        #manualInput:focus { border-color: #3b82f6; }
         @media (max-width: 640px) {
             .action-btn { font-size: 10px; padding: 10px 2px; }
             .bottom-btn { font-size: 14px; padding: 12px 4px; }
@@ -325,57 +171,29 @@
             .scrollable-area { padding: 0 12px 16px 12px; }
             .scan-enhance-btn { padding: 12px 24px; font-size: 18px; }
         }
-        .keyboard-open .scrollable-area {
-            padding-bottom: 120px;
-        }
+        .keyboard-open .scrollable-area { padding-bottom: 120px; }
         .prefix-hit {
             background: #fef08a !important;
             box-shadow: inset 0 0 0 2px #f59e0b;
         }
         .scan-tool-btn {
-            background: #1e3a8a;
-            color: #fff;
-            border: 1px solid #60a5fa;
-            border-radius: 9999px;
-            padding: 8px 12px;
-            font-size: 12px;
-            font-weight: 700;
+            background: #1e3a8a; color: #fff;
+            border: 1px solid #60a5fa; border-radius: 9999px;
+            padding: 8px 12px; font-size: 12px; font-weight: 700;
         }
-        .scan-tool-btn.active {
-            background: #f59e0b;
-            border-color: #fcd34d;
-            color: #111827;
-        }
+        .scan-tool-btn.active { background: #f59e0b; border-color: #fcd34d; color: #111827; }
         .focus-guide {
-            position: absolute;
-            top: 10px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(8px);
-            padding: 6px 12px;
-            border-radius: 20px;
-            width: fit-content;
-            margin: 0 auto;
-            font-size: 11px;
-            color: #fff;
-            z-index: 20;
-            pointer-events: none;
+            position: absolute; top: 10px; left: 0; right: 0;
+            text-align: center; background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px); padding: 6px 12px; border-radius: 20px;
+            width: fit-content; margin: 0 auto; font-size: 11px;
+            color: #fff; z-index: 20; pointer-events: none;
         }
         .enhance-badge {
-            position: absolute;
-            bottom: 80px;
-            right: 10px;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(8px);
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 10px;
-            color: #fbbf24;
-            font-weight: bold;
-            pointer-events: none;
-            z-index: 15;
+            position: absolute; bottom: 80px; right: 10px;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+            padding: 4px 10px; border-radius: 20px; font-size: 10px;
+            color: #fbbf24; font-weight: bold; pointer-events: none; z-index: 15;
         }
         /* 授权弹窗 */
         .auth-overlay {
@@ -386,8 +204,7 @@
         }
         .auth-box {
             background: #fff; border-radius: 28px;
-            width: min(92%, 400px); padding: 32px 24px 24px;
-            text-align: center;
+            width: min(92%, 400px); padding: 32px 24px 24px; text-align: center;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         }
         .auth-box h2 { font-size: 22px; font-weight: 900; margin: 0 0 6px; }
@@ -410,13 +227,11 @@
             position: fixed; inset: 0; z-index: 99998;
             background: rgba(0,0,0,0.85);
             display: none; align-items: flex-start; justify-content: center;
-            padding-top: 30px; overflow: auto;
-            backdrop-filter: blur(8px);
+            padding-top: 30px; overflow: auto; backdrop-filter: blur(8px);
         }
         .admin-box {
             background: #fff; border-radius: 24px;
-            width: min(94%, 480px); padding: 20px;
-            margin-bottom: 30px;
+            width: min(94%, 480px); padding: 20px; margin-bottom: 30px;
         }
         .admin-box h2 { font-size: 18px; font-weight: 900; margin: 0 0 12px; text-align: center; }
         .admin-close {
@@ -438,8 +253,42 @@
         .admin-gen-btn {
             display: block; width: 100%; margin-top: 12px;
             padding: 12px; background: #8b5cf6; color: #fff;
-            border: none; border-radius: 12px; font-weight: 900; font-size: 15px;
-            cursor: pointer;
+            border: none; border-radius: 12px; font-weight: 900; font-size: 15px; cursor: pointer;
+        }
+        /* 多匹配选择弹窗 */
+        #multiMatchModal {
+            display: none; position: fixed; inset: 0; z-index: 99999;
+            background: rgba(0,0,0,0.85);
+            align-items: center; justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+        .multi-match-content {
+            background: #fff; border-radius: 24px;
+            width: min(92%, 420px); max-height: 70vh; overflow: auto;
+            padding: 20px;
+        }
+        .match-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 16px; margin-bottom: 8px;
+            background: #f8fafc; border: 2px solid #e2e8f0;
+            border-radius: 12px; cursor: pointer;
+            transition: all 0.15s;
+        }
+        .match-item:hover, .match-item:active {
+            background: #eff6ff; border-color: #3b82f6; transform: scale(0.98);
+        }
+        .match-item .name { font-weight: bold; font-size: 15px; }
+        .match-item .code { font-size: 12px; color: #64748b; }
+        .match-item .qty-badge {
+            background: #dbeafe; color: #1e40af;
+            padding: 2px 10px; border-radius: 999px; font-weight: bold; font-size: 13px;
+        }
+        /* 智能扫码徽章 */
+        .smart-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: linear-gradient(135deg, #7c3aed, #3b82f6);
+            color: white; padding: 2px 10px; border-radius: 999px;
+            font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
         }
     </style>
 </head>
@@ -461,7 +310,19 @@
         </div>
     </div>
 
-    <!-- 授权弹窗（纯HTML+行内样式，完全不依赖JS） -->
+    <!-- 多匹配选择弹窗 -->
+    <div id="multiMatchModal">
+        <div class="multi-match-content">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h2 style="font-size:18px;font-weight:900;">🔍 匹配到多个商品</h2>
+                <button onclick="closeMultiMatchModal()" style="background:#1e293b;color:#fff;border:none;border-radius:999px;padding:6px 16px;font-weight:900;font-size:13px;cursor:pointer;">取消</button>
+            </div>
+            <p style="font-size:12px;color:#64748b;text-align:center;margin-bottom:12px;">请选择你要操作的商品</p>
+            <div id="matchList" style="max-height:45vh;overflow:auto;"></div>
+        </div>
+    </div>
+
+    <!-- 授权弹窗 -->
     <style>
         #authOverlay{z-index:999999!important;position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;background:rgba(0,0,0,0.88)!important;backdrop-filter:blur(12px)!important;display:flex;align-items:center!important;justify-content:center!important;}
         .auth-box{background:#fff!important;border-radius:28px!important;width:min(92%,400px)!important;padding:32px 24px 24px!important;text-align:center!important;box-shadow:0 20px 60px rgba(0,0,0,0.5)!important;}
@@ -485,14 +346,11 @@
     function getAuthData(){try{var s=localStorage.getItem(AUTH_SKEY);if(s)return JSON.parse(s)}catch(e){}return null}
     function saveAuthData(d){try{localStorage.setItem(AUTH_SKEY,JSON.stringify(d))}catch(e){}}
     function getDid(){var d=localStorage.getItem('_device_id');if(!d){d='DEV_'+Math.random().toString(36).substring(2,10).toUpperCase();localStorage.setItem('_device_id',d)}return d}
-    // 确保授权码列表已生成
     (function(){
         var ad=getAuthData();
         var presetList=["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];
         var presetCodes=presetList.map(function(c){return {code:c,used:false,deviceId:''}});
-        // 始终使用预设码（覆盖旧随机码）确保所有设备同一套
         var active=ad&&ad.activated?true:false,adm=ad&&ad.admin?true:false;
-        // 保留已使用的标记：把老的已用码在预设码里标记出来
         if(ad&&ad.codes&&ad.codes.length){
             var oldMap={};
             for(var oi=0;oi<ad.codes.length;oi++){
@@ -501,10 +359,7 @@
             }
             for(var pi=0;pi<presetCodes.length;pi++){
                 var pc=presetCodes[pi];
-                if(oldMap[pc.code]){
-                    pc.used=true;
-                    pc.deviceId=oldMap[pc.code];
-                }
+                if(oldMap[pc.code]){ pc.used=true; pc.deviceId=oldMap[pc.code]; }
             }
         }
         saveAuthData({codes:presetCodes,activated:active,admin:adm})
@@ -520,9 +375,7 @@
             return
         }
         var data=getAuthData(),codes=data&&data.codes?data.codes:[];
-        if(!codes.length){
-            e.style.display='block';e.textContent='❌ 系统初始化中，请稍后重试';return
-        }
+        if(!codes.length){e.style.display='block';e.textContent='❌ 系统初始化中，请稍后重试';return}
         var matched=null;
         for(var j=0;j<codes.length;j++){if(codes[j].code===c){matched=codes[j];break}}
         if(!matched){e.style.display='block';e.textContent='❌ 授权码不存在';return}
@@ -535,11 +388,8 @@
     }
     var data=getAuthData();
     var authEl=document.getElementById('authOverlay');
-    if(data&&data.activated){
-        authEl.style.display='none';
-    } else {
-        authEl.style.display='flex';
-    }
+    if(data&&data.activated){ authEl.style.display='none'; }
+    else { authEl.style.display='flex'; }
     </script>
 
     <!-- 管理员授权面板 -->
@@ -558,26 +408,25 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.5</div>
+                    <div class="version-badge">sanfei v3.3.6 智能扫码</div>
                 </div>
             </div>
             
             <div style="padding: 16px 16px 0 16px;">
-                <input type="text" id="manualInput" placeholder="📱 输入条码/编码/名称..." />
+                <div style="position:relative;">
+                    <input type="text" id="manualInput" placeholder="📱 输入条码/编码/名称（支持智能识别）..." />
+                    <span id="smartIndicator" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);display:none;">
+                        <span class="smart-badge">🤖 智能</span>
+                    </span>
+                </div>
                 
                 <div class="btn-group-4">
-                    <button onclick="openColModal()" class="action-btn bg-gray-700 text-white shadow-md">
-                        📊 列管理
-                    </button>
+                    <button onclick="openColModal()" class="action-btn bg-gray-700 text-white shadow-md">📊 列管理</button>
                     <label class="action-btn bg-emerald-600 text-white shadow-md cursor-pointer">
                         📂 导入 <input type="file" id="fileInput" class="hidden" accept=".xlsx, .xls" />
                     </label>
-                    <button onclick="exportExcel()" class="action-btn bg-emerald-600 text-white shadow-md">
-                        💾 导出
-                    </button>
-                    <button id="confirmBtn" class="action-btn bg-blue-600 text-white shadow-md">
-                        ✅ 确认
-                    </button>
+                    <button onclick="exportExcel()" class="action-btn bg-emerald-600 text-white shadow-md">💾 导出</button>
+                    <button id="confirmBtn" class="action-btn bg-blue-600 text-white shadow-md">✅ 确认</button>
                 </div>
             </div>
         </div>
@@ -592,18 +441,12 @@
         </div>
     </div>
 
-    <!-- 底部固定按钮：扫码、重置、键盘（移除了原有的增强按钮） -->
+    <!-- 底部固定按钮 -->
     <div class="bottom-fixed-btns">
         <div class="bottom-btns">
-            <button id="scanBtn" class="bottom-btn bg-blue-600 text-white shadow-lg cam-btn-large">
-                📷 扫码
-            </button>
-            <button onclick="hardReset()" class="bottom-btn bg-red-600 text-white shadow-lg">
-                🗑️ 重置
-            </button>
-            <button id="showKeyboardBtn" class="bottom-btn bg-purple-600 text-white shadow-lg keyboard-btn">
-                ⌨️ 键盘
-            </button>
+            <button id="scanBtn" class="bottom-btn bg-blue-600 text-white shadow-lg cam-btn-large">📷 扫码</button>
+            <button onclick="hardReset()" class="bottom-btn bg-red-600 text-white shadow-lg">🗑️ 重置</button>
+            <button id="showKeyboardBtn" class="bottom-btn bg-purple-600 text-white shadow-lg keyboard-btn">⌨️ 键盘</button>
         </div>
     </div>
 
@@ -613,13 +456,11 @@
                 <span class="font-bold text-blue-400 text-lg">🔍 极速条码引擎</span>
                 <button id="scanEnhanceBtn" class="scan-enhance-btn">✨ 增强</button>
             </div>
-            <button onclick="stopScanning(true)" class="close-scan-btn text-white font-bold">
-                ✕ 关闭扫描
-            </button>
+            <button onclick="stopScanning(true)" class="close-scan-btn text-white font-bold">✕ 关闭扫描</button>
         </div>
         <div class="relative flex-1 bg-black">
             <video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video>
-            <div class="focus-guide">💡 点击画面辅助对焦 | 识别速度已优化 | 增强模式可提升劣质条码识别率</div>
+            <div class="focus-guide">💡 点击画面手动对焦 | 自动连续对焦已开启 | 智能识别算法已集成</div>
             <div class="scan-frame" id="scanFrame">
                 <div class="scan-line"></div>
             </div>
@@ -636,11 +477,16 @@
     </div>
 
     <script>
-        const VERSION = "S3.3.5";
+        // ============================================================
+        // 飞速盘点 · Sanfei v3.3.6
+        // 智能扫码识别引擎（独立文件，不和SUPEASY关联）
+        // ============================================================
+        
+        const VERSION = "S3.3.6";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         
-        let db = [];
-        let columns = [];
+        let db = [];               // 原始数据 [{商品名称, 编码, 条码, ...}, ...]
+        let columns = [];          // 列名数组
         let scanning = false;
         let reader = null;
         let lastCode = "";
@@ -651,238 +497,300 @@
         let originalViewportHeight = window.innerHeight;
         let cameraTrack = null;
         
-        // 增强模式相关
-        let enhanceMode = false;          // 用户手动开启的增强模式
-        let consecutiveFailures = 0;      // 连续解码失败次数
-        const AUTO_ENHANCE_THRESHOLD = 3;  // 连续失败3次自动启用单次增强
+        // 增强模式
+        let enhanceMode = false;
+        let consecutiveFailures = 0;
+        const AUTO_ENHANCE_THRESHOLD = 3;
         let lastDecodeSucceeded = true;
-        
-        // 图像预处理用的canvas (复用)
         let preprocessCanvas = null;
+
+        // ============================================================
+        // 智能扫码识别引擎
+        // ============================================================
         
-        // 授权系统
-        const AUTH_STORAGE_KEY = "FEISUPANDIAN_AUTH_V2";
-        let authCodes = [];
-        let isActivated = false;
-        let adminMode = false;
-        
-        const isAndroid = /Android/i.test(navigator.userAgent);
-        const isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
-        const isMobile = isAndroid || isIPad || /iPhone/i.test(navigator.userAgent);
+        /**
+         * 字符串标准化规则
+         * 1. 转大写
+         * 2. 去除空格
+         * 3. 去除 -
+         * 4. 去除 _
+         * 5. 去除所有特殊字符（仅保留字母和数字）
+         * 6. 返回标准化字符串
+         */
+        function normalizeCode(str) {
+            if (!str) return '';
+            return String(str)
+                .toUpperCase()
+                .replace(/\s+/g, '')    // 去除空格
+                .replace(/-/g, '')       // 去除 -
+                .replace(/_/g, '')       // 去除 _
+                .replace(/[^A-Z0-9]/g, ''); // 去除其他所有特殊字符
+        }
 
-        // ---------- 键盘处理 ----------
-        function setupKeyboardListener() {
-            if (!isMobile) return;
-            if (window.visualViewport) {
-                window.visualViewport.addEventListener('resize', () => {
-                    const currentHeight = window.visualViewport.height;
-                    const keyboardHeight = originalViewportHeight - currentHeight;
-                    if (keyboardHeight > 150) {
-                        document.body.classList.add('keyboard-open');
-                    } else {
-                        document.body.classList.remove('keyboard-open');
-                        setTimeout(() => {
-                            if (pendingJump !== null) {
-                                const rowEl = document.getElementById(`row-${pendingJump}`);
-                                if (rowEl) rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }
-                        }, 100);
+        /**
+         * 反向字符串
+         */
+        function reverseString(str) {
+            if (!str) return '';
+            return str.split('').reverse().join('');
+        }
+
+        /**
+         * 预计算字段：为数据库中的每一条商品生成优化查询字段
+         * 当 db 加载完成或新增/更新商品时调用
+         */
+        function computePrecomputedFields(row) {
+            // 确定条码字段：优先取"条码"、"编码"，其次遍历查找
+            const barcodeField = '条码';
+            const codeField = '编码';
+            
+            let barcode = String(row[barcodeField] || row[codeField] || '').trim();
+            let code = String(row[codeField] || row[barcodeField] || '').trim();
+            
+            // 如果条码为空，尝试其他字段
+            if (!barcode) {
+                for (let key of Object.keys(row)) {
+                    const val = String(row[key] || '').trim();
+                    if (val && /^[0-9]{8,}$/.test(val)) {
+                        barcode = val;
+                        break;
                     }
-                });
-            }
-            window.addEventListener('resize', () => {
-                const currentHeight = window.innerHeight;
-                const keyboardHeight = originalViewportHeight - currentHeight;
-                if (keyboardHeight > 150) document.body.classList.add('keyboard-open');
-                else document.body.classList.remove('keyboard-open');
-            });
-        }
-
-        function showKeyboard() {
-            if (currentInputElement && document.activeElement !== currentInputElement) {
-                currentInputElement.focus();
-                currentInputElement.select();
-            } else {
-                const manualInput = document.getElementById('manualInput');
-                if (manualInput) {
-                    manualInput.focus();
-                    manualInput.select();
-                    currentInputElement = manualInput;
                 }
             }
+            
+            const barcodeNorm = normalizeCode(barcode);
+            const codeNorm = normalizeCode(code);
+            
+            row.__barcode_normalized = barcodeNorm;
+            row.__barcode_reverse = reverseString(barcodeNorm);
+            row.__barcode_last6 = barcodeNorm.length >= 6 ? barcodeNorm.slice(-6) : barcodeNorm;
+            row.__code_normalized = codeNorm;
+            row.__code_reverse = reverseString(codeNorm);
+            row.__code_last6 = codeNorm.length >= 6 ? codeNorm.slice(-6) : codeNorm;
         }
 
-        function hideKeyboard() {
-            if (currentInputElement) {
-                currentInputElement.blur();
-                currentInputElement = null;
-            }
-            document.activeElement?.blur();
-            document.body.classList.remove('keyboard-open');
-        }
-
-        // ---------- 数据存储 ----------
-        function loadData() {
-            try {
-                const saved = localStorage.getItem(STORAGE_KEY);
-                if (saved) {
-                    const data = JSON.parse(saved);
-                    db = data.db || [];
-                    columns = data.columns || [];
-                }
-                if (!columns.length) {
-                    columns = ['实际数量', '商品名称', '编码', '价格'];
-                    db = [];
-                }
-                normalizeActualQtyColumnPosition();
-                db.forEach(row => {
-                    if (row['实际数量'] === undefined) row['实际数量'] = '';
-                });
-            } catch(e) {
-                console.error(e);
-                columns = ['实际数量', '商品名称', '编码', '价格'];
-                normalizeActualQtyColumnPosition();
-                db = [];
+        /**
+         * 为整个 db 重新生成预计算字段
+         */
+        function recomputeAllPrecomputedFields() {
+            for (let i = 0; i < db.length; i++) {
+                computePrecomputedFields(db[i]);
             }
         }
 
-        function normalizeActualQtyColumnPosition() {
-            if (!Array.isArray(columns) || !columns.length) return;
-            const qtyCol = '实际数量';
-            const qtyIndex = columns.indexOf(qtyCol);
-            if (qtyIndex === -1) return;
-            columns.splice(qtyIndex, 1);
-            const targetIndex = 4;
-            columns.splice(Math.min(targetIndex, columns.length), 0, qtyCol);
-        }
-
-        function saveData() {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({ db, columns, version: VERSION }));
-            } catch(e) { showToast("存储空间不足", true); }
-        }
-
-        function showToast(msg, isError = false) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.style.background = isError ? '#dc2626' : '#10b981';
-            toast.style.display = 'block';
-            setTimeout(() => toast.style.display = 'none', 1500);
-        }
-
-        // 音量提高50%：gain 从 0.4 改为 0.6
-        function playBeep(success) {
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                oscillator.frequency.value = success ? 1200 : 400;
-                gainNode.gain.value = 0.6;  // 提高50%音量
-                oscillator.start();
-                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2);
-                oscillator.stop(audioCtx.currentTime + 0.2);
-                audioCtx.resume();
-            } catch(e) {}
-        }
-
-        function vibrate() {
-            if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30);
-        }
-
-        // ---------- 图像预处理函数（增强低质量条码识别率）----------
-        function getFrameROI(videoEl, frameEl) {
-            // 获取扫描框在视频中的实际像素区域（中部偏下，覆盖条码主体）
-            const vw = videoEl.videoWidth, vh = videoEl.videoHeight;
-            if (!vw || !vh) return null;
-            const vr = videoEl.getBoundingClientRect();
-            const fr = frameEl.getBoundingClientRect();
-            const videoAspect = vw / vh;
-            const boxAspect = vr.width / vr.height;
-            let renderW, renderH, offsetX = 0, offsetY = 0;
-            if (videoAspect > boxAspect) {
-                renderH = vr.height;
-                renderW = renderH * videoAspect;
-                offsetX = (renderW - vr.width) / 2;
-            } else {
-                renderW = vr.width;
-                renderH = renderW / videoAspect;
-                offsetY = (renderH - vr.height) / 2;
-            }
-            const xInBox = fr.left - vr.left + offsetX;
-            const yInBox = fr.top - vr.top + offsetY;
-            const sx = vw / renderW, sy = vh / renderH;
-            let roiX = Math.max(0, Math.floor(xInBox * sx));
-            let roiY = Math.max(0, Math.floor(yInBox * sy));
-            let roiW = Math.min(vw - roiX, Math.floor(fr.width * sx));
-            let roiH = Math.min(vh - roiY, Math.floor(fr.height * sy));
-            if (roiW <= 0 || roiH <= 0) return null;
-            // 只取下半部分（条码数字通常在下方）
-            const lowerY = roiY + Math.floor(roiH * 0.55);
-            const lowerH = roiH - Math.floor(roiH * 0.55);
-            if (lowerH < 10) return { x: roiX, y: roiY, w: roiW, h: roiH };
-            return { x: roiX, y: lowerY, w: roiW, h: lowerH };
-        }
-
-        function preprocessImageForBarcode(videoEl, roi) {
-            // 创建临时canvas绘制ROI区域，进行灰度、对比度拉伸和轻微降噪
-            const canvas = document.createElement('canvas');
-            canvas.width = roi.w;
-            canvas.height = roi.h;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            ctx.drawImage(videoEl, roi.x, roi.y, roi.w, roi.h, 0, 0, roi.w, roi.h);
-            const imgData = ctx.getImageData(0, 0, roi.w, roi.h);
-            const data = imgData.data;
-            // 灰度化 + 直方图拉伸增强对比度
-            let min = 255, max = 0;
-            for (let i = 0; i < data.length; i += 4) {
-                const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-                data[i] = data[i+1] = data[i+2] = gray;
-                if (gray < min) min = gray;
-                if (gray > max) max = gray;
-            }
-            const range = max - min;
-            // 自适应阈值 (简单二值化)
-            const threshold = min + range * 0.55;
-            for (let i = 0; i < data.length; i += 4) {
-                const val = data[i] > threshold ? 255 : 0;
-                data[i] = data[i+1] = data[i+2] = val;
-            }
-            // 可选：轻微中值滤波去噪（3x3核，仅一次，轻量快速）
-            // 这里为了性能，跳过复杂滤波，只做二值化已经能大幅提升识别率
-            ctx.putImageData(imgData, 0, 0);
-            return canvas;
-        }
-
-        // 增强解码尝试：若增强模式开启或连续失败达到阈值，则使用预处理后的图像解码
-        async function tryEnhancedDecode(videoEl, frameEl) {
-            if (!videoEl || videoEl.readyState < 2) return null;
-            const roi = getFrameROI(videoEl, frameEl);
-            if (!roi) return null;
-            const processedCanvas = preprocessImageForBarcode(videoEl, roi);
-            if (!processedCanvas) return null;
-            // 临时使用浏览器的 BarcodeDetector API 进行检测（更轻量）
-            if ('BarcodeDetector' in window) {
-                try {
-                    const detector = new window.BarcodeDetector({
-                        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'code_93', 'code_128', 'itf', 'codabar']
-                    });
-                    const codes = await detector.detect(processedCanvas);
-                    if (codes && codes.length > 0) {
-                        return codes[0].rawValue;
+        /**
+         * 智能扫码主入口
+         * 按以下优先级进行匹配查询：
+         * 
+         * ① 精确匹配（normalized）
+         * ② 反向后精确匹配
+         * ③ 条码最后6位匹配
+         * ④ 反向后最后6位匹配
+         * ⑤ 编码contains模糊匹配（兜底）
+         * 
+         * @param {string} input 用户输入
+         * @returns {object} { index: number, matchType: string } 或 null（未匹配）
+         */
+        function smartMatch(input) {
+            if (!input || !db.length) return null;
+            
+            // Step 1: 标准化
+            const normalized = normalizeCode(input);
+            if (!normalized) return null;
+            
+            // Step 2: 生成反向
+            const reversed = reverseString(normalized);
+            
+            // 缓存匹配结果用于去重
+            const matchedIndices = new Set();
+            let results = [];
+            
+            // ===== ① 精确匹配 (normalized) =====
+            for (let i = 0; i < db.length; i++) {
+                const row = db[i];
+                if (row.__barcode_normalized === normalized || row.__code_normalized === normalized) {
+                    if (!matchedIndices.has(i)) {
+                        matchedIndices.add(i);
+                        results.push({ index: i, matchType: '精确匹配', score: 1000 });
                     }
-                } catch(e) { /* fallback to ZXing */ }
+                }
             }
-            // 降级到 ZXing 解码（通过绘制canvas到ImageData? ZXing支持直接解码canvas? 简化: 直接用原ZXing解码原始帧）
-            // 注意：这里的增强主要是图像预处理，若BarcodeDetector失败，保留原ZXing解码流程
+            if (results.length === 1) return results[0];
+            if (results.length > 1) return null; // 多匹配 -> 弹窗
+            
+            // ===== ② 反向后精确匹配 =====
+            for (let i = 0; i < db.length; i++) {
+                const row = db[i];
+                if (row.__barcode_reverse === reversed || row.__code_reverse === reversed) {
+                    if (!matchedIndices.has(i)) {
+                        matchedIndices.add(i);
+                        results.push({ index: i, matchType: '反向精确匹配', score: 900 });
+                    }
+                }
+            }
+            if (results.length === 1) return results[0];
+            if (results.length > 1) return null;
+            
+            // ===== ③ 条码最后6位匹配 =====
+            for (let i = 0; i < db.length; i++) {
+                const row = db[i];
+                const last6 = normalized.length >= 6 ? normalized.slice(-6) : normalized;
+                if (last6 && row.__barcode_last6 === last6) {
+                    if (!matchedIndices.has(i)) {
+                        matchedIndices.add(i);
+                        results.push({ index: i, matchType: '尾6位匹配', score: 800 });
+                    }
+                }
+            }
+            // 也匹配编码的 last6
+            for (let i = 0; i < db.length; i++) {
+                const row = db[i];
+                const last6 = normalized.length >= 6 ? normalized.slice(-6) : normalized;
+                if (last6 && row.__code_last6 === last6) {
+                    if (!matchedIndices.has(i)) {
+                        matchedIndices.add(i);
+                        results.push({ index: i, matchType: '编码尾6位匹配', score: 700 });
+                    }
+                }
+            }
+            if (results.length === 1) return results[0];
+            if (results.length > 1) {
+                // 多个匹配，返回 null 触发弹窗
+                return null; // 外面会收集所有匹配项
+            }
+            
+            // ===== ④ 反向后最后6位匹配 =====
+            const revLast6 = reversed.length >= 6 ? reversed.slice(-6) : reversed;
+            if (revLast6) {
+                for (let i = 0; i < db.length; i++) {
+                    const row = db[i];
+                    if (row.__barcode_last6 === revLast6 || row.__code_last6 === revLast6) {
+                        if (!matchedIndices.has(i)) {
+                            matchedIndices.add(i);
+                            results.push({ index: i, matchType: '反向尾6位匹配', score: 600 });
+                        }
+                    }
+                }
+                if (results.length === 1) return results[0];
+                if (results.length > 1) return null;
+            }
+            
+            // ===== ⑤ 编码contains模糊匹配（兜底） =====
+            for (let i = 0; i < db.length; i++) {
+                const row = db[i];
+                if (row.__barcode_normalized.includes(normalized) || 
+                    row.__code_normalized.includes(normalized) ||
+                    getSearchableRowText(row).includes(normalized.toLowerCase())) {
+                    if (!matchedIndices.has(i)) {
+                        matchedIndices.add(i);
+                        results.push({ index: i, matchType: '模糊匹配', score: 500 });
+                    }
+                }
+            }
+            if (results.length === 1) return results[0];
+            
+            // 多个匹配结果 -> 返回所有匹配项让调用方处理
+            if (results.length > 1) {
+                return { multiMatch: true, results };
+            }
+            
             return null;
         }
 
-        // ---------- 匹配逻辑 (同原有) ----------
+        /**
+         * 智能匹配——如果多匹配则弹出选择框
+         * @param {string} input 用户输入
+         * @returns {number|null} 匹配到的 row index
+         */
+        function smartMatchWithPopup(input) {
+            const result = smartMatch(input);
+            
+            // 单匹配
+            if (result && result.multiMatch !== true && typeof result.index === 'number') {
+                return result.index;
+            }
+            
+            // 多匹配 -> 弹窗
+            if (result && result.multiMatch && result.results && result.results.length > 1) {
+                showMultiMatchPopup(result.results);
+                return null;
+            }
+            
+            // 无匹配
+            return null;
+        }
+
+        // ---------- 多匹配弹窗 ----------
+        let multiMatchCallback = null;
+
+        function showMultiMatchPopup(matchResults) {
+            const modal = document.getElementById('multiMatchModal');
+            const list = document.getElementById('matchList');
+            
+            list.innerHTML = matchResults.map(m => {
+                const row = db[m.index];
+                const name = row['商品名称'] || row['名称'] || '(无名称)';
+                const code = row['条码'] || row['编码'] || '';
+                const qty = row['实际数量'] || 0;
+                return `<div class="match-item" onclick="selectMatch(${m.index})">
+                    <div>
+                        <div class="name">${escapeHtml(String(name).substring(0, 30))}</div>
+                        <div class="code">${escapeHtml(String(code).substring(0, 25))}</div>
+                    </div>
+                    <div class="qty-badge">已盘: ${qty || 0}</div>
+                </div>`;
+            }).join('');
+            
+            modal.style.display = 'flex';
+        }
+
+        function closeMultiMatchModal() {
+            document.getElementById('multiMatchModal').style.display = 'none';
+            multiMatchCallback = null;
+        }
+
+        function selectMatch(index) {
+            closeMultiMatchModal();
+            // 跳转到选中商品并聚焦数量输入框
+            jumpToRowAndFocusQty(index);
+            playBeep(true);
+            vibrate();
+            showToast(`✅ ${db[index]['商品名称'] || db[index]['名称'] || '已选择'}`, false);
+        }
+
+        // ---------- 智能输入增强辅助 ----------
+        /**
+         * 在 manualInput 中输入时，延时探测是否可能进行智能匹配
+         */
+        function onManualInputChange() {
+            const input = document.getElementById('manualInput');
+            const indicator = document.getElementById('smartIndicator');
+            const val = (input.value || '').trim();
+            
+            if (val.length >= 4) {
+                const result = smartMatch(val);
+                if (result && result.multiMatch !== true && typeof result.index === 'number') {
+                    const row = db[result.index];
+                    const name = row['商品名称'] || row['名称'] || '';
+                    input.placeholder = `🤖 识别: ${escapeHtml(String(name).substring(0,20))}`;
+                    indicator.style.display = 'inline-block';
+                } else if (result && result.multiMatch) {
+                    input.placeholder = `📋 匹配到 ${result.results.length} 个商品，点击确认选择`;
+                    indicator.style.display = 'inline-block';
+                } else {
+                    input.placeholder = '📱 输入条码/编码/名称（支持智能识别）...';
+                    indicator.style.display = 'none';
+                }
+            } else {
+                input.placeholder = '📱 输入条码/编码/名称（支持智能识别）...';
+                indicator.style.display = 'none';
+            }
+        }
+
+        // ---------- 兼容旧版匹配函数 ----------
         function preprocessCode(code) {
             if (!code) return code;
-            let cleaned = code.replace(/[^\w\d\-]/g, '');
+            let cleaned = code.replace(/[^\w\d]/g, '');
             if (cleaned.startsWith('*') && cleaned.endsWith('*')) cleaned = cleaned.slice(1, -1);
             if (cleaned.length === 12 && /^\d+$/.test(cleaned)) cleaned = '0' + cleaned;
             return cleaned;
@@ -1000,7 +908,7 @@
             setTimeout(() => { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
-        // 核心：处理识别到的条码
+        // 核心：处理识别到的条码（使用智能匹配）
         function handleBarcode(code, fromCamera = false) {
             if (!code) return false;
             const now = Date.now();
@@ -1009,13 +917,14 @@
             lastCode = codeStr;
             lastTime = now;
             
-            const foundIndex = findBestMatchRowIndex(codeStr);
-            if (foundIndex === -1) {
+            // 使用智能匹配
+            const foundIndex = smartMatchWithPopup(codeStr);
+            
+            if (foundIndex === null || foundIndex === undefined) {
+                // 没有找到匹配，或者多匹配弹窗打开
                 playBeep(false);
-                showToast(`❌ 条码不存在: ${codeStr.substring(0, 20)}`, true);
-                // 振动提示失败
+                showToast(`❌ 未匹配: ${codeStr.substring(0, 20)}`, true);
                 vibrate();
-                // 更新失败计数
                 consecutiveFailures++;
                 lastDecodeSucceeded = false;
                 setTimeout(() => {
@@ -1024,7 +933,8 @@
                 }, 100);
                 return false;
             }
-            // 成功
+            
+            // 成功匹配
             consecutiveFailures = 0;
             lastDecodeSucceeded = true;
             playBeep(true);
@@ -1038,7 +948,14 @@
             return true;
         }
 
-        // ---------- 相机与扫码 ----------
+        // ---------- 相机与扫码（优化对焦速度）----------
+        /**
+         * 优化的相机对焦策略：
+         * 1. 持续自动对焦 (continuous) —— 默认开启
+         * 2. 点击画面触发手动瞬间拉近对焦 + 快速回到auto
+         * 3. 扫描框对准条码中心区域
+         * 4. 每隔500ms自动微调对焦（针对近距离条码）
+         */
         function setupCameraControls(track) {
             cameraTrack = track || null;
             const torchBtn = document.getElementById('torchBtn');
@@ -1056,23 +973,43 @@
                     torchBtn.textContent = turnOn ? '🔦 关补光' : '🔦 补光';
                 } catch (e) { showToast('补光切换失败', true); }
             };
-            const videoContainer = document.querySelector('#scanUI .relative');
-            if (videoContainer) {
-                videoContainer.addEventListener('click', async () => {
-                    if (cameraTrack && cameraTrack.getCapabilities && cameraTrack.getCapabilities().focusMode) {
-                        try {
-                            const probe = [0.05, 0.08, 0.12, 0.18, 0.25, 0.35];
-                            for (const d of probe) {
-                                await cameraTrack.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: d }] });
-                                await new Promise(r => setTimeout(r, 60));
-                            }
-                            setTimeout(() => {
-                                if (cameraTrack) cameraTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
-                            }, 600);
-                            showToast("🎯 近距扫描完成", false);
-                        } catch(e) {}
+        }
+
+        /**
+         * 快速对焦：点击画面触发手动对焦 + 快速回到持续自动对焦
+         * 在 300ms 内完成一次快速拉近再恢复
+         */
+        async function triggerFastFocus(track) {
+            if (!track || !track.getCapabilities) return;
+            const caps = track.getCapabilities();
+            if (!caps.focusMode) return;
+            
+            try {
+                // Step 1: 瞬间切手动对焦到近距离
+                if (caps.focusMode.includes('manual')) {
+                    await track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: 0.05 }] });
+                }
+                
+                // Step 2: 快速阶梯对焦（从最近到稍远，覆盖条码常见距离）
+                const distances = [0.05, 0.08, 0.12, 0.18];
+                for (const d of distances) {
+                    if (caps.focusMode.includes('manual')) {
+                        await track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: d }] });
                     }
-                });
+                    await new Promise(r => setTimeout(r, 30));
+                }
+                
+                // Step 3: 恢复持续自动对焦
+                if (caps.focusMode.includes('continuous')) {
+                    await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+                }
+            } catch (e) {
+                // fallback: 尝试直接设回 continuous
+                try {
+                    if (caps.focusMode.includes('continuous')) {
+                        await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+                    }
+                } catch (_) {}
             }
         }
 
@@ -1080,33 +1017,115 @@
             if (!track || !track.getCapabilities) return;
             const caps = track.getCapabilities();
             const advanced = [];
-            if (caps.focusMode && caps.focusMode.includes('continuous')) advanced.push({ focusMode: 'continuous' });
-            if (caps.exposureMode && caps.exposureMode.includes('continuous')) advanced.push({ exposureMode: 'continuous' });
-            if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('continuous')) advanced.push({ whiteBalanceMode: 'continuous' });
-            if (caps.exposureCompensation) {
-                const minExp = typeof caps.exposureCompensation.min === 'number' ? caps.exposureCompensation.min : -1;
-                const maxExp = typeof caps.exposureCompensation.max === 'number' ? caps.exposureCompensation.max : 1;
-                advanced.push({ exposureCompensation: Math.max(minExp, Math.min(maxExp, 0.2)) });
+            
+            // 开启持续自动对焦
+            if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                advanced.push({ focusMode: 'continuous' });
             }
-            if (advanced.length) track.applyConstraints({ advanced }).catch(() => {});
+            // 开启持续自动曝光
+            if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
+                advanced.push({ exposureMode: 'continuous' });
+            }
+            // 开启持续白平衡
+            if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('continuous')) {
+                advanced.push({ whiteBalanceMode: 'continuous' });
+            }
+            // 轻微曝光补偿（条码场景偏亮一点）
+            if (caps.exposureCompensation) {
+                const minExp = typeof caps.exposureCompensation.min === 'number' ? caps.exposureCompensation.min : -2;
+                const maxExp = typeof caps.exposureCompensation.max === 'number' ? caps.exposureCompensation.max : 2;
+                advanced.push({ exposureCompensation: Math.max(minExp, Math.min(maxExp, 0.5)) });
+            }
+            
+            if (advanced.length) {
+                track.applyConstraints({ advanced }).catch(() => {});
+            }
+        }
+        
+        // ---------- 图像预处理（增强扫码能力）----------
+        function getFrameROI(videoEl, frameEl) {
+            const vw = videoEl.videoWidth, vh = videoEl.videoHeight;
+            if (!vw || !vh) return null;
+            const vr = videoEl.getBoundingClientRect();
+            const fr = frameEl.getBoundingClientRect();
+            const videoAspect = vw / vh;
+            const boxAspect = vr.width / vr.height;
+            let renderW, renderH, offsetX = 0, offsetY = 0;
+            if (videoAspect > boxAspect) {
+                renderH = vr.height;
+                renderW = renderH * videoAspect;
+                offsetX = (renderW - vr.width) / 2;
+            } else {
+                renderW = vr.width;
+                renderH = renderW / videoAspect;
+                offsetY = (renderH - vr.height) / 2;
+            }
+            const xInBox = fr.left - vr.left + offsetX;
+            const yInBox = fr.top - vr.top + offsetY;
+            const sx = vw / renderW, sy = vh / renderH;
+            let roiX = Math.max(0, Math.floor(xInBox * sx));
+            let roiY = Math.max(0, Math.floor(yInBox * sy));
+            let roiW = Math.min(vw - roiX, Math.floor(fr.width * sx));
+            let roiH = Math.min(vh - roiY, Math.floor(fr.height * sy));
+            if (roiW <= 0 || roiH <= 0) return null;
+            const lowerY = roiY + Math.floor(roiH * 0.55);
+            const lowerH = roiH - Math.floor(roiH * 0.55);
+            if (lowerH < 10) return { x: roiX, y: roiY, w: roiW, h: roiH };
+            return { x: roiX, y: lowerY, w: roiW, h: lowerH };
         }
 
-        // 解码拦截器：支持增强模式
-        let originalDecodeCallback = null;
-        let currentReader = null;
-        
+        function preprocessImageForBarcode(videoEl, roi) {
+            const canvas = document.createElement('canvas');
+            canvas.width = roi.w;
+            canvas.height = roi.h;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(videoEl, roi.x, roi.y, roi.w, roi.h, 0, 0, roi.w, roi.h);
+            const imgData = ctx.getImageData(0, 0, roi.w, roi.h);
+            const data = imgData.data;
+            let min = 255, max = 0;
+            for (let i = 0; i < data.length; i += 4) {
+                const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+                data[i] = data[i+1] = data[i+2] = gray;
+                if (gray < min) min = gray;
+                if (gray > max) max = gray;
+            }
+            const range = max - min;
+            const threshold = min + range * 0.55;
+            for (let i = 0; i < data.length; i += 4) {
+                const val = data[i] > threshold ? 255 : 0;
+                data[i] = data[i+1] = data[i+2] = val;
+            }
+            ctx.putImageData(imgData, 0, 0);
+            return canvas;
+        }
+
+        async function tryEnhancedDecode(videoEl, frameEl) {
+            if (!videoEl || videoEl.readyState < 2) return null;
+            const roi = getFrameROI(videoEl, frameEl);
+            if (!roi) return null;
+            const processedCanvas = preprocessImageForBarcode(videoEl, roi);
+            if (!processedCanvas) return null;
+            if ('BarcodeDetector' in window) {
+                try {
+                    const detector = new window.BarcodeDetector({
+                        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'code_93', 'code_128', 'itf', 'codabar']
+                    });
+                    const codes = await detector.detect(processedCanvas);
+                    if (codes && codes.length > 0) return codes[0].rawValue;
+                } catch(e) {}
+            }
+            return null;
+        }
+
+        // 解码拦截器
         async function startScanning() {
             if (scanning) { showToast("扫描器已在运行", false); return; }
             
-            // ---------- iPad 摄像头框上移10% (从25%到15%) ----------
-            const isIPadDevice = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
+            // iPad 扫描框上移10%
+            const isIPadDevice = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchstart' in window;
             const scanFrame = document.getElementById('scanFrame');
             if (scanFrame) {
-                if (isIPadDevice) {
-                    scanFrame.style.top = '15%';   // 上移10个百分点
-                } else {
-                    scanFrame.style.top = '25%';   // 保持默认
-                }
+                scanFrame.style.top = isIPadDevice ? '15%' : '25%';
             }
             
             const scanUI = document.getElementById('scanUI');
@@ -1114,7 +1133,6 @@
             scanning = true;
             if (reader) { try { await reader.reset(); } catch(e) {} reader = null; }
             
-            // 增强模式UI
             const badge = document.getElementById('enhanceBadge');
             if (enhanceMode) badge.classList.remove('hidden');
             else badge.classList.add('hidden');
@@ -1143,13 +1161,11 @@
                 ]);
                 
                 reader = new ZXing.BrowserMultiFormatReader(hints);
-                reader.timeBetweenDecodingAttempts = 20;
+                reader.timeBetweenDecodingAttempts = 15; // 更快的解码间隔
                 
-                // 包装解码回调，支持增强模式
                 const videoEl = document.getElementById('video');
                 const frameEl = document.getElementById('scanFrame');
                 
-                // 使用原生 ZXing 连续解码 + 在回调中整合增强逻辑
                 await reader.decodeFromConstraints(constraints, 'video', async (result, err) => {
                     if (!scanning) return;
                     if (result) {
@@ -1161,51 +1177,73 @@
                             return;
                         }
                     }
-                    // 解码失败
                     consecutiveFailures++;
                     lastDecodeSucceeded = false;
-                    // 如果手动增强模式开启 或 连续失败达到阈值，则尝试单次图像预处理解码
                     if (enhanceMode || consecutiveFailures >= AUTO_ENHANCE_THRESHOLD) {
                         const enhancedCode = await tryEnhancedDecode(videoEl, frameEl);
                         if (enhancedCode) {
                             handleBarcode(enhancedCode, true);
                             consecutiveFailures = 0;
-                            // 增强成功后可选震动提示（短促）
                             vibrate();
                         }
                     }
                 });
                 
                 showToast("极速扫码引擎已启动" + (enhanceMode ? " (增强模式)" : ""), false);
+                
+                // 摄像头设置延迟（等待轨道可用）
                 setTimeout(() => {
                     const track = videoEl?.srcObject?.getVideoTracks?.()[0];
                     if (track) {
                         setupCameraControls(track);
                         applyCameraTuning(track);
+                        // 首次快速对焦
+                        triggerFastFocus(track);
                     }
                 }, 300);
                 
+                // 优化的对焦循环 —— 更快、更稳定
                 currentFocusInterval = setInterval(() => {
                     if (!scanning) { clearInterval(currentFocusInterval); return; }
                     if (videoEl && videoEl.srcObject) {
                         const track = videoEl.srcObject.getVideoTracks()[0];
                         if (track && track.getCapabilities) {
                             const caps = track.getCapabilities();
-                            const step = Math.floor(Date.now() / 200) % 10;
-                            if (step < 4 && caps.focusMode && caps.focusMode.includes('manual')) {
-                                const dist = [0.05, 0.08, 0.12, 0.18][step];
-                                track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: dist }] }).catch(() => {});
+                            // 前3次快速手动对焦扫描，然后切回持续自动对焦
+                            const cycleStep = (Math.floor(Date.now() / 180)) % 8;
+                            if (cycleStep < 4 && caps.focusMode && caps.focusMode.includes('manual')) {
+                                const dist = [0.04, 0.07, 0.10, 0.15][cycleStep];
+                                track.applyConstraints({ 
+                                    advanced: [{ focusMode: 'manual', focusDistance: dist }] 
+                                }).catch(() => {});
                             } else {
+                                // 恢复持续自动对焦
                                 if (caps.focusMode && caps.focusMode.includes('continuous')) {
-                                    track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                                    track.applyConstraints({ 
+                                        advanced: [{ focusMode: 'continuous' }] 
+                                    }).catch(() => {});
                                 }
+                                // 确保曝光和白平衡也是持续的
                                 if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
-                                    track.applyConstraints({ advanced: [{ exposureMode: 'continuous' }] }).catch(() => {});
+                                    track.applyConstraints({ 
+                                        advanced: [{ exposureMode: 'continuous' }] 
+                                    }).catch(() => {});
                                 }
                             }
                         }
                     }
-                }, 200);
+                }, 180); // 更快的对焦轮询（200ms -> 180ms）
+                
+                // 点击视频画面——触发快速手动对焦（针对条码近距离）
+                videoEl.addEventListener('click', async () => {
+                    if (!scanning) return;
+                    const track = videoEl?.srcObject?.getVideoTracks?.()[0];
+                    if (track) {
+                        await triggerFastFocus(track);
+                        showToast("🎯 快速对焦完成", false);
+                    }
+                }, { once: false });
+                
             } catch(err) {
                 console.error("相机错误:", err);
                 showToast("无法启动摄像头，请检查权限", true);
@@ -1225,11 +1263,9 @@
             }
             document.getElementById('scanUI').style.display = 'none';
             cameraTrack = null;
-            // 重置失败计数
             consecutiveFailures = 0;
         }
 
-        // 增强模式切换（同时更新底部和顶部按钮状态）
         function toggleEnhanceMode() {
             enhanceMode = !enhanceMode;
             const topBtn = document.getElementById('scanEnhanceBtn');
@@ -1245,64 +1281,167 @@
                 if (badge) badge.classList.add('hidden');
                 showToast("增强模式已关闭", false);
             }
-            // 重新启动扫描以应用新设置（如果正在扫描）
             if (scanning) {
                 stopScanning(true);
                 setTimeout(() => startScanning(), 200);
             }
         }
-        
-        // ========== 授权系统（读取顶部脚本保存的授权状态）==========
+
+        // ---------- 键盘处理 ----------
+        function setupKeyboardListener() {
+            if (!(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent))) return;
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', () => {
+                    const currentHeight = window.visualViewport.height;
+                    const keyboardHeight = originalViewportHeight - currentHeight;
+                    if (keyboardHeight > 150) document.body.classList.add('keyboard-open');
+                    else {
+                        document.body.classList.remove('keyboard-open');
+                        setTimeout(() => {
+                            if (pendingJump !== null) {
+                                const rowEl = document.getElementById(`row-${pendingJump}`);
+                                if (rowEl) rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                        }, 100);
+                    }
+                });
+            }
+            window.addEventListener('resize', () => {
+                const currentHeight = window.innerHeight;
+                const keyboardHeight = originalViewportHeight - currentHeight;
+                if (keyboardHeight > 150) document.body.classList.add('keyboard-open');
+                else document.body.classList.remove('keyboard-open');
+            });
+        }
+
+        function showKeyboard() {
+            if (currentInputElement && document.activeElement !== currentInputElement) {
+                currentInputElement.focus();
+                currentInputElement.select();
+            } else {
+                const manualInput = document.getElementById('manualInput');
+                if (manualInput) {
+                    manualInput.focus();
+                    manualInput.select();
+                    currentInputElement = manualInput;
+                }
+            }
+        }
+
+        function hideKeyboard() {
+            if (currentInputElement) {
+                currentInputElement.blur();
+                currentInputElement = null;
+            }
+            document.activeElement?.blur();
+            document.body.classList.remove('keyboard-open');
+        }
+
+        // ---------- 数据存储 ----------
+        function loadData() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    db = data.db || [];
+                    columns = data.columns || [];
+                }
+                if (!columns.length) {
+                    columns = ['实际数量', '商品名称', '编码', '价格'];
+                    db = [];
+                }
+                normalizeActualQtyColumnPosition();
+                db.forEach(row => {
+                    if (row['实际数量'] === undefined) row['实际数量'] = '';
+                });
+                // 重新生成预计算字段
+                recomputeAllPrecomputedFields();
+            } catch(e) {
+                console.error(e);
+                columns = ['实际数量', '商品名称', '编码', '价格'];
+                normalizeActualQtyColumnPosition();
+                db = [];
+            }
+        }
+
+        function normalizeActualQtyColumnPosition() {
+            if (!Array.isArray(columns) || !columns.length) return;
+            const qtyCol = '实际数量';
+            const qtyIndex = columns.indexOf(qtyCol);
+            if (qtyIndex === -1) return;
+            columns.splice(qtyIndex, 1);
+            const targetIndex = 4;
+            columns.splice(Math.min(targetIndex, columns.length), 0, qtyCol);
+        }
+
+        function saveData() {
+            try {
+                // 保存前重新生成预计算字段
+                recomputeAllPrecomputedFields();
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ db, columns, version: VERSION }));
+            } catch(e) { showToast("存储空间不足", true); }
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.background = isError ? '#dc2626' : '#10b981';
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 1500);
+        }
+
+        function playBeep(success) {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.frequency.value = success ? 1200 : 400;
+                gainNode.gain.value = 0.6;
+                oscillator.start();
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2);
+                oscillator.stop(audioCtx.currentTime + 0.2);
+                audioCtx.resume();
+            } catch(e) {}
+        }
+
+        function vibrate() {
+            if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30);
+        }
+
+        // ========== 授权系统 ==========
         function initAuthSystem() {
-            // 预设200个固定授权码（所有设备共享同一套）
             const presetList = ["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];
             const presetCodes = presetList.map(c => ({ code: c, used: false, deviceId: '' }));
-            // 与顶部脚本共用同一个 storage key
             const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
             try {
                 const saved = localStorage.getItem(AUTH_SKEY);
                 if (saved) {
                     const oldData = JSON.parse(saved);
                     const oldCodes = oldData.codes || [];
-                    // 迁移旧的已用状态到预设码
                     const oldUsedMap = {};
-                    for (let oc of oldCodes) {
-                        if (oc.used) oldUsedMap[oc.code] = oc.deviceId;
-                    }
-                    for (let pc of presetCodes) {
-                        if (oldUsedMap[pc.code]) {
-                            pc.used = true;
-                            pc.deviceId = oldUsedMap[pc.code];
-                        }
-                    }
+                    for (let oc of oldCodes) { if (oc.used) oldUsedMap[oc.code] = oc.deviceId; }
+                    for (let pc of presetCodes) { if (oldUsedMap[pc.code]) { pc.used = true; pc.deviceId = oldUsedMap[pc.code]; } }
                     authCodes = presetCodes;
                     isActivated = oldData.activated || false;
                     adminMode = oldData.admin || false;
-                    // 重新写入（统一为预设码格式）
-                    localStorage.setItem(AUTH_SKEY, JSON.stringify({
-                        codes: presetCodes, activated: isActivated, admin: adminMode
-                    }));
+                    localStorage.setItem(AUTH_SKEY, JSON.stringify({ codes: presetCodes, activated: isActivated, admin: adminMode }));
                 } else {
                     authCodes = presetCodes;
-                    localStorage.setItem(AUTH_SKEY, JSON.stringify({
-                        codes: authCodes, activated: false, admin: false
-                    }));
+                    localStorage.setItem(AUTH_SKEY, JSON.stringify({ codes: authCodes, activated: false, admin: false }));
                 }
-            } catch(e) {
-                authCodes = presetCodes;
-            }
-            // 底部脚本不再控制弹窗显示/隐藏，由顶部独立脚本全权负责
+            } catch(e) { authCodes = presetCodes; }
         }
 
+        let authCodes = [];
+        let isActivated = false;
+        let adminMode = false;
+
         function saveAuthState() {
-            // 顶部独立脚本已负责保存，这里同步一下数据格式
             const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
             try {
-                localStorage.setItem(AUTH_SKEY, JSON.stringify({
-                    codes: authCodes,
-                    activated: isActivated,
-                    admin: adminMode
-                }));
+                localStorage.setItem(AUTH_SKEY, JSON.stringify({ codes: authCodes, activated: isActivated, admin: adminMode }));
             } catch(e) {}
         }
 
@@ -1315,8 +1454,6 @@
             return id;
         }
 
-        // verifyAuthCode 已由顶部独立脚本实现，此处不再重复定义（但顶部脚本会调用到下面的 adminMode 等变量，需在顶部脚本里自己也维护一份）
-        
         function openAdminPanel() {
             const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
             let isAdmin = false;
@@ -1324,10 +1461,7 @@
                 const d = JSON.parse(localStorage.getItem(AUTH_SKEY));
                 if (d && d.admin) isAdmin = true;
             } catch(e) {}
-            if (!isAdmin) {
-                showToast("⚠️ 你不是管理员", true);
-                return;
-            }
+            if (!isAdmin) { showToast("⚠️ 你不是管理员", true); return; }
             adminMode = true;
             renderAdminCodeList();
             document.getElementById('adminPanel').style.display = 'flex';
@@ -1355,7 +1489,6 @@
         }
 
         function generateNewCodes() {
-            // 使用预设的备用码，确保所有设备追加同样的码
             const fallbackCodes = ["000WENXI","11W1ENXI","22WE2NXI","33WEN3XI","44WENX4I","55WENXI5","6W66ENXI","7W7E7NXI","8W8EN8XI","9W9ENX9I","0W0ENXI0","1WE11NXI","2WE2N2XI","3WE3NX3I","4WE4NXI4","5WEN55XI","6WEN6X6I","7WEN7XI7","8WENX88I","9WENX9I9","0WENXI00","W111ENXI","W22E2NXI","W33EN3XI","W44ENX4I","W55ENXI5","W6E66NXI","W7E7N7XI","W8E8NX8I","W9E9NXI9","W0EN00XI","W1EN1X1I","W2EN2XI2","W3ENX33I","W4ENX4I4","W5ENXI55","WE666NXI","WE77N7XI","WE88NX8I","WE99NXI9","WE0N00XI","WE1N1X1I","WE2N2XI2","WE3NX33I","WE4NX4I4","WE5NXI55","WEN666XI","WEN77X7I","WEN88XI8","WEN9X99I"];
             let added = 0;
             const existingSet = new Set(authCodes.map(a => a.code));
@@ -1404,8 +1537,18 @@
 
         function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
         
-        function updateQty(rowIndex, value) { db[rowIndex]['实际数量'] = value; saveData(); showToast("已保存", false); hideKeyboard(); }
-        function updateCell(rowIndex, col, value) { db[rowIndex][col] = value; saveData(); }
+        function updateQty(rowIndex, value) { 
+            db[rowIndex]['实际数量'] = value; 
+            saveData(); 
+            showToast("已保存", false); 
+            hideKeyboard(); 
+        }
+        function updateCell(rowIndex, col, value) { 
+            db[rowIndex][col] = value; 
+            // 如果修改了条码或编码，重新生成预计算字段
+            computePrecomputedFields(db[rowIndex]);
+            saveData(); 
+        }
         
         function autoAdjustColumns() {
             const table = document.getElementById('mainTable');
@@ -1471,14 +1614,10 @@
 
         function setupDragAndDrop() {
             const items = document.querySelectorAll('.col-item');
-            // iPad/iPhone 不支持 HTML5 拖拽，自动禁用拖拽
-            const isTouch = 'ontouchend' in document;
+            const isTouch = 'ontouchstart' in window;
             let draggedItem = null;
             items.forEach(item => {
-                if (isTouch) {
-                    item.setAttribute('draggable', 'false');
-                    return;
-                }
+                if (isTouch) { item.setAttribute('draggable', 'false'); return; }
                 item.setAttribute('draggable', 'true');
                 item.addEventListener('dragstart', (e) => { draggedItem = item; item.style.opacity = '0.5'; e.dataTransfer.effectAllowed = 'move'; });
                 item.addEventListener('dragend', (e) => { item.style.opacity = ''; draggedItem = null; });
@@ -1489,9 +1628,7 @@
                     const fromIndex = parseInt(draggedItem.getAttribute('data-index'));
                     const toIndex = parseInt(item.getAttribute('data-index'));
                     if (!isNaN(fromIndex) && !isNaN(toIndex)) {
-                        const temp = columns[fromIndex];
-                        columns[fromIndex] = columns[toIndex];
-                        columns[toIndex] = temp;
+                        const temp = columns[fromIndex]; columns[fromIndex] = columns[toIndex]; columns[toIndex] = temp;
                         renderColList(); render(); saveData(); showToast("列顺序已更新", false);
                     }
                 });
@@ -1521,7 +1658,12 @@
                         columns = Object.keys(json[0]);
                         if (!columns.includes('实际数量')) columns.unshift('实际数量');
                         normalizeActualQtyColumnPosition();
-                        db = json.map(row => { const newRow = { ...row }; if (newRow['实际数量'] === undefined) newRow['实际数量'] = ''; return newRow; });
+                        db = json.map(row => { 
+                            const newRow = { ...row }; 
+                            if (newRow['实际数量'] === undefined) newRow['实际数量'] = ''; 
+                            computePrecomputedFields(newRow);
+                            return newRow; 
+                        });
                         saveData(); render(); showToast(`✅ 导入成功！共 ${db.length} 条数据`, false);
                     } else showToast("文件无数据", true);
                 } catch(err) { console.error(err); showToast("解析失败", true); }
@@ -1536,13 +1678,32 @@
             const defaultName = `飞速盘点_${new Date().toLocaleDateString()}`;
             let name = prompt("请输入导出文件名：", defaultName);
             if (!name || !name.trim()) name = defaultName;
-            const ws = XLSX.utils.json_to_sheet(db, { header: columns });
+            // 导出时移除预计算字段
+            const exportData = db.map(row => {
+                const cleanRow = { ...row };
+                delete cleanRow.__barcode_normalized;
+                delete cleanRow.__barcode_reverse;
+                delete cleanRow.__barcode_last6;
+                delete cleanRow.__code_normalized;
+                delete cleanRow.__code_reverse;
+                delete cleanRow.__code_last6;
+                return cleanRow;
+            });
+            const ws = XLSX.utils.json_to_sheet(exportData, { header: columns });
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "库存数据");
             XLSX.writeFile(wb, name.trim() + ".xlsx");
             showToast("✅ 导出成功", false);
         }
-        function hardReset() { if (confirm("⚠️ 确定清空所有数据吗？此操作不可恢复！")) { localStorage.removeItem(STORAGE_KEY); db = []; columns = ['实际数量', '商品名称', '编码', '价格']; normalizeActualQtyColumnPosition(); saveData(); render(); showToast("已清空所有数据", false); } }
+        function hardReset() { 
+            if (confirm("⚠️ 确定清空所有数据吗？此操作不可恢复！")) { 
+                localStorage.removeItem(STORAGE_KEY); 
+                db = []; 
+                columns = ['实际数量', '商品名称', '编码', '价格']; 
+                normalizeActualQtyColumnPosition(); 
+                saveData(); render(); showToast("已清空所有数据", false); 
+            } 
+        }
 
         // ---------- 初始化事件 ----------
         window.addEventListener('resize', () => setTimeout(() => autoAdjustColumns(), 100));
@@ -1555,17 +1716,53 @@
         // 授权输入框回车提交
         const authInput = document.getElementById('authInput');
         if (authInput) authInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifyAuthCode(); });
+
+        // 确认按钮 + 智能匹配
+        document.getElementById('confirmBtn').onclick = () => { 
+            const input = document.getElementById('manualInput'); 
+            const val = input.value.trim(); 
+            if (val === '授权码') { openAdminPanel(); input.value = ''; return; } 
+            if (val) { 
+                handleBarcode(val, false); 
+                input.value = ''; 
+                // 清除智能提示
+                document.getElementById('smartIndicator').style.display = 'none';
+                input.placeholder = '📱 输入条码/编码/名称（支持智能识别）...';
+            } 
+            hideKeyboard(); 
+        };
         
-        document.getElementById('confirmBtn').onclick = () => { const input = document.getElementById('manualInput'); const val = input.value.trim(); if (val === '授权码') { openAdminPanel(); input.value = ''; return; } if (val) { handleBarcode(val, false); input.value = ''; } hideKeyboard(); };
-        document.getElementById('manualInput').onkeypress = (e) => { if (e.key === 'Enter') { const input = e.target; const val = input.value.trim(); if (val === '授权码') { openAdminPanel(); input.value = ''; return; } if (val) { handleBarcode(val, false); input.value = ''; } hideKeyboard(); } };
+        // 输入框实时智能探测
+        document.getElementById('manualInput').oninput = function(e) {
+            onManualInputChange();
+        };
+        
+        document.getElementById('manualInput').onkeypress = (e) => { 
+            if (e.key === 'Enter') { 
+                const input = e.target; 
+                const val = input.value.trim(); 
+                if (val === '授权码') { openAdminPanel(); input.value = ''; return; } 
+                if (val) { 
+                    handleBarcode(val, false); 
+                    input.value = ''; 
+                    document.getElementById('smartIndicator').style.display = 'none';
+                    input.placeholder = '📱 输入条码/编码/名称（支持智能识别）...';
+                } 
+                hideKeyboard(); 
+            } 
+        };
+        
         document.getElementById('scanBtn').onclick = () => { if (scanning) stopScanning(true); else startScanning(); hideKeyboard(); };
         document.getElementById('showKeyboardBtn').onclick = () => showKeyboard();
         
         // 绑定顶部增强按钮
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
-        
-        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - 音量提升50% | 增强开关移至左上角 | iPad扫描框上移10%`);
+
+        console.log(`⚡ 飞速盘点 智能扫码版 ${VERSION}`);
+        console.log(`📌 已加载 ${db.length} 条商品数据`);
+        console.log(`🔍 智能匹配引擎就绪: normalizeCode + reverseString + last6 + 多匹配弹窗`);
+        console.log(`📷 摄像头优化: 持续自动对焦 + 快速阶梯对焦(180ms轮询)`);
     </script>
 </body>
 </html>
