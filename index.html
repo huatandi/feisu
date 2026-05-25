@@ -195,7 +195,6 @@
             padding: 4px 10px; border-radius: 20px; font-size: 10px;
             color: #fbbf24; font-weight: bold; pointer-events: none; z-index: 15;
         }
-        /* 授权弹窗 */
         .auth-overlay {
             position: fixed; inset: 0; z-index: 99999;
             background: rgba(0,0,0,0.88);
@@ -222,7 +221,6 @@
         }
         .auth-btn:active { transform: scale(0.97); }
         .auth-error { color: #dc2626; font-size: 13px; font-weight: bold; margin-top: 10px; display: none; }
-        /* 管理员面板 */
         .admin-overlay {
             position: fixed; inset: 0; z-index: 99998;
             background: rgba(0,0,0,0.85);
@@ -255,7 +253,6 @@
             padding: 12px; background: #8b5cf6; color: #fff;
             border: none; border-radius: 12px; font-weight: 900; font-size: 15px; cursor: pointer;
         }
-        /* 多匹配选择弹窗 */
         #multiMatchModal {
             display: none; position: fixed; inset: 0; z-index: 99999;
             background: rgba(0,0,0,0.85);
@@ -283,7 +280,6 @@
             background: #dbeafe; color: #1e40af;
             padding: 2px 10px; border-radius: 999px; font-weight: bold; font-size: 13px;
         }
-        /* 智能扫码徽章 */
         .smart-badge {
             display: inline-flex; align-items: center; gap: 4px;
             background: linear-gradient(135deg, #7c3aed, #3b82f6);
@@ -310,7 +306,6 @@
         </div>
     </div>
 
-    <!-- 多匹配选择弹窗 -->
     <div id="multiMatchModal">
         <div class="multi-match-content">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
@@ -322,7 +317,6 @@
         </div>
     </div>
 
-    <!-- 授权弹窗 -->
     <style>
         #authOverlay{z-index:999999!important;position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;background:rgba(0,0,0,0.88)!important;backdrop-filter:blur(12px)!important;display:flex;align-items:center!important;justify-content:center!important;}
         .auth-box{background:#fff!important;border-radius:28px!important;width:min(92%,400px)!important;padding:32px 24px 24px!important;text-align:center!important;box-shadow:0 20px 60px rgba(0,0,0,0.5)!important;}
@@ -392,7 +386,6 @@
     else { authEl.style.display='flex'; }
     </script>
 
-    <!-- 管理员授权面板 -->
     <div id="adminPanel" class="admin-overlay">
         <div class="admin-box">
             <button onclick="closeAdminPanel()" class="admin-close">✕</button>
@@ -441,7 +434,6 @@
         </div>
     </div>
 
-    <!-- 底部固定按钮 -->
     <div class="bottom-fixed-btns">
         <div class="bottom-btns">
             <button id="scanBtn" class="bottom-btn bg-blue-600 text-white shadow-lg cam-btn-large">📷 扫码</button>
@@ -485,8 +477,8 @@
         const VERSION = "S3.3.6";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         
-        let db = [];               // 原始数据 [{商品名称, 编码, 条码, ...}, ...]
-        let columns = [];          // 列名数组
+        let db = [];
+        let columns = [];
         let scanning = false;
         let reader = null;
         let lastCode = "";
@@ -497,7 +489,6 @@
         let originalViewportHeight = window.innerHeight;
         let cameraTrack = null;
         
-        // 增强模式
         let enhanceMode = false;
         let consecutiveFailures = 0;
         const AUTO_ENHANCE_THRESHOLD = 3;
@@ -508,58 +499,107 @@
         // 智能扫码识别引擎
         // ============================================================
         
-        /**
-         * 字符串标准化规则
-         * 1. 转大写
-         * 2. 去除空格
-         * 3. 去除 -
-         * 4. 去除 _
-         * 5. 去除所有特殊字符（仅保留字母和数字）
-         * 6. 返回标准化字符串
-         */
         function normalizeCode(str) {
             if (!str) return '';
             return String(str)
                 .toUpperCase()
-                .replace(/\s+/g, '')    // 去除空格
-                .replace(/-/g, '')       // 去除 -
-                .replace(/_/g, '')       // 去除 _
-                .replace(/[^A-Z0-9]/g, ''); // 去除其他所有特殊字符
+                .replace(/\s+/g, '')
+                .replace(/-/g, '')
+                .replace(/_/g, '')
+                .replace(/[^A-Z0-9]/g, '');
         }
 
-        /**
-         * 反向字符串
-         */
         function reverseString(str) {
             if (!str) return '';
             return str.split('').reverse().join('');
         }
 
-        /**
-         * 预计算字段：为数据库中的每一条商品生成优化查询字段
-         * 当 db 加载完成或新增/更新商品时调用
-         */
-        function computePrecomputedFields(row) {
-            // 确定条码字段：优先取"条码"、"编码"，其次遍历查找
-            const barcodeField = '条码';
-            const codeField = '编码';
+        function detectBarcodeAndCodeColumns(row) {
+            const barcodeKeywords = [
+                '条码', 'barcode', 'ean', 'upc', '商品编号', '产品编号', '货号', 'sku',
+                'codigo', 'código', 'product code', 'item', 'ref', 'referencia'
+            ];
+            const codeKeywords = [
+                '编码', 'code', '编号', '商品编码', '产品编码', '型号', 'modelo',
+                'codigo', 'código', 'producto', 'item code', 'part', 'partnumber',
+                '零件号', '料号', '规格', 'spec'
+            ];
+            const skipColumnKeywords = ['名称', 'name', 'descripcion', 'desc', '备注', '说明'];
             
-            let barcode = String(row[barcodeField] || row[codeField] || '').trim();
-            let code = String(row[codeField] || row[barcodeField] || '').trim();
+            let barcodeKey = null, codeKey = null;
+            let scoredBarcode = [], scoredCode = [];
             
-            // 如果条码为空，尝试其他字段
-            if (!barcode) {
-                for (let key of Object.keys(row)) {
-                    const val = String(row[key] || '').trim();
-                    if (val && /^[0-9]{8,}$/.test(val)) {
-                        barcode = val;
-                        break;
-                    }
+            for (let key of Object.keys(row)) {
+                const keyLower = key.toLowerCase().trim();
+                const val = String(row[key] || '').trim();
+                if (!val) continue;
+                
+                let isSkipColumn = false;
+                for (let sk of skipColumnKeywords) {
+                    if (keyLower.includes(sk)) { isSkipColumn = true; break; }
+                }
+                if (isSkipColumn) continue;
+                
+                for (let kw of barcodeKeywords) {
+                    if (keyLower.includes(kw)) { scoredBarcode.push({ key, val, score: 10 }); break; }
+                }
+                for (let kw of codeKeywords) {
+                    if (keyLower.includes(kw)) { scoredCode.push({ key, val, score: 10 }); break; }
+                }
+                if (keyLower.includes('名称') || keyLower.includes('name')) continue;
+                
+                if (/^\d{8,}$/.test(val)) {
+                    scoredBarcode.push({ key, val, score: 5 });
+                } else if (/[A-Za-z]/.test(val) && /\d/.test(val)) {
+                    scoredCode.push({ key, val, score: 5 });
                 }
             }
             
-            const barcodeNorm = normalizeCode(barcode);
-            const codeNorm = normalizeCode(code);
+            const bestBarcode = scoredBarcode.sort((a, b) => b.score - a.score)[0];
+            const bestCode = scoredCode.sort((a, b) => b.score - a.score)[0];
+            
+            if (bestBarcode && bestCode && bestBarcode.key === bestCode.key) {
+                return { barcodeKey: bestBarcode.key, codeKey: null };
+            }
+            
+            return {
+                barcodeKey: bestBarcode ? bestBarcode.key : null,
+                codeKey: bestCode ? bestCode.key : null
+            };
+        }
+
+        function computePrecomputedFields(row) {
+            const { barcodeKey, codeKey } = detectBarcodeAndCodeColumns(row);
+            
+            let barcode = barcodeKey ? String(row[barcodeKey] || '').trim() : '';
+            let code = codeKey ? String(row[codeKey] || '').trim() : '';
+            
+            if (!barcode) {
+                for (let key of Object.keys(row)) {
+                    const val = String(row[key] || '').trim();
+                    if (val && /^\d{8,}$/.test(val)) { barcode = val; break; }
+                }
+            }
+            if (!barcode) {
+                for (let key of Object.keys(row)) {
+                    if (key.startsWith('__')) continue;
+                    const val = String(row[key] || '').trim();
+                    if (!val) continue;
+                    const keyLower = key.toLowerCase();
+                    if (keyLower.includes('名称') || keyLower.includes('name') || 
+                        keyLower.includes('descripcion') || keyLower.includes('desc') ||
+                        keyLower.includes('备注') || keyLower.includes('说明') ||
+                        keyLower.includes('cantidad') || keyLower.includes('precio') ||
+                        keyLower.includes('price') || keyLower.includes('数量') ||
+                        keyLower.includes('折扣') || keyLower.includes('descuento') ||
+                        keyLower.includes('total')) continue;
+                    if (val.length >= 3) { barcode = val; break; }
+                }
+            }
+            if (!code && barcode) { code = barcode; }
+            
+            const barcodeNorm = normalizeCode(barcode || '');
+            const codeNorm = normalizeCode(code || '');
             
             row.__barcode_normalized = barcodeNorm;
             row.__barcode_reverse = reverseString(barcodeNorm);
@@ -569,204 +609,160 @@
             row.__code_last6 = codeNorm.length >= 6 ? codeNorm.slice(-6) : codeNorm;
         }
 
-        /**
-         * 为整个 db 重新生成预计算字段
-         */
         function recomputeAllPrecomputedFields() {
-            for (let i = 0; i < db.length; i++) {
-                computePrecomputedFields(db[i]);
-            }
+            for (let i = 0; i < db.length; i++) { computePrecomputedFields(db[i]); }
         }
 
-        /**
-         * 智能扫码主入口
-         * 按以下优先级进行匹配查询：
-         * 
-         * ① 精确匹配（normalized）
-         * ② 反向后精确匹配
-         * ③ 条码最后6位匹配
-         * ④ 反向后最后6位匹配
-         * ⑤ 编码contains模糊匹配（兜底）
-         * 
-         * @param {string} input 用户输入
-         * @returns {object} { index: number, matchType: string } 或 null（未匹配）
-         */
         function smartMatch(input) {
             if (!input || !db.length) return null;
             
-            // Step 1: 标准化
             const normalized = normalizeCode(input);
             if (!normalized) return null;
             
-            // Step 2: 生成反向
             const reversed = reverseString(normalized);
             
-            // 缓存匹配结果用于去重
             const matchedIndices = new Set();
             let results = [];
             
-            // ===== ① 精确匹配 (normalized) =====
+            // ① 精确匹配
             for (let i = 0; i < db.length; i++) {
                 const row = db[i];
                 if (row.__barcode_normalized === normalized || row.__code_normalized === normalized) {
-                    if (!matchedIndices.has(i)) {
-                        matchedIndices.add(i);
-                        results.push({ index: i, matchType: '精确匹配', score: 1000 });
-                    }
+                    if (!matchedIndices.has(i)) { matchedIndices.add(i); results.push({ index: i, matchType: '精确匹配', score: 1000 }); }
                 }
             }
             if (results.length === 1) return results[0];
-            if (results.length > 1) return null; // 多匹配 -> 弹窗
+            if (results.length > 1) return { multiMatch: true, results };
             
-            // ===== ② 反向后精确匹配 =====
+            // ② 反向精确匹配
             for (let i = 0; i < db.length; i++) {
                 const row = db[i];
                 if (row.__barcode_reverse === reversed || row.__code_reverse === reversed) {
-                    if (!matchedIndices.has(i)) {
-                        matchedIndices.add(i);
-                        results.push({ index: i, matchType: '反向精确匹配', score: 900 });
-                    }
+                    if (!matchedIndices.has(i)) { matchedIndices.add(i); results.push({ index: i, matchType: '反向精确匹配', score: 900 }); }
                 }
             }
             if (results.length === 1) return results[0];
-            if (results.length > 1) return null;
+            if (results.length > 1) return { multiMatch: true, results };
             
-            // ===== ③ 条码最后6位匹配 =====
+            // ③ 尾6位匹配
             for (let i = 0; i < db.length; i++) {
                 const row = db[i];
                 const last6 = normalized.length >= 6 ? normalized.slice(-6) : normalized;
                 if (last6 && row.__barcode_last6 === last6) {
-                    if (!matchedIndices.has(i)) {
-                        matchedIndices.add(i);
-                        results.push({ index: i, matchType: '尾6位匹配', score: 800 });
-                    }
+                    if (!matchedIndices.has(i)) { matchedIndices.add(i); results.push({ index: i, matchType: '尾6位匹配', score: 800 }); }
                 }
             }
-            // 也匹配编码的 last6
             for (let i = 0; i < db.length; i++) {
                 const row = db[i];
                 const last6 = normalized.length >= 6 ? normalized.slice(-6) : normalized;
                 if (last6 && row.__code_last6 === last6) {
-                    if (!matchedIndices.has(i)) {
-                        matchedIndices.add(i);
-                        results.push({ index: i, matchType: '编码尾6位匹配', score: 700 });
-                    }
+                    if (!matchedIndices.has(i)) { matchedIndices.add(i); results.push({ index: i, matchType: '编码尾6位匹配', score: 700 }); }
                 }
             }
             if (results.length === 1) return results[0];
-            if (results.length > 1) {
-                // 多个匹配，返回 null 触发弹窗
-                return null; // 外面会收集所有匹配项
-            }
+            if (results.length > 1) return { multiMatch: true, results };
             
-            // ===== ④ 反向后最后6位匹配 =====
+            // ④ 反向尾6位匹配
             const revLast6 = reversed.length >= 6 ? reversed.slice(-6) : reversed;
             if (revLast6) {
                 for (let i = 0; i < db.length; i++) {
                     const row = db[i];
                     if (row.__barcode_last6 === revLast6 || row.__code_last6 === revLast6) {
-                        if (!matchedIndices.has(i)) {
-                            matchedIndices.add(i);
-                            results.push({ index: i, matchType: '反向尾6位匹配', score: 600 });
-                        }
+                        if (!matchedIndices.has(i)) { matchedIndices.add(i); results.push({ index: i, matchType: '反向尾6位匹配', score: 600 }); }
                     }
                 }
                 if (results.length === 1) return results[0];
-                if (results.length > 1) return null;
+                if (results.length > 1) return { multiMatch: true, results };
             }
             
-            // ===== ⑤ 编码contains模糊匹配（兜底） =====
+            // ⑤ contains模糊匹配
             for (let i = 0; i < db.length; i++) {
                 const row = db[i];
-                if (row.__barcode_normalized.includes(normalized) || 
-                    row.__code_normalized.includes(normalized) ||
+                if ((row.__barcode_normalized && row.__barcode_normalized.includes(normalized)) || 
+                    (row.__code_normalized && row.__code_normalized.includes(normalized)) ||
                     getSearchableRowText(row).includes(normalized.toLowerCase())) {
-                    if (!matchedIndices.has(i)) {
-                        matchedIndices.add(i);
-                        results.push({ index: i, matchType: '模糊匹配', score: 500 });
+                    if (!matchedIndices.has(i)) { matchedIndices.add(i); results.push({ index: i, matchType: '模糊匹配', score: 500 }); }
+                }
+            }
+            if (results.length === 1) return results[0];
+            if (results.length > 1) return { multiMatch: true, results };
+            
+            // ⑥ 全字段兜底
+            for (let i = 0; i < db.length; i++) {
+                const row = db[i];
+                for (let key of Object.keys(row)) {
+                    if (key.startsWith('__')) continue;
+                    const cellVal = String(row[key] || '').trim();
+                    if (!cellVal) continue;
+                    const cellNorm = normalizeCode(cellVal);
+                    if (cellNorm === normalized || cellNorm.includes(normalized) || normalized.includes(cellNorm)) {
+                        if (!matchedIndices.has(i)) { matchedIndices.add(i); results.push({ index: i, matchType: '全字段兜底匹配', score: 400 }); }
+                        break;
+                    }
+                    if (input.length >= 3 && cellVal.toLowerCase().includes(input.toLowerCase())) {
+                        if (!matchedIndices.has(i)) { matchedIndices.add(i); results.push({ index: i, matchType: '全字段包含匹配', score: 300 }); }
+                        break;
                     }
                 }
             }
             if (results.length === 1) return results[0];
-            
-            // 多个匹配结果 -> 返回所有匹配项让调用方处理
-            if (results.length > 1) {
-                return { multiMatch: true, results };
-            }
+            if (results.length > 1) return { multiMatch: true, results };
             
             return null;
         }
 
-        /**
-         * 智能匹配——如果多匹配则弹出选择框
-         * @param {string} input 用户输入
-         * @returns {number|null} 匹配到的 row index
-         */
         function smartMatchWithPopup(input) {
             const result = smartMatch(input);
-            
-            // 单匹配
             if (result && result.multiMatch !== true && typeof result.index === 'number') {
                 return result.index;
             }
-            
-            // 多匹配 -> 弹窗
             if (result && result.multiMatch && result.results && result.results.length > 1) {
                 showMultiMatchPopup(result.results);
                 return null;
             }
-            
-            // 无匹配
             return null;
         }
 
-        // ---------- 多匹配弹窗 ----------
         let multiMatchCallback = null;
+        let multiMatchPopupShowing = false;
 
         function showMultiMatchPopup(matchResults) {
+            multiMatchPopupShowing = true;
             const modal = document.getElementById('multiMatchModal');
             const list = document.getElementById('matchList');
-            
             list.innerHTML = matchResults.map(m => {
                 const row = db[m.index];
                 const name = row['商品名称'] || row['名称'] || '(无名称)';
                 const code = row['条码'] || row['编码'] || '';
                 const qty = row['实际数量'] || 0;
                 return `<div class="match-item" onclick="selectMatch(${m.index})">
-                    <div>
-                        <div class="name">${escapeHtml(String(name).substring(0, 30))}</div>
-                        <div class="code">${escapeHtml(String(code).substring(0, 25))}</div>
-                    </div>
-                    <div class="qty-badge">已盘: ${qty || 0}</div>
-                </div>`;
+                    <div><div class="name">${escapeHtml(String(name).substring(0, 30))}</div>
+                    <div class="code">${escapeHtml(String(code).substring(0, 25))}</div></div>
+                    <div class="qty-badge">已盘: ${qty || 0}</div></div>`;
             }).join('');
-            
             modal.style.display = 'flex';
         }
 
         function closeMultiMatchModal() {
             document.getElementById('multiMatchModal').style.display = 'none';
             multiMatchCallback = null;
+            multiMatchPopupShowing = false;
         }
 
         function selectMatch(index) {
             closeMultiMatchModal();
-            // 跳转到选中商品并聚焦数量输入框
-            jumpToRowAndFocusQty(index);
+            consecutiveFailures = 0;
+            lastDecodeSucceeded = true;
             playBeep(true);
             vibrate();
+            jumpToRowAndFocusQty(index);
             showToast(`✅ ${db[index]['商品名称'] || db[index]['名称'] || '已选择'}`, false);
         }
 
-        // ---------- 智能输入增强辅助 ----------
-        /**
-         * 在 manualInput 中输入时，延时探测是否可能进行智能匹配
-         */
         function onManualInputChange() {
             const input = document.getElementById('manualInput');
             const indicator = document.getElementById('smartIndicator');
             const val = (input.value || '').trim();
-            
             if (val.length >= 4) {
                 const result = smartMatch(val);
                 if (result && result.multiMatch !== true && typeof result.index === 'number') {
@@ -787,7 +783,7 @@
             }
         }
 
-        // ---------- 兼容旧版匹配函数 ----------
+        // ---------- 兼容旧版匹配 ----------
         function preprocessCode(code) {
             if (!code) return code;
             let cleaned = code.replace(/[^\w\d]/g, '');
@@ -819,6 +815,7 @@
             for (let i = 0; i < db.length; i++) {
                 const row = db[i];
                 for (let key in row) {
+                    if (key.startsWith('__')) continue;
                     const val = String(row[key] || '').trim();
                     if (exactMatch(codeStr, val)) return i;
                 }
@@ -827,7 +824,7 @@
         }
 
         function getSearchableRowText(row) {
-            return Object.keys(row || {}).map(k => String(row[k] || '').trim()).join(' ').toLowerCase();
+            return Object.keys(row || {}).filter(k => !k.startsWith('__')).map(k => String(row[k] || '').trim()).join(' ').toLowerCase();
         }
 
         function findBestMatchRowIndex(query) {
@@ -839,13 +836,11 @@
             const normalized = preprocessCode(token).toLowerCase();
             for (let i = 0; i < db.length; i++) {
                 const row = db[i] || {};
-                const values = Object.keys(row).map(k => String(row[k] || '').trim());
+                const values = Object.keys(row).filter(k => !k.startsWith('__')).map(k => String(row[k] || '').trim());
                 for (const val of values) {
                     const v = val.toLowerCase();
                     const pv = preprocessCode(val).toLowerCase();
-                    if ((normalized && (v.startsWith(normalized) || pv.startsWith(normalized))) || v.startsWith(token.toLowerCase())) {
-                        return i;
-                    }
+                    if ((normalized && (v.startsWith(normalized) || pv.startsWith(normalized))) || v.startsWith(token.toLowerCase())) return i;
                 }
             }
             for (let i = 0; i < db.length; i++) {
@@ -854,7 +849,7 @@
             return -1;
         }
 
-        // ---------- UI 交互 ----------
+        // ---------- UI ----------
         function jumpToRowAndFocusQty(foundIndex) {
             const rowEl = document.getElementById(`row-${foundIndex}`);
             if (rowEl) {
@@ -879,13 +874,7 @@
                         };
                         qtyInput.addEventListener('blur', handleInputComplete);
                         qtyInput.addEventListener('keypress', handleInputComplete);
-                        setTimeout(() => {
-                            if (qtyInput) {
-                                qtyInput.style.transform = '';
-                                qtyInput.style.borderColor = '';
-                                qtyInput.style.backgroundColor = '';
-                            }
-                        }, 500);
+                        setTimeout(() => { if (qtyInput) { qtyInput.style.transform = ''; qtyInput.style.borderColor = ''; qtyInput.style.backgroundColor = ''; } }, 500);
                     }, 300);
                 }
                 return true;
@@ -908,7 +897,6 @@
             setTimeout(() => { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
-        // 核心：处理识别到的条码（使用智能匹配）
         function handleBarcode(code, fromCamera = false) {
             if (!code) return false;
             const now = Date.now();
@@ -917,24 +905,23 @@
             lastCode = codeStr;
             lastTime = now;
             
-            // 使用智能匹配
-            const foundIndex = smartMatchWithPopup(codeStr);
+            let foundIndex = smartMatchWithPopup(codeStr);
             
-            if (foundIndex === null || foundIndex === undefined) {
-                // 没有找到匹配，或者多匹配弹窗打开
+            if (foundIndex === null || foundIndex === undefined || foundIndex === -1) {
+                if (multiMatchPopupShowing) return true;
+                foundIndex = findBestMatchRowIndex(codeStr);
+            }
+            
+            if (foundIndex === null || foundIndex === undefined || foundIndex === -1) {
                 playBeep(false);
                 showToast(`❌ 未匹配: ${codeStr.substring(0, 20)}`, true);
                 vibrate();
                 consecutiveFailures++;
                 lastDecodeSucceeded = false;
-                setTimeout(() => {
-                    const manualInput = document.getElementById('manualInput');
-                    if (manualInput) { manualInput.focus(); manualInput.select(); currentInputElement = manualInput; }
-                }, 100);
+                setTimeout(() => { const m = document.getElementById('manualInput'); if (m) { m.focus(); m.select(); currentInputElement = m; } }, 100);
                 return false;
             }
             
-            // 成功匹配
             consecutiveFailures = 0;
             lastDecodeSucceeded = true;
             playBeep(true);
@@ -948,14 +935,7 @@
             return true;
         }
 
-        // ---------- 相机与扫码（优化对焦速度）----------
-        /**
-         * 优化的相机对焦策略：
-         * 1. 持续自动对焦 (continuous) —— 默认开启
-         * 2. 点击画面触发手动瞬间拉近对焦 + 快速回到auto
-         * 3. 扫描框对准条码中心区域
-         * 4. 每隔500ms自动微调对焦（针对近距离条码）
-         */
+        // ---------- 相机 ----------
         function setupCameraControls(track) {
             cameraTrack = track || null;
             const torchBtn = document.getElementById('torchBtn');
@@ -975,41 +955,20 @@
             };
         }
 
-        /**
-         * 快速对焦：点击画面触发手动对焦 + 快速回到持续自动对焦
-         * 在 300ms 内完成一次快速拉近再恢复
-         */
         async function triggerFastFocus(track) {
             if (!track || !track.getCapabilities) return;
             const caps = track.getCapabilities();
             if (!caps.focusMode) return;
-            
             try {
-                // Step 1: 瞬间切手动对焦到近距离
-                if (caps.focusMode.includes('manual')) {
-                    await track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: 0.05 }] });
-                }
-                
-                // Step 2: 快速阶梯对焦（从最近到稍远，覆盖条码常见距离）
+                if (caps.focusMode.includes('manual')) { await track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: 0.05 }] }); }
                 const distances = [0.05, 0.08, 0.12, 0.18];
                 for (const d of distances) {
-                    if (caps.focusMode.includes('manual')) {
-                        await track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: d }] });
-                    }
+                    if (caps.focusMode.includes('manual')) { await track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: d }] }); }
                     await new Promise(r => setTimeout(r, 30));
                 }
-                
-                // Step 3: 恢复持续自动对焦
-                if (caps.focusMode.includes('continuous')) {
-                    await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
-                }
+                if (caps.focusMode.includes('continuous')) { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); }
             } catch (e) {
-                // fallback: 尝试直接设回 continuous
-                try {
-                    if (caps.focusMode.includes('continuous')) {
-                        await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
-                    }
-                } catch (_) {}
+                try { if (caps.focusMode.includes('continuous')) { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } } catch(_) {}
             }
         }
 
@@ -1017,32 +976,17 @@
             if (!track || !track.getCapabilities) return;
             const caps = track.getCapabilities();
             const advanced = [];
-            
-            // 开启持续自动对焦
-            if (caps.focusMode && caps.focusMode.includes('continuous')) {
-                advanced.push({ focusMode: 'continuous' });
-            }
-            // 开启持续自动曝光
-            if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
-                advanced.push({ exposureMode: 'continuous' });
-            }
-            // 开启持续白平衡
-            if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('continuous')) {
-                advanced.push({ whiteBalanceMode: 'continuous' });
-            }
-            // 轻微曝光补偿（条码场景偏亮一点）
+            if (caps.focusMode && caps.focusMode.includes('continuous')) advanced.push({ focusMode: 'continuous' });
+            if (caps.exposureMode && caps.exposureMode.includes('continuous')) advanced.push({ exposureMode: 'continuous' });
+            if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('continuous')) advanced.push({ whiteBalanceMode: 'continuous' });
             if (caps.exposureCompensation) {
                 const minExp = typeof caps.exposureCompensation.min === 'number' ? caps.exposureCompensation.min : -2;
                 const maxExp = typeof caps.exposureCompensation.max === 'number' ? caps.exposureCompensation.max : 2;
                 advanced.push({ exposureCompensation: Math.max(minExp, Math.min(maxExp, 0.5)) });
             }
-            
-            if (advanced.length) {
-                track.applyConstraints({ advanced }).catch(() => {});
-            }
+            if (advanced.length) track.applyConstraints({ advanced }).catch(() => {});
         }
-        
-        // ---------- 图像预处理（增强扫码能力）----------
+
         function getFrameROI(videoEl, frameEl) {
             const vw = videoEl.videoWidth, vh = videoEl.videoHeight;
             if (!vw || !vh) return null;
@@ -1051,15 +995,8 @@
             const videoAspect = vw / vh;
             const boxAspect = vr.width / vr.height;
             let renderW, renderH, offsetX = 0, offsetY = 0;
-            if (videoAspect > boxAspect) {
-                renderH = vr.height;
-                renderW = renderH * videoAspect;
-                offsetX = (renderW - vr.width) / 2;
-            } else {
-                renderW = vr.width;
-                renderH = renderW / videoAspect;
-                offsetY = (renderH - vr.height) / 2;
-            }
+            if (videoAspect > boxAspect) { renderH = vr.height; renderW = renderH * videoAspect; offsetX = (renderW - vr.width) / 2; }
+            else { renderW = vr.width; renderH = renderW / videoAspect; offsetY = (renderH - vr.height) / 2; }
             const xInBox = fr.left - vr.left + offsetX;
             const yInBox = fr.top - vr.top + offsetY;
             const sx = vw / renderW, sy = vh / renderH;
@@ -1076,8 +1013,7 @@
 
         function preprocessImageForBarcode(videoEl, roi) {
             const canvas = document.createElement('canvas');
-            canvas.width = roi.w;
-            canvas.height = roi.h;
+            canvas.width = roi.w; canvas.height = roi.h;
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             ctx.drawImage(videoEl, roi.x, roi.y, roi.w, roi.h, 0, 0, roi.w, roi.h);
             const imgData = ctx.getImageData(0, 0, roi.w, roi.h);
@@ -1089,12 +1025,8 @@
                 if (gray < min) min = gray;
                 if (gray > max) max = gray;
             }
-            const range = max - min;
-            const threshold = min + range * 0.55;
-            for (let i = 0; i < data.length; i += 4) {
-                const val = data[i] > threshold ? 255 : 0;
-                data[i] = data[i+1] = data[i+2] = val;
-            }
+            const threshold = min + (max - min) * 0.55;
+            for (let i = 0; i < data.length; i += 4) { const val = data[i] > threshold ? 255 : 0; data[i] = data[i+1] = data[i+2] = val; }
             ctx.putImageData(imgData, 0, 0);
             return canvas;
         }
@@ -1117,138 +1049,116 @@
             return null;
         }
 
-        // 解码拦截器
         async function startScanning() {
             if (scanning) { showToast("扫描器已在运行", false); return; }
-            
-            // iPad 扫描框上移10%
+            const hasNativeDetector = 'BarcodeDetector' in window;
             const isIPadDevice = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchstart' in window;
             const scanFrame = document.getElementById('scanFrame');
-            if (scanFrame) {
-                scanFrame.style.top = isIPadDevice ? '15%' : '25%';
-            }
-            
+            if (scanFrame) scanFrame.style.top = isIPadDevice ? '15%' : '25%';
             const scanUI = document.getElementById('scanUI');
             scanUI.style.display = 'flex';
             scanning = true;
             if (reader) { try { await reader.reset(); } catch(e) {} reader = null; }
-            
             const badge = document.getElementById('enhanceBadge');
-            if (enhanceMode) badge.classList.remove('hidden');
-            else badge.classList.add('hidden');
+            if (enhanceMode) badge.classList.remove('hidden'); else badge.classList.add('hidden');
             
             try {
-                const constraints = {
-                    video: {
-                        facingMode: { exact: "environment" },
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        frameRate: { ideal: 30 }
-                    }
-                };
-                
-                const hints = new Map();
-                hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-                hints.set(ZXing.DecodeHintType.CHARACTER_SET, "UTF-8");
-                hints.set(ZXing.DecodeHintType.ALLOWED_LENGTHS, null);
-                hints.set(ZXing.DecodeHintType.RETURN_CODABAR_START_END, true);
-                hints.set(ZXing.DecodeHintType.ALSO_INVERTED, true);
-                hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-                    ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A,
-                    ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
-                    ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR,
-                    ZXing.BarcodeFormat.DATA_MATRIX, ZXing.BarcodeFormat.PDF_417, ZXing.BarcodeFormat.QR_CODE
-                ]);
-                
-                reader = new ZXing.BrowserMultiFormatReader(hints);
-                reader.timeBetweenDecodingAttempts = 15; // 更快的解码间隔
-                
-                const videoEl = document.getElementById('video');
-                const frameEl = document.getElementById('scanFrame');
-                
-                await reader.decodeFromConstraints(constraints, 'video', async (result, err) => {
-                    if (!scanning) return;
-                    if (result) {
-                        const code = result.getText();
-                        if (code) {
-                            handleBarcode(code, true);
-                            consecutiveFailures = 0;
-                            lastDecodeSucceeded = true;
-                            return;
-                        }
-                    }
-                    consecutiveFailures++;
-                    lastDecodeSucceeded = false;
-                    if (enhanceMode || consecutiveFailures >= AUTO_ENHANCE_THRESHOLD) {
-                        const enhancedCode = await tryEnhancedDecode(videoEl, frameEl);
-                        if (enhancedCode) {
-                            handleBarcode(enhancedCode, true);
-                            consecutiveFailures = 0;
-                            vibrate();
-                        }
-                    }
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { exact: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }
                 });
+                const videoEl = document.getElementById('video');
+                videoEl.srcObject = stream;
+                await videoEl.play();
                 
-                showToast("极速扫码引擎已启动" + (enhanceMode ? " (增强模式)" : ""), false);
-                
-                // 摄像头设置延迟（等待轨道可用）
                 setTimeout(() => {
                     const track = videoEl?.srcObject?.getVideoTracks?.()[0];
-                    if (track) {
-                        setupCameraControls(track);
-                        applyCameraTuning(track);
-                        // 首次快速对焦
-                        triggerFastFocus(track);
-                    }
+                    if (track) { setupCameraControls(track); applyCameraTuning(track); triggerFastFocus(track); }
                 }, 300);
                 
-                // 优化的对焦循环 —— 更快、更稳定
+                if (hasNativeDetector) {
+                    const detector = new window.BarcodeDetector({
+                        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'code_93', 'code_128', 'itf', 'codabar', 'qr_code', 'data_matrix', 'pdf417', 'aztec']
+                    });
+                    const nativeDecodeLoop = async () => {
+                        while (scanning && videoEl.readyState >= 2) {
+                            try {
+                                const codes = await detector.detect(videoEl);
+                                if (codes && codes.length > 0 && scanning) {
+                                    const code = codes[0].rawValue;
+                                    if (code) {
+                                        const now = Date.now();
+                                        if (code !== lastCode || (now - lastTime) >= 300) {
+                                            handleBarcode(code, true);
+                                            consecutiveFailures = 0; lastDecodeSucceeded = true;
+                                            lastCode = code; lastTime = now;
+                                        }
+                                    }
+                                } else {
+                                    consecutiveFailures++;
+                                    if (enhanceMode || consecutiveFailures >= AUTO_ENHANCE_THRESHOLD) {
+                                        const enhancedCode = await tryEnhancedDecode(videoEl, scanFrame);
+                                        if (enhancedCode) { handleBarcode(enhancedCode, true); consecutiveFailures = 0; vibrate(); }
+                                    }
+                                }
+                            } catch(e) { consecutiveFailures++; }
+                            await new Promise(r => setTimeout(r, 150));
+                        }
+                    };
+                    nativeDecodeLoop();
+                    showToast("📷 原生条码引擎已启动" + (enhanceMode ? " (增强模式)" : ""), false);
+                } else {
+                    const hints = new Map();
+                    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+                    hints.set(ZXing.DecodeHintType.CHARACTER_SET, "UTF-8");
+                    hints.set(ZXing.DecodeHintType.ALLOWED_LENGTHS, null);
+                    hints.set(ZXing.DecodeHintType.RETURN_CODABAR_START_END, true);
+                    hints.set(ZXing.DecodeHintType.ALSO_INVERTED, true);
+                    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+                        ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A,
+                        ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
+                        ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR,
+                        ZXing.BarcodeFormat.DATA_MATRIX, ZXing.BarcodeFormat.PDF_417, ZXing.BarcodeFormat.QR_CODE
+                    ]);
+                    reader = new ZXing.BrowserMultiFormatReader(hints);
+                    reader.timeBetweenDecodingAttempts = 15;
+                    reader.decodeFromVideoElement('video', (result, err) => {
+                        if (!scanning) return;
+                        if (result) { const code = result.getText(); if (code) { handleBarcode(code, true); consecutiveFailures = 0; lastDecodeSucceeded = true; return; } }
+                        consecutiveFailures++; lastDecodeSucceeded = false;
+                        if (enhanceMode || consecutiveFailures >= AUTO_ENHANCE_THRESHOLD) {
+                            tryEnhancedDecode(videoEl, scanFrame).then(enhancedCode => {
+                                if (enhancedCode) { handleBarcode(enhancedCode, true); consecutiveFailures = 0; vibrate(); }
+                            });
+                        }
+                    });
+                    showToast("ZXing 扫码引擎已启动" + (enhanceMode ? " (增强模式)" : ""), false);
+                }
+                
                 currentFocusInterval = setInterval(() => {
                     if (!scanning) { clearInterval(currentFocusInterval); return; }
                     if (videoEl && videoEl.srcObject) {
                         const track = videoEl.srcObject.getVideoTracks()[0];
                         if (track && track.getCapabilities) {
                             const caps = track.getCapabilities();
-                            // 前3次快速手动对焦扫描，然后切回持续自动对焦
                             const cycleStep = (Math.floor(Date.now() / 180)) % 8;
                             if (cycleStep < 4 && caps.focusMode && caps.focusMode.includes('manual')) {
                                 const dist = [0.04, 0.07, 0.10, 0.15][cycleStep];
-                                track.applyConstraints({ 
-                                    advanced: [{ focusMode: 'manual', focusDistance: dist }] 
-                                }).catch(() => {});
+                                track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: dist }] }).catch(() => {});
                             } else {
-                                // 恢复持续自动对焦
-                                if (caps.focusMode && caps.focusMode.includes('continuous')) {
-                                    track.applyConstraints({ 
-                                        advanced: [{ focusMode: 'continuous' }] 
-                                    }).catch(() => {});
-                                }
-                                // 确保曝光和白平衡也是持续的
-                                if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
-                                    track.applyConstraints({ 
-                                        advanced: [{ exposureMode: 'continuous' }] 
-                                    }).catch(() => {});
-                                }
+                                if (caps.focusMode && caps.focusMode.includes('continuous')) track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                                if (caps.exposureMode && caps.exposureMode.includes('continuous')) track.applyConstraints({ advanced: [{ exposureMode: 'continuous' }] }).catch(() => {});
                             }
                         }
                     }
-                }, 180); // 更快的对焦轮询（200ms -> 180ms）
+                }, 180);
                 
-                // 点击视频画面——触发快速手动对焦（针对条码近距离）
                 videoEl.addEventListener('click', async () => {
                     if (!scanning) return;
                     const track = videoEl?.srcObject?.getVideoTracks?.()[0];
-                    if (track) {
-                        await triggerFastFocus(track);
-                        showToast("🎯 快速对焦完成", false);
-                    }
-                }, { once: false });
+                    if (track) { await triggerFastFocus(track); showToast("🎯 快速对焦完成", false); }
+                });
                 
-            } catch(err) {
-                console.error("相机错误:", err);
-                showToast("无法启动摄像头，请检查权限", true);
-                stopScanning(true);
-            }
+            } catch(err) { console.error("相机错误:", err); showToast("无法启动摄像头，请检查权限", true); stopScanning(true); }
         }
 
         function stopScanning(manual = false) {
@@ -1256,11 +1166,7 @@
             if (currentFocusInterval) { clearInterval(currentFocusInterval); currentFocusInterval = null; }
             if (reader) { try { reader.reset(); } catch(e) {} reader = null; }
             const videoEl = document.getElementById('video');
-            if (videoEl && videoEl.srcObject) {
-                const tracks = videoEl.srcObject.getTracks();
-                tracks.forEach(track => track.stop());
-                videoEl.srcObject = null;
-            }
+            if (videoEl && videoEl.srcObject) { const tracks = videoEl.srcObject.getTracks(); tracks.forEach(track => track.stop()); videoEl.srcObject = null; }
             document.getElementById('scanUI').style.display = 'none';
             cameraTrack = null;
             consecutiveFailures = 0;
@@ -1270,116 +1176,59 @@
             enhanceMode = !enhanceMode;
             const topBtn = document.getElementById('scanEnhanceBtn');
             const badge = document.getElementById('enhanceBadge');
-            if (enhanceMode) {
-                topBtn.classList.add('active');
-                topBtn.innerHTML = "✨ 增强开";
-                if (badge) badge.classList.remove('hidden');
-                showToast("增强模式已开启，将提高劣质条码识别率", false);
-            } else {
-                topBtn.classList.remove('active');
-                topBtn.innerHTML = "✨ 增强";
-                if (badge) badge.classList.add('hidden');
-                showToast("增强模式已关闭", false);
-            }
-            if (scanning) {
-                stopScanning(true);
-                setTimeout(() => startScanning(), 200);
-            }
+            if (enhanceMode) { topBtn.classList.add('active'); topBtn.innerHTML = "✨ 增强开"; if (badge) badge.classList.remove('hidden'); showToast("增强模式已开启", false); }
+            else { topBtn.classList.remove('active'); topBtn.innerHTML = "✨ 增强"; if (badge) badge.classList.add('hidden'); showToast("增强模式已关闭", false); }
+            if (scanning) { stopScanning(true); setTimeout(() => startScanning(), 200); }
         }
 
-        // ---------- 键盘处理 ----------
+        // ---------- 键盘 ----------
         function setupKeyboardListener() {
             if (!(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent))) return;
             if (window.visualViewport) {
                 window.visualViewport.addEventListener('resize', () => {
-                    const currentHeight = window.visualViewport.height;
-                    const keyboardHeight = originalViewportHeight - currentHeight;
-                    if (keyboardHeight > 150) document.body.classList.add('keyboard-open');
-                    else {
-                        document.body.classList.remove('keyboard-open');
-                        setTimeout(() => {
-                            if (pendingJump !== null) {
-                                const rowEl = document.getElementById(`row-${pendingJump}`);
-                                if (rowEl) rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }
-                        }, 100);
-                    }
+                    const kH = originalViewportHeight - window.visualViewport.height;
+                    if (kH > 150) document.body.classList.add('keyboard-open');
+                    else { document.body.classList.remove('keyboard-open'); setTimeout(() => { if (pendingJump !== null) { const el = document.getElementById(`row-${pendingJump}`); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }, 100); }
                 });
             }
-            window.addEventListener('resize', () => {
-                const currentHeight = window.innerHeight;
-                const keyboardHeight = originalViewportHeight - currentHeight;
-                if (keyboardHeight > 150) document.body.classList.add('keyboard-open');
-                else document.body.classList.remove('keyboard-open');
-            });
+            window.addEventListener('resize', () => { if (originalViewportHeight - window.innerHeight > 150) document.body.classList.add('keyboard-open'); else document.body.classList.remove('keyboard-open'); });
         }
 
         function showKeyboard() {
-            if (currentInputElement && document.activeElement !== currentInputElement) {
-                currentInputElement.focus();
-                currentInputElement.select();
-            } else {
-                const manualInput = document.getElementById('manualInput');
-                if (manualInput) {
-                    manualInput.focus();
-                    manualInput.select();
-                    currentInputElement = manualInput;
-                }
-            }
+            if (currentInputElement && document.activeElement !== currentInputElement) { currentInputElement.focus(); currentInputElement.select(); }
+            else { const m = document.getElementById('manualInput'); if (m) { m.focus(); m.select(); currentInputElement = m; } }
         }
 
         function hideKeyboard() {
-            if (currentInputElement) {
-                currentInputElement.blur();
-                currentInputElement = null;
-            }
+            if (currentInputElement) { currentInputElement.blur(); currentInputElement = null; }
             document.activeElement?.blur();
             document.body.classList.remove('keyboard-open');
         }
 
-        // ---------- 数据存储 ----------
+        // ---------- 数据 ----------
         function loadData() {
             try {
                 const saved = localStorage.getItem(STORAGE_KEY);
-                if (saved) {
-                    const data = JSON.parse(saved);
-                    db = data.db || [];
-                    columns = data.columns || [];
-                }
-                if (!columns.length) {
-                    columns = ['实际数量', '商品名称', '编码', '价格'];
-                    db = [];
-                }
+                if (saved) { const data = JSON.parse(saved); db = data.db || []; columns = data.columns || []; }
+                if (!columns.length) { columns = ['实际数量', '商品名称', '编码', '价格']; db = []; }
                 normalizeActualQtyColumnPosition();
-                db.forEach(row => {
-                    if (row['实际数量'] === undefined) row['实际数量'] = '';
-                });
-                // 重新生成预计算字段
+                db.forEach(row => { if (row['实际数量'] === undefined) row['实际数量'] = ''; });
                 recomputeAllPrecomputedFields();
-            } catch(e) {
-                console.error(e);
-                columns = ['实际数量', '商品名称', '编码', '价格'];
-                normalizeActualQtyColumnPosition();
-                db = [];
-            }
+            } catch(e) { console.error(e); columns = ['实际数量', '商品名称', '编码', '价格']; normalizeActualQtyColumnPosition(); db = []; }
         }
 
         function normalizeActualQtyColumnPosition() {
             if (!Array.isArray(columns) || !columns.length) return;
             const qtyCol = '实际数量';
-            const qtyIndex = columns.indexOf(qtyCol);
-            if (qtyIndex === -1) return;
-            columns.splice(qtyIndex, 1);
-            const targetIndex = 4;
-            columns.splice(Math.min(targetIndex, columns.length), 0, qtyCol);
+            const idx = columns.indexOf(qtyCol);
+            if (idx === -1) return;
+            columns.splice(idx, 1);
+            columns.splice(Math.min(4, columns.length), 0, qtyCol);
         }
 
         function saveData() {
-            try {
-                // 保存前重新生成预计算字段
-                recomputeAllPrecomputedFields();
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({ db, columns, version: VERSION }));
-            } catch(e) { showToast("存储空间不足", true); }
+            try { recomputeAllPrecomputedFields(); localStorage.setItem(STORAGE_KEY, JSON.stringify({ db, columns, version: VERSION })); }
+            catch(e) { showToast("存储空间不足", true); }
         }
 
         function showToast(msg, isError = false) {
@@ -1392,25 +1241,22 @@
 
         function playBeep(success) {
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                oscillator.frequency.value = success ? 1200 : 400;
-                gainNode.gain.value = 0.6;
-                oscillator.start();
-                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2);
-                oscillator.stop(audioCtx.currentTime + 0.2);
-                audioCtx.resume();
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.frequency.value = success ? 1200 : 400;
+                gain.gain.value = 0.6;
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.2);
+                osc.stop(ctx.currentTime + 0.2);
+                ctx.resume();
             } catch(e) {}
         }
 
-        function vibrate() {
-            if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30);
-        }
+        function vibrate() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30); }
 
-        // ========== 授权系统 ==========
+        // ========== 授权 ==========
         function initAuthSystem() {
             const presetList = ["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];
             const presetCodes = presetList.map(c => ({ code: c, used: false, deviceId: '' }));
@@ -1423,192 +1269,75 @@
                     const oldUsedMap = {};
                     for (let oc of oldCodes) { if (oc.used) oldUsedMap[oc.code] = oc.deviceId; }
                     for (let pc of presetCodes) { if (oldUsedMap[pc.code]) { pc.used = true; pc.deviceId = oldUsedMap[pc.code]; } }
-                    authCodes = presetCodes;
-                    isActivated = oldData.activated || false;
-                    adminMode = oldData.admin || false;
+                    authCodes = presetCodes; isActivated = oldData.activated || false; adminMode = oldData.admin || false;
                     localStorage.setItem(AUTH_SKEY, JSON.stringify({ codes: presetCodes, activated: isActivated, admin: adminMode }));
-                } else {
-                    authCodes = presetCodes;
-                    localStorage.setItem(AUTH_SKEY, JSON.stringify({ codes: authCodes, activated: false, admin: false }));
-                }
+                } else { authCodes = presetCodes; localStorage.setItem(AUTH_SKEY, JSON.stringify({ codes: authCodes, activated: false, admin: false })); }
             } catch(e) { authCodes = presetCodes; }
         }
 
-        let authCodes = [];
-        let isActivated = false;
-        let adminMode = false;
+        let authCodes = []; let isActivated = false; let adminMode = false;
 
-        function saveAuthState() {
-            const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
-            try {
-                localStorage.setItem(AUTH_SKEY, JSON.stringify({ codes: authCodes, activated: isActivated, admin: adminMode }));
-            } catch(e) {}
-        }
-
-        function getDeviceId() {
-            let id = localStorage.getItem('_device_id');
-            if (!id) {
-                id = 'DEV_' + Math.random().toString(36).substring(2, 10).toUpperCase();
-                localStorage.setItem('_device_id', id);
-            }
-            return id;
-        }
+        function saveAuthState() { try { localStorage.setItem("FEISUPANDIAN_AUTH_V2", JSON.stringify({ codes: authCodes, activated: isActivated, admin: adminMode })); } catch(e) {} }
+        function getDeviceId() { let id = localStorage.getItem('_device_id'); if (!id) { id = 'DEV_' + Math.random().toString(36).substring(2,10).toUpperCase(); localStorage.setItem('_device_id', id); } return id; }
 
         function openAdminPanel() {
-            const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
             let isAdmin = false;
-            try {
-                const d = JSON.parse(localStorage.getItem(AUTH_SKEY));
-                if (d && d.admin) isAdmin = true;
-            } catch(e) {}
+            try { const d = JSON.parse(localStorage.getItem("FEISUPANDIAN_AUTH_V2")); if (d && d.admin) isAdmin = true; } catch(e) {}
             if (!isAdmin) { showToast("⚠️ 你不是管理员", true); return; }
-            adminMode = true;
-            renderAdminCodeList();
-            document.getElementById('adminPanel').style.display = 'flex';
+            adminMode = true; renderAdminCodeList(); document.getElementById('adminPanel').style.display = 'flex';
         }
 
-        function closeAdminPanel() {
-            document.getElementById('adminPanel').style.display = 'none';
-        }
+        function closeAdminPanel() { document.getElementById('adminPanel').style.display = 'none'; }
 
         function renderAdminCodeList() {
-            const container = document.getElementById('adminCodeList');
-            if (!container) return;
-            const total = authCodes.length;
-            const usedCount = authCodes.filter(a => a.used).length;
-            const unused = authCodes.filter(a => !a.used);
-            container.innerHTML = `
-                <div style="text-align:center;font-size:14px;color:#334155;margin-bottom:12px;font-weight:bold;">已用 ${usedCount} / 总计 ${total}</div>
-                ${unused.length ? unused.map(a => `
-                    <div class="admin-code-item">
-                        <span style="font-size:16px;letter-spacing:2px;">${a.code}</span>
-                        <span class="status-badge">未使用</span>
-                    </div>
-                `).join('') : '<div style="text-align:center;color:#94a3b8;padding:20px;font-size:14px;">⚠️ 所有授权码已用完，请追加</div>'}
-            `;
+            const c = document.getElementById('adminCodeList'); if (!c) return;
+            const total = authCodes.length; const usedCount = authCodes.filter(a => a.used).length; const unused = authCodes.filter(a => !a.used);
+            c.innerHTML = `<div style="text-align:center;font-size:14px;color:#334155;margin-bottom:12px;font-weight:bold;">已用 ${usedCount} / 总计 ${total}</div>${unused.length ? unused.map(a => `<div class="admin-code-item"><span style="font-size:16px;letter-spacing:2px;">${a.code}</span><span class="status-badge">未使用</span></div>`).join('') : '<div style="text-align:center;color:#94a3b8;padding:20px;font-size:14px;">⚠️ 所有授权码已用完，请追加</div>'}`;
         }
 
         function generateNewCodes() {
-            const fallbackCodes = ["000WENXI","11W1ENXI","22WE2NXI","33WEN3XI","44WENX4I","55WENXI5","6W66ENXI","7W7E7NXI","8W8EN8XI","9W9ENX9I","0W0ENXI0","1WE11NXI","2WE2N2XI","3WE3NX3I","4WE4NXI4","5WEN55XI","6WEN6X6I","7WEN7XI7","8WENX88I","9WENX9I9","0WENXI00","W111ENXI","W22E2NXI","W33EN3XI","W44ENX4I","W55ENXI5","W6E66NXI","W7E7N7XI","W8E8NX8I","W9E9NXI9","W0EN00XI","W1EN1X1I","W2EN2XI2","W3ENX33I","W4ENX4I4","W5ENXI55","WE666NXI","WE77N7XI","WE88NX8I","WE99NXI9","WE0N00XI","WE1N1X1I","WE2N2XI2","WE3NX33I","WE4NX4I4","WE5NXI55","WEN666XI","WEN77X7I","WEN88XI8","WEN9X99I"];
-            let added = 0;
-            const existingSet = new Set(authCodes.map(a => a.code));
-            for (let code of fallbackCodes) {
-                if (added >= 10) break;
-                if (!existingSet.has(code)) {
-                    existingSet.add(code);
-                    authCodes.push({ code, used: false, deviceId: '' });
-                    added++;
-                }
-            }
-            saveAuthState();
-            renderAdminCodeList();
-            showToast(`✅ 已追加 ${added} 个新授权码`, false);
+            const fb = ["000WENXI","11W1ENXI","22WE2NXI","33WEN3XI","44WENX4I","55WENXI5","6W66ENXI","7W7E7NXI","8W8EN8XI","9W9ENX9I","0W0ENXI0","1WE11NXI","2WE2N2XI","3WE3NX3I","4WE4NXI4","5WEN55XI","6WEN6X6I","7WEN7XI7","8WENX88I","9WENX9I9","0WENXI00","W111ENXI","W22E2NXI","W33EN3XI","W44ENX4I","W55ENXI5","W6E66NXI","W7E7N7XI","W8E8NX8I","W9E9NXI9","W0EN00XI","W1EN1X1I","W2EN2XI2","W3ENX33I","W4ENX4I4","W5ENXI55","WE666NXI","WE77N7XI","WE88NX8I","WE99NXI9","WE0N00XI","WE1N1X1I","WE2N2XI2","WE3NX33I","WE4NX4I4","WE5NXI55","WEN666XI","WEN77X7I","WEN88XI8","WEN9X99I"];
+            let added = 0; const exist = new Set(authCodes.map(a => a.code));
+            for (let code of fb) { if (added >= 10) break; if (!exist.has(code)) { exist.add(code); authCodes.push({ code, used: false, deviceId: '' }); added++; } }
+            saveAuthState(); renderAdminCodeList(); showToast(`✅ 已追加 ${added} 个新授权码`, false);
         }
 
-        // ---------- 表格渲染 ----------
+        // ---------- 渲染 ----------
         function render() {
             const thead = document.getElementById('tHead');
             const tbody = document.getElementById('tBody');
-            if (!columns.length) {
-                tbody.innerHTML = '<tr><td colspan="10" class="text-center p-6 text-gray-500">暂无数据，请导入Excel或添加列表</td></tr>';
-                return;
-            }
+            if (!columns.length) { tbody.innerHTML = '<tr><td colspan="10" class="text-center p-6 text-gray-500">暂无数据，请导入Excel或添加列表</td></tr>'; return; }
             thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
-            tbody.innerHTML = db.map((row, idx) => `
-                <tr id="row-${idx}">
-                    ${columns.map(col => `
-                        <td>
-                            ${col === '实际数量' ? 
-                                `<input id="qty-${idx}" type="number" value="${row[col] || ''}" 
-                                    class="qty-input" onchange="updateQty(${idx}, this.value)"
-                                    onfocus="this.select()" placeholder="0" inputmode="numeric" />` :
-                                `<input type="text" value="${escapeHtml(String(row[col] || ''))}" 
-                                    class="w-full p-2 text-sm outline-none bg-transparent"
-                                    style="min-width:80px; width:100%;"
-                                    onchange="updateCell(${idx}, '${col}', this.value)" />`
-                            }
-                        </td>
-                    `).join('')}
-                </tr>
-            `).join('');
+            tbody.innerHTML = db.map((row, idx) => `<tr id="row-${idx}">${columns.map(col => `<td>${col === '实际数量' ? `<input id="qty-${idx}" type="number" value="${row[col] || ''}" class="qty-input" onchange="updateQty(${idx}, this.value)" onfocus="this.select()" placeholder="0" inputmode="numeric" />` : `<input type="text" value="${escapeHtml(String(row[col] || ''))}" class="w-full p-2 text-sm outline-none bg-transparent" style="min-width:80px;width:100%;" onchange="updateCell(${idx}, '${col}', this.value)" />`}</td>`).join('')}</tr>`).join('');
             setTimeout(() => autoAdjustColumns(), 50);
             if (pendingJump !== null) setTimeout(() => { jumpToRowAndFocusQty(pendingJump); pendingJump = null; }, 100);
         }
 
-        function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
-        
-        function updateQty(rowIndex, value) { 
-            db[rowIndex]['实际数量'] = value; 
-            saveData(); 
-            showToast("已保存", false); 
-            hideKeyboard(); 
-        }
-        function updateCell(rowIndex, col, value) { 
-            db[rowIndex][col] = value; 
-            // 如果修改了条码或编码，重新生成预计算字段
-            computePrecomputedFields(db[rowIndex]);
-            saveData(); 
-        }
-        
+        function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;'); }
+        function updateQty(i, v) { db[i]['实际数量'] = v; saveData(); showToast("已保存", false); hideKeyboard(); }
+        function updateCell(i, col, v) { db[i][col] = v; computePrecomputedFields(db[i]); saveData(); }
+
         function autoAdjustColumns() {
-            const table = document.getElementById('mainTable');
-            if (!table) return;
-            const colCount = columns.length;
-            if (colCount === 0) return;
-            const headers = table.querySelectorAll('thead th');
-            const rows = table.querySelectorAll('tbody tr');
+            const table = document.getElementById('mainTable'); if (!table) return;
+            const cc = columns.length; if (cc === 0) return;
+            const headers = table.querySelectorAll('thead th'); const rows = table.querySelectorAll('tbody tr');
             if (headers.length === 0) return;
-            const colMaxWidths = new Array(colCount).fill(0);
-            headers.forEach((th, idx) => {
-                if (idx < colCount) {
-                    let headerWidth = (th.textContent || '').length * 14 + 40;
-                    colMaxWidths[idx] = Math.max(colMaxWidths[idx], Math.min(headerWidth, 200));
+            const mw = new Array(cc).fill(0);
+            headers.forEach((th, i) => { if (i < cc) mw[i] = Math.max(mw[i], Math.min((th.textContent||'').length * 14 + 40, 200)); });
+            rows.forEach(row => { row.querySelectorAll('td').forEach((cell, i) => {
+                if (i < cc) {
+                    const inp = cell.querySelector('input'); let t = inp ? (inp.value||inp.placeholder||'') : (cell.textContent||'');
+                    let w = 0; for (let c of t) { const cd = c.charCodeAt(0); w += cd >= 0x4e00 && cd <= 0x9fff ? 16 : (cd >= 0x30 && cd <= 0x39 ? 8 : 10); }
+                    w = Math.min(Math.max(w + 30, 80), 250);
+                    if (w > mw[i]) mw[i] = w;
                 }
-            });
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                cells.forEach((cell, idx) => {
-                    if (idx < colCount) {
-                        const input = cell.querySelector('input');
-                        let text = input ? (input.value || input.placeholder || '') : (cell.textContent || '');
-                        let textWidth = 0;
-                        for (let i = 0; i < text.length; i++) {
-                            const code = text.charCodeAt(i);
-                            if (code >= 0x4e00 && code <= 0x9fff) textWidth += 16;
-                            else if (code >= 0x30 && code <= 0x39) textWidth += 8;
-                            else textWidth += 10;
-                        }
-                        textWidth = Math.max(textWidth + 30, 80);
-                        textWidth = Math.min(textWidth, 250);
-                        if (textWidth > colMaxWidths[idx]) colMaxWidths[idx] = textWidth;
-                    }
-                });
-            });
-            headers.forEach((th, idx) => {
-                if (idx < colCount && colMaxWidths[idx] > 0) {
-                    th.style.width = colMaxWidths[idx] + 'px';
-                    th.style.minWidth = colMaxWidths[idx] + 'px';
-                }
-            });
+            }); });
+            headers.forEach((th, i) => { if (i < cc && mw[i] > 0) { th.style.width = mw[i] + 'px'; th.style.minWidth = mw[i] + 'px'; } });
         }
 
         function renderColList() {
-            const container = document.getElementById('colList');
-            container.innerHTML = columns.map((col, idx) => `
-                <div class="col-item p-3" draggable="true" data-index="${idx}" data-col="${col}">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2 flex-1">
-                            <span class="drag-handle text-xl cursor-move">☰</span>
-                            <span class="font-bold text-sm">${idx + 1}. ${col}</span>
-                        </div>
-                        <div class="flex gap-1">
-                            <button onclick="moveColumnUp(${idx})" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">⬆️</button>
-                            <button onclick="moveColumnDown(${idx})" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">⬇️</button>
-                            <button onclick="deleteColumn('${col}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs">删</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
+            const c = document.getElementById('colList');
+            c.innerHTML = columns.map((col, idx) => `<div class="col-item p-3" draggable="true" data-index="${idx}" data-col="${col}"><div class="flex items-center justify-between"><div class="flex items-center gap-2 flex-1"><span class="drag-handle text-xl cursor-move">☰</span><span class="font-bold text-sm">${idx+1}. ${col}</span></div><div class="flex gap-1"><button onclick="moveColumnUp(${idx})" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">⬆️</button><button onclick="moveColumnDown(${idx})" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">⬇️</button><button onclick="deleteColumn('${col}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs">删</button></div></div></div>`).join('');
             setupDragAndDrop();
         }
 
@@ -1619,150 +1348,97 @@
             items.forEach(item => {
                 if (isTouch) { item.setAttribute('draggable', 'false'); return; }
                 item.setAttribute('draggable', 'true');
-                item.addEventListener('dragstart', (e) => { draggedItem = item; item.style.opacity = '0.5'; e.dataTransfer.effectAllowed = 'move'; });
-                item.addEventListener('dragend', (e) => { item.style.opacity = ''; draggedItem = null; });
-                item.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
-                item.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    if (!draggedItem || draggedItem === item) return;
-                    const fromIndex = parseInt(draggedItem.getAttribute('data-index'));
-                    const toIndex = parseInt(item.getAttribute('data-index'));
-                    if (!isNaN(fromIndex) && !isNaN(toIndex)) {
-                        const temp = columns[fromIndex]; columns[fromIndex] = columns[toIndex]; columns[toIndex] = temp;
-                        renderColList(); render(); saveData(); showToast("列顺序已更新", false);
-                    }
+                item.addEventListener('dragstart', e => { draggedItem = item; item.style.opacity = '0.5'; e.dataTransfer.effectAllowed = 'move'; });
+                item.addEventListener('dragend', () => { item.style.opacity = ''; draggedItem = null; });
+                item.addEventListener('dragover', e => e.preventDefault());
+                item.addEventListener('drop', e => {
+                    e.preventDefault(); if (!draggedItem || draggedItem === item) return;
+                    const fi = parseInt(draggedItem.dataset.index); const ti = parseInt(item.dataset.index);
+                    if (!isNaN(fi) && !isNaN(ti)) { const t = columns[fi]; columns[fi] = columns[ti]; columns[ti] = t; renderColList(); render(); saveData(); showToast("列顺序已更新", false); }
                 });
             });
         }
 
-        function moveColumnUp(index) { if (index > 0) { const temp = columns[index]; columns[index] = columns[index-1]; columns[index-1] = temp; renderColList(); render(); saveData(); showToast("列顺序已更新", false); } }
-        function moveColumnDown(index) { if (index < columns.length-1) { const temp = columns[index]; columns[index] = columns[index+1]; columns[index+1] = temp; renderColList(); render(); saveData(); showToast("列顺序已更新", false); } }
+        function moveColumnUp(i) { if (i > 0) { const t = columns[i]; columns[i] = columns[i-1]; columns[i-1] = t; renderColList(); render(); saveData(); showToast("列顺序已更新", false); } }
+        function moveColumnDown(i) { if (i < columns.length-1) { const t = columns[i]; columns[i] = columns[i+1]; columns[i+1] = t; renderColList(); render(); saveData(); showToast("列顺序已更新", false); } }
         function openColModal() { renderColList(); document.getElementById('colModal').style.display = 'flex'; }
         function closeColModal() { document.getElementById('colModal').style.display = 'none'; render(); }
-        function addColumn() { const newCol = document.getElementById('newColName').value.trim(); if (newCol && !columns.includes(newCol)) { columns.push(newCol); db.forEach(row => row[newCol] = ''); renderColList(); render(); saveData(); showToast(`已添加列: ${newCol}`, false); document.getElementById('newColName').value = ''; } else if (columns.includes(newCol)) showToast("列名已存在", true); }
-        function deleteColumn(colName) { if (confirm(`确定删除列 "${colName}" 吗？数据将丢失！`)) { const index = columns.indexOf(colName); if (index !== -1) { columns.splice(index, 1); db.forEach(row => delete row[colName]); renderColList(); render(); saveData(); showToast(`已删除列: ${colName}`, false); } } }
+        function addColumn() { const n = document.getElementById('newColName').value.trim(); if (n && !columns.includes(n)) { columns.push(n); db.forEach(r => r[n] = ''); renderColList(); render(); saveData(); showToast(`已添加列: ${n}`, false); document.getElementById('newColName').value = ''; } else if (columns.includes(n)) showToast("列名已存在", true); }
+        function deleteColumn(col) { if (confirm(`确定删除列 "${col}" 吗？数据将丢失！`)) { const i = columns.indexOf(col); if (i !== -1) { columns.splice(i, 1); db.forEach(r => delete r[col]); renderColList(); render(); saveData(); showToast(`已删除列: ${col}`, false); } } }
 
         // ---------- 导入导出 ----------
         document.getElementById('fileInput').onchange = function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+            const file = e.target.files[0]; if (!file) return;
             showToast("正在导入...", false);
-            const fileReader = new FileReader();
-            fileReader.onload = function(ev) {
+            const fr = new FileReader();
+            fr.onload = function(ev) {
                 try {
                     const data = new Uint8Array(ev.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                    const wb = XLSX.read(data, { type: 'array' });
+                    const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
                     if (json.length > 0) {
                         columns = Object.keys(json[0]);
                         if (!columns.includes('实际数量')) columns.unshift('实际数量');
                         normalizeActualQtyColumnPosition();
-                        db = json.map(row => { 
-                            const newRow = { ...row }; 
-                            if (newRow['实际数量'] === undefined) newRow['实际数量'] = ''; 
-                            computePrecomputedFields(newRow);
-                            return newRow; 
-                        });
+                        db = json.map(row => { const r = { ...row }; if (r['实际数量'] === undefined) r['实际数量'] = ''; computePrecomputedFields(r); return r; });
                         saveData(); render(); showToast(`✅ 导入成功！共 ${db.length} 条数据`, false);
                     } else showToast("文件无数据", true);
                 } catch(err) { console.error(err); showToast("解析失败", true); }
             };
-            fileReader.onerror = function() { showToast("读取失败", true); };
-            fileReader.readAsArrayBuffer(file);
+            fr.onerror = function() { showToast("读取失败", true); };
+            fr.readAsArrayBuffer(file);
             e.target.value = '';
         };
 
         function exportExcel() {
             if (!db.length) { showToast("暂无数据可导出", true); return; }
-            const defaultName = `飞速盘点_${new Date().toLocaleDateString()}`;
-            let name = prompt("请输入导出文件名：", defaultName);
-            if (!name || !name.trim()) name = defaultName;
-            // 导出时移除预计算字段
-            const exportData = db.map(row => {
-                const cleanRow = { ...row };
-                delete cleanRow.__barcode_normalized;
-                delete cleanRow.__barcode_reverse;
-                delete cleanRow.__barcode_last6;
-                delete cleanRow.__code_normalized;
-                delete cleanRow.__code_reverse;
-                delete cleanRow.__code_last6;
-                return cleanRow;
-            });
+            let name = prompt("请输入导出文件名：", `飞速盘点_${new Date().toLocaleDateString()}`);
+            if (!name || !name.trim()) name = `飞速盘点_${new Date().toLocaleDateString()}`;
+            const exportData = db.map(row => { const r = { ...row }; delete r.__barcode_normalized; delete r.__barcode_reverse; delete r.__barcode_last6; delete r.__code_normalized; delete r.__code_reverse; delete r.__code_last6; return r; });
             const ws = XLSX.utils.json_to_sheet(exportData, { header: columns });
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "库存数据");
-            XLSX.writeFile(wb, name.trim() + ".xlsx");
-            showToast("✅ 导出成功", false);
-        }
-        function hardReset() { 
-            if (confirm("⚠️ 确定清空所有数据吗？此操作不可恢复！")) { 
-                localStorage.removeItem(STORAGE_KEY); 
-                db = []; 
-                columns = ['实际数量', '商品名称', '编码', '价格']; 
-                normalizeActualQtyColumnPosition(); 
-                saveData(); render(); showToast("已清空所有数据", false); 
-            } 
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "库存数据"); XLSX.writeFile(wb, name.trim() + ".xlsx"); showToast("✅ 导出成功", false);
         }
 
-        // ---------- 初始化事件 ----------
+        function hardReset() { if (confirm("⚠️ 确定清空所有数据吗？此操作不可恢复！")) { localStorage.removeItem(STORAGE_KEY); db = []; columns = ['实际数量', '商品名称', '编码', '价格']; normalizeActualQtyColumnPosition(); saveData(); render(); showToast("已清空所有数据", false); } }
+
+        // ---------- 初始化 ----------
         window.addEventListener('resize', () => setTimeout(() => autoAdjustColumns(), 100));
         window.addEventListener('beforeunload', () => { if (scanning) stopScanning(true); });
         document.addEventListener('touchstart', function(e) { if (currentInputElement && !e.target.closest('.qty-input') && !e.target.closest('#manualInput')) hideKeyboard(); });
-        
-        loadData(); render(); setupKeyboardListener();
-        initAuthSystem();
-        
-        // 授权输入框回车提交
+
+        loadData(); render(); setupKeyboardListener(); initAuthSystem();
+
         const authInput = document.getElementById('authInput');
         if (authInput) authInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifyAuthCode(); });
 
-        // 确认按钮 + 智能匹配
-        document.getElementById('confirmBtn').onclick = () => { 
-            const input = document.getElementById('manualInput'); 
-            const val = input.value.trim(); 
-            if (val === '授权码') { openAdminPanel(); input.value = ''; return; } 
-            if (val) { 
-                handleBarcode(val, false); 
-                input.value = ''; 
-                // 清除智能提示
-                document.getElementById('smartIndicator').style.display = 'none';
-                input.placeholder = '📱 输入条码/编码/名称（支持智能识别）...';
-            } 
-            hideKeyboard(); 
+        document.getElementById('confirmBtn').onclick = () => {
+            const input = document.getElementById('manualInput'); const val = input.value.trim();
+            if (val === '授权码') { openAdminPanel(); input.value = ''; return; }
+            if (val) { handleBarcode(val, false); input.value = ''; document.getElementById('smartIndicator').style.display = 'none'; input.placeholder = '📱 输入条码/编码/名称（支持智能识别）...'; }
+            hideKeyboard();
         };
-        
-        // 输入框实时智能探测
-        document.getElementById('manualInput').oninput = function(e) {
-            onManualInputChange();
+
+        document.getElementById('manualInput').oninput = onManualInputChange;
+
+        document.getElementById('manualInput').onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                const input = e.target; const val = input.value.trim();
+                if (val === '授权码') { openAdminPanel(); input.value = ''; return; }
+                if (val) { handleBarcode(val, false); input.value = ''; document.getElementById('smartIndicator').style.display = 'none'; input.placeholder = '📱 输入条码/编码/名称（支持智能识别）...'; }
+                hideKeyboard();
+            }
         };
-        
-        document.getElementById('manualInput').onkeypress = (e) => { 
-            if (e.key === 'Enter') { 
-                const input = e.target; 
-                const val = input.value.trim(); 
-                if (val === '授权码') { openAdminPanel(); input.value = ''; return; } 
-                if (val) { 
-                    handleBarcode(val, false); 
-                    input.value = ''; 
-                    document.getElementById('smartIndicator').style.display = 'none';
-                    input.placeholder = '📱 输入条码/编码/名称（支持智能识别）...';
-                } 
-                hideKeyboard(); 
-            } 
-        };
-        
+
         document.getElementById('scanBtn').onclick = () => { if (scanning) stopScanning(true); else startScanning(); hideKeyboard(); };
         document.getElementById('showKeyboardBtn').onclick = () => showKeyboard();
-        
-        // 绑定顶部增强按钮
+
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
 
         console.log(`⚡ 飞速盘点 智能扫码版 ${VERSION}`);
         console.log(`📌 已加载 ${db.length} 条商品数据`);
-        console.log(`🔍 智能匹配引擎就绪: normalizeCode + reverseString + last6 + 多匹配弹窗`);
-        console.log(`📷 摄像头优化: 持续自动对焦 + 快速阶梯对焦(180ms轮询)`);
+        console.log(`🔍 智能匹配引擎就绪: normalizeCode + reverseString + last6 + 多匹配弹窗 + 全字段兜底`);
+        console.log(`📷 摄像头优化: 持续自动对焦 + 快速阶梯对焦(180ms轮询) + 原生BarcodeDetector优先`);
     </script>
 </body>
 </html>
