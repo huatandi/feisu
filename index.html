@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.5</title>
+    <title>飞速盘点 · Sanfei v3.3.6</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -123,6 +123,26 @@
             border-color: #ef4444 !important;
             outline: none;
         }
+        .price-input {
+            width: 100%;
+            min-width: 80px;
+            max-width: 120px;
+            height: 50px;
+            border: 3px solid #10b981 !important;
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: #065f46;
+            border-radius: 10px;
+            background: #ecfdf5;
+            transition: all 0.2s;
+        }
+        .price-input:focus {
+            background: #fef9c3;
+            transform: scale(1.02);
+            border-color: #f59e0b !important;
+            outline: none;
+        }
         .row-focus { 
             background: linear-gradient(90deg, #fef08a 0%, #fde047 100%) !important;
         }
@@ -231,7 +251,7 @@
         }
         .bottom-btns {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);  /* 修改：移除增强按钮后从4列变为3列 */
+            grid-template-columns: repeat(3, 1fr);
             gap: 12px;
             max-width: 600px;
             margin: 0 auto;
@@ -282,7 +302,7 @@
             align-items: center;
         }
         .scan-enhance-btn {
-            background: #10b981;  /* 绿色背景 */
+            background: #10b981;
             color: white;
             border: 2px solid white;
             border-radius: 50px;
@@ -319,6 +339,7 @@
             .action-btn { font-size: 10px; padding: 10px 2px; }
             .bottom-btn { font-size: 14px; padding: 12px 4px; }
             .qty-input { height: 45px; font-size: 1.1rem; min-width: 70px; }
+            .price-input { height: 45px; font-size: 1.1rem; min-width: 70px; }
             .cam-btn-large { font-size: 24px; }
             .keyboard-btn { font-size: 24px; }
             .bottom-fixed-btns { padding: 8px 12px; }
@@ -461,16 +482,7 @@
         </div>
     </div>
 
-    <!-- 授权弹窗（纯HTML+行内样式，完全不依赖JS） -->
-    <style>
-        #authOverlay{z-index:999999!important;position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;background:rgba(0,0,0,0.88)!important;backdrop-filter:blur(12px)!important;display:flex;align-items:center!important;justify-content:center!important;}
-        .auth-box{background:#fff!important;border-radius:28px!important;width:min(92%,400px)!important;padding:32px 24px 24px!important;text-align:center!important;box-shadow:0 20px 60px rgba(0,0,0,0.5)!important;}
-        .auth-box h2{font-size:22px!important;font-weight:900!important;margin:0 0 6px!important;}
-        .auth-box p{font-size:13px!important;color:#64748b!important;margin:0 0 20px!important;}
-        .auth-box input{width:100%!important;padding:14px!important;font-size:22px!important;font-weight:900!important;text-align:center!important;letter-spacing:4px!important;border:3px solid #3b82f6!important;border-radius:14px!important;outline:none!important;background:#f0f9ff!important;color:#000!important;}
-        .auth-box button{width:100%!important;padding:14px!important;margin-top:14px!important;background:#3b82f6!important;color:#fff!important;border:none!important;border-radius:14px!important;font-size:18px!important;font-weight:900!important;cursor:pointer!important;}
-        .auth-error{color:#dc2626!important;font-size:13px!important;font-weight:bold!important;margin-top:10px!important;display:none!important;}
-    </style>
+    <!-- 授权弹窗 -->
     <div id="authOverlay" class="auth-overlay">
         <div class="auth-box">
             <h2>🔐 飞速盘点</h2>
@@ -485,14 +497,11 @@
     function getAuthData(){try{var s=localStorage.getItem(AUTH_SKEY);if(s)return JSON.parse(s)}catch(e){}return null}
     function saveAuthData(d){try{localStorage.setItem(AUTH_SKEY,JSON.stringify(d))}catch(e){}}
     function getDid(){var d=localStorage.getItem('_device_id');if(!d){d='DEV_'+Math.random().toString(36).substring(2,10).toUpperCase();localStorage.setItem('_device_id',d)}return d}
-    // 确保授权码列表已生成
     (function(){
         var ad=getAuthData();
         var presetList=["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];
         var presetCodes=presetList.map(function(c){return {code:c,used:false,deviceId:''}});
-        // 始终使用预设码（覆盖旧随机码）确保所有设备同一套
         var active=ad&&ad.activated?true:false,adm=ad&&ad.admin?true:false;
-        // 保留已使用的标记：把老的已用码在预设码里标记出来
         if(ad&&ad.codes&&ad.codes.length){
             var oldMap={};
             for(var oi=0;oi<ad.codes.length;oi++){
@@ -558,7 +567,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.5</div>
+                    <div class="version-badge">sanfei v3.3.6</div>
                 </div>
             </div>
             
@@ -592,7 +601,7 @@
         </div>
     </div>
 
-    <!-- 底部固定按钮：扫码、重置、键盘（移除了原有的增强按钮） -->
+    <!-- 底部固定按钮 -->
     <div class="bottom-fixed-btns">
         <div class="bottom-btns">
             <button id="scanBtn" class="bottom-btn bg-blue-600 text-white shadow-lg cam-btn-large">
@@ -636,7 +645,7 @@
     </div>
 
     <script>
-        const VERSION = "S3.3.5";
+        const VERSION = "S3.3.6";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         
         let db = [];
@@ -652,9 +661,9 @@
         let cameraTrack = null;
         
         // 增强模式相关
-        let enhanceMode = false;          // 用户手动开启的增强模式
-        let consecutiveFailures = 0;      // 连续解码失败次数
-        const AUTO_ENHANCE_THRESHOLD = 3;  // 连续失败3次自动启用单次增强
+        let enhanceMode = false;
+        let consecutiveFailures = 0;
+        const AUTO_ENHANCE_THRESHOLD = 3;
         let lastDecodeSucceeded = true;
         
         // 图像预处理用的canvas (复用)
@@ -730,30 +739,52 @@
                     db = data.db || [];
                     columns = data.columns || [];
                 }
+                // 默认列：包含"实际价格"
                 if (!columns.length) {
-                    columns = ['实际数量', '商品名称', '编码', '价格'];
+                    columns = ['实际数量', '实际价格', '商品名称', '编码', '价格'];
                     db = [];
                 }
-                normalizeActualQtyColumnPosition();
+                // 确保"实际价格"列存在
+                if (!columns.includes('实际价格')) {
+                    columns.push('实际价格');
+                }
+                normalizeSpecialColumns();
                 db.forEach(row => {
                     if (row['实际数量'] === undefined) row['实际数量'] = '';
+                    if (row['实际价格'] === undefined) row['实际价格'] = '';
                 });
             } catch(e) {
                 console.error(e);
-                columns = ['实际数量', '商品名称', '编码', '价格'];
-                normalizeActualQtyColumnPosition();
+                columns = ['实际数量', '实际价格', '商品名称', '编码', '价格'];
+                normalizeSpecialColumns();
                 db = [];
             }
         }
 
-        function normalizeActualQtyColumnPosition() {
-            if (!Array.isArray(columns) || !columns.length) return;
+        function normalizeSpecialColumns() {
+            // 确保"实际数量"和"实际价格"存在且位置合理
             const qtyCol = '实际数量';
+            const priceCol = '实际价格';
+            
+            // 确保两个列都存在
+            if (!columns.includes(qtyCol)) columns.unshift(qtyCol);
+            if (!columns.includes(priceCol)) columns.push(priceCol);
+            
+            // 把"实际数量"移到最前面（如果不在最前）
             const qtyIndex = columns.indexOf(qtyCol);
-            if (qtyIndex === -1) return;
-            columns.splice(qtyIndex, 1);
-            const targetIndex = 4;
-            columns.splice(Math.min(targetIndex, columns.length), 0, qtyCol);
+            if (qtyIndex > 0) {
+                columns.splice(qtyIndex, 1);
+                columns.unshift(qtyCol);
+            }
+            
+            // 把"实际价格"放在"实际数量"后面（如果不在第二位）
+            const priceIndex = columns.indexOf(priceCol);
+            if (priceIndex !== 1 && priceIndex > 0) {
+                columns.splice(priceIndex, 1);
+                columns.splice(1, 0, priceCol);
+            } else if (priceIndex === -1) {
+                columns.splice(1, 0, priceCol);
+            }
         }
 
         function saveData() {
@@ -770,7 +801,6 @@
             setTimeout(() => toast.style.display = 'none', 1500);
         }
 
-        // 音量提高50%：gain 从 0.4 改为 0.6
         function playBeep(success) {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -779,7 +809,7 @@
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
                 oscillator.frequency.value = success ? 1200 : 400;
-                gainNode.gain.value = 0.6;  // 提高50%音量
+                gainNode.gain.value = 0.6;
                 oscillator.start();
                 gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2);
                 oscillator.stop(audioCtx.currentTime + 0.2);
@@ -791,9 +821,8 @@
             if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30);
         }
 
-        // ---------- 图像预处理函数（增强低质量条码识别率）----------
+        // ---------- 图像预处理 ----------
         function getFrameROI(videoEl, frameEl) {
-            // 获取扫描框在视频中的实际像素区域（中部偏下，覆盖条码主体）
             const vw = videoEl.videoWidth, vh = videoEl.videoHeight;
             if (!vw || !vh) return null;
             const vr = videoEl.getBoundingClientRect();
@@ -818,7 +847,6 @@
             let roiW = Math.min(vw - roiX, Math.floor(fr.width * sx));
             let roiH = Math.min(vh - roiY, Math.floor(fr.height * sy));
             if (roiW <= 0 || roiH <= 0) return null;
-            // 只取下半部分（条码数字通常在下方）
             const lowerY = roiY + Math.floor(roiH * 0.55);
             const lowerH = roiH - Math.floor(roiH * 0.55);
             if (lowerH < 10) return { x: roiX, y: roiY, w: roiW, h: roiH };
@@ -826,7 +854,6 @@
         }
 
         function preprocessImageForBarcode(videoEl, roi) {
-            // 创建临时canvas绘制ROI区域，进行灰度、对比度拉伸和轻微降噪
             const canvas = document.createElement('canvas');
             canvas.width = roi.w;
             canvas.height = roi.h;
@@ -834,7 +861,6 @@
             ctx.drawImage(videoEl, roi.x, roi.y, roi.w, roi.h, 0, 0, roi.w, roi.h);
             const imgData = ctx.getImageData(0, 0, roi.w, roi.h);
             const data = imgData.data;
-            // 灰度化 + 直方图拉伸增强对比度
             let min = 255, max = 0;
             for (let i = 0; i < data.length; i += 4) {
                 const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
@@ -843,26 +869,21 @@
                 if (gray > max) max = gray;
             }
             const range = max - min;
-            // 自适应阈值 (简单二值化)
             const threshold = min + range * 0.55;
             for (let i = 0; i < data.length; i += 4) {
                 const val = data[i] > threshold ? 255 : 0;
                 data[i] = data[i+1] = data[i+2] = val;
             }
-            // 可选：轻微中值滤波去噪（3x3核，仅一次，轻量快速）
-            // 这里为了性能，跳过复杂滤波，只做二值化已经能大幅提升识别率
             ctx.putImageData(imgData, 0, 0);
             return canvas;
         }
 
-        // 增强解码尝试：若增强模式开启或连续失败达到阈值，则使用预处理后的图像解码
         async function tryEnhancedDecode(videoEl, frameEl) {
             if (!videoEl || videoEl.readyState < 2) return null;
             const roi = getFrameROI(videoEl, frameEl);
             if (!roi) return null;
             const processedCanvas = preprocessImageForBarcode(videoEl, roi);
             if (!processedCanvas) return null;
-            // 临时使用浏览器的 BarcodeDetector API 进行检测（更轻量）
             if ('BarcodeDetector' in window) {
                 try {
                     const detector = new window.BarcodeDetector({
@@ -872,14 +893,12 @@
                     if (codes && codes.length > 0) {
                         return codes[0].rawValue;
                     }
-                } catch(e) { /* fallback to ZXing */ }
+                } catch(e) { /* fallback */ }
             }
-            // 降级到 ZXing 解码（通过绘制canvas到ImageData? ZXing支持直接解码canvas? 简化: 直接用原ZXing解码原始帧）
-            // 注意：这里的增强主要是图像预处理，若BarcodeDetector失败，保留原ZXing解码流程
             return null;
         }
 
-        // ---------- 匹配逻辑 (同原有) ----------
+        // ---------- 匹配逻辑 ----------
         function preprocessCode(code) {
             if (!code) return code;
             let cleaned = code.replace(/[^\w\d\-]/g, '');
@@ -953,6 +972,7 @@
                 document.querySelectorAll('#mainTable tbody tr').forEach(tr => tr.classList.remove('row-focus'));
                 rowEl.classList.add('row-focus');
                 rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // 聚焦到"实际数量"输入框（保持不变）
                 const qtyInput = document.getElementById(`qty-${foundIndex}`);
                 if (qtyInput) {
                     currentInputElement = qtyInput;
@@ -1000,7 +1020,6 @@
             setTimeout(() => { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
-        // 核心：处理识别到的条码
         function handleBarcode(code, fromCamera = false) {
             if (!code) return false;
             const now = Date.now();
@@ -1013,9 +1032,7 @@
             if (foundIndex === -1) {
                 playBeep(false);
                 showToast(`❌ 条码不存在: ${codeStr.substring(0, 20)}`, true);
-                // 振动提示失败
                 vibrate();
-                // 更新失败计数
                 consecutiveFailures++;
                 lastDecodeSucceeded = false;
                 setTimeout(() => {
@@ -1024,7 +1041,6 @@
                 }, 100);
                 return false;
             }
-            // 成功
             consecutiveFailures = 0;
             lastDecodeSucceeded = true;
             playBeep(true);
@@ -1091,21 +1107,16 @@
             if (advanced.length) track.applyConstraints({ advanced }).catch(() => {});
         }
 
-        // 解码拦截器：支持增强模式
-        let originalDecodeCallback = null;
-        let currentReader = null;
-        
         async function startScanning() {
             if (scanning) { showToast("扫描器已在运行", false); return; }
             
-            // ---------- iPad 摄像头框上移10% (从25%到15%) ----------
             const isIPadDevice = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
             const scanFrame = document.getElementById('scanFrame');
             if (scanFrame) {
                 if (isIPadDevice) {
-                    scanFrame.style.top = '15%';   // 上移10个百分点
+                    scanFrame.style.top = '15%';
                 } else {
-                    scanFrame.style.top = '25%';   // 保持默认
+                    scanFrame.style.top = '25%';
                 }
             }
             
@@ -1114,7 +1125,6 @@
             scanning = true;
             if (reader) { try { await reader.reset(); } catch(e) {} reader = null; }
             
-            // 增强模式UI
             const badge = document.getElementById('enhanceBadge');
             if (enhanceMode) badge.classList.remove('hidden');
             else badge.classList.add('hidden');
@@ -1145,11 +1155,9 @@
                 reader = new ZXing.BrowserMultiFormatReader(hints);
                 reader.timeBetweenDecodingAttempts = 20;
                 
-                // 包装解码回调，支持增强模式
                 const videoEl = document.getElementById('video');
                 const frameEl = document.getElementById('scanFrame');
                 
-                // 使用原生 ZXing 连续解码 + 在回调中整合增强逻辑
                 await reader.decodeFromConstraints(constraints, 'video', async (result, err) => {
                     if (!scanning) return;
                     if (result) {
@@ -1161,16 +1169,13 @@
                             return;
                         }
                     }
-                    // 解码失败
                     consecutiveFailures++;
                     lastDecodeSucceeded = false;
-                    // 如果手动增强模式开启 或 连续失败达到阈值，则尝试单次图像预处理解码
                     if (enhanceMode || consecutiveFailures >= AUTO_ENHANCE_THRESHOLD) {
                         const enhancedCode = await tryEnhancedDecode(videoEl, frameEl);
                         if (enhancedCode) {
                             handleBarcode(enhancedCode, true);
                             consecutiveFailures = 0;
-                            // 增强成功后可选震动提示（短促）
                             vibrate();
                         }
                     }
@@ -1225,11 +1230,9 @@
             }
             document.getElementById('scanUI').style.display = 'none';
             cameraTrack = null;
-            // 重置失败计数
             consecutiveFailures = 0;
         }
 
-        // 增强模式切换（同时更新底部和顶部按钮状态）
         function toggleEnhanceMode() {
             enhanceMode = !enhanceMode;
             const topBtn = document.getElementById('scanEnhanceBtn');
@@ -1245,26 +1248,22 @@
                 if (badge) badge.classList.add('hidden');
                 showToast("增强模式已关闭", false);
             }
-            // 重新启动扫描以应用新设置（如果正在扫描）
             if (scanning) {
                 stopScanning(true);
                 setTimeout(() => startScanning(), 200);
             }
         }
         
-        // ========== 授权系统（读取顶部脚本保存的授权状态）==========
+        // ========== 授权系统 ==========
         function initAuthSystem() {
-            // 预设200个固定授权码（所有设备共享同一套）
             const presetList = ["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];
             const presetCodes = presetList.map(c => ({ code: c, used: false, deviceId: '' }));
-            // 与顶部脚本共用同一个 storage key
             const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
             try {
                 const saved = localStorage.getItem(AUTH_SKEY);
                 if (saved) {
                     const oldData = JSON.parse(saved);
                     const oldCodes = oldData.codes || [];
-                    // 迁移旧的已用状态到预设码
                     const oldUsedMap = {};
                     for (let oc of oldCodes) {
                         if (oc.used) oldUsedMap[oc.code] = oc.deviceId;
@@ -1278,7 +1277,6 @@
                     authCodes = presetCodes;
                     isActivated = oldData.activated || false;
                     adminMode = oldData.admin || false;
-                    // 重新写入（统一为预设码格式）
                     localStorage.setItem(AUTH_SKEY, JSON.stringify({
                         codes: presetCodes, activated: isActivated, admin: adminMode
                     }));
@@ -1291,11 +1289,9 @@
             } catch(e) {
                 authCodes = presetCodes;
             }
-            // 底部脚本不再控制弹窗显示/隐藏，由顶部独立脚本全权负责
         }
 
         function saveAuthState() {
-            // 顶部独立脚本已负责保存，这里同步一下数据格式
             const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
             try {
                 localStorage.setItem(AUTH_SKEY, JSON.stringify({
@@ -1314,8 +1310,6 @@
             }
             return id;
         }
-
-        // verifyAuthCode 已由顶部独立脚本实现，此处不再重复定义（但顶部脚本会调用到下面的 adminMode 等变量，需在顶部脚本里自己也维护一份）
         
         function openAdminPanel() {
             const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
@@ -1355,7 +1349,6 @@
         }
 
         function generateNewCodes() {
-            // 使用预设的备用码，确保所有设备追加同样的码
             const fallbackCodes = ["000WENXI","11W1ENXI","22WE2NXI","33WEN3XI","44WENX4I","55WENXI5","6W66ENXI","7W7E7NXI","8W8EN8XI","9W9ENX9I","0W0ENXI0","1WE11NXI","2WE2N2XI","3WE3NX3I","4WE4NXI4","5WEN55XI","6WEN6X6I","7WEN7XI7","8WENX88I","9WENX9I9","0WENXI00","W111ENXI","W22E2NXI","W33EN3XI","W44ENX4I","W55ENXI5","W6E66NXI","W7E7N7XI","W8E8NX8I","W9E9NXI9","W0EN00XI","W1EN1X1I","W2EN2XI2","W3ENX33I","W4ENX4I4","W5ENXI55","WE666NXI","WE77N7XI","WE88NX8I","WE99NXI9","WE0N00XI","WE1N1X1I","WE2N2XI2","WE3NX33I","WE4NX4I4","WE5NXI55","WEN666XI","WEN77X7I","WEN88XI8","WEN9X99I"];
             let added = 0;
             const existingSet = new Set(authCodes.map(a => a.code));
@@ -1372,7 +1365,7 @@
             showToast(`✅ 已追加 ${added} 个新授权码`, false);
         }
 
-        // ---------- 表格渲染 ----------
+        // ---------- 表格渲染 (新增"实际价格"列) ----------
         function render() {
             const thead = document.getElementById('tHead');
             const tbody = document.getElementById('tBody');
@@ -1383,19 +1376,22 @@
             thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
             tbody.innerHTML = db.map((row, idx) => `
                 <tr id="row-${idx}">
-                    ${columns.map(col => `
-                        <td>
-                            ${col === '实际数量' ? 
-                                `<input id="qty-${idx}" type="number" value="${row[col] || ''}" 
+                    ${columns.map(col => {
+                        if (col === '实际数量') {
+                            return `<td><input id="qty-${idx}" type="number" value="${row[col] || ''}" 
                                     class="qty-input" onchange="updateQty(${idx}, this.value)"
-                                    onfocus="this.select()" placeholder="0" inputmode="numeric" />` :
-                                `<input type="text" value="${escapeHtml(String(row[col] || ''))}" 
+                                    onfocus="this.select()" placeholder="0" inputmode="numeric" /></td>`;
+                        } else if (col === '实际价格') {
+                            return `<td><input id="price-${idx}" type="number" step="0.01" value="${row[col] || ''}" 
+                                    class="price-input" onchange="updatePrice(${idx}, this.value)"
+                                    onfocus="this.select()" placeholder="0.00" inputmode="decimal" /></td>`;
+                        } else {
+                            return `<td><input type="text" value="${escapeHtml(String(row[col] || ''))}" 
                                     class="w-full p-2 text-sm outline-none bg-transparent"
                                     style="min-width:80px; width:100%;"
-                                    onchange="updateCell(${idx}, '${col}', this.value)" />`
-                            }
-                        </td>
-                    `).join('')}
+                                    onchange="updateCell(${idx}, '${col}', this.value)" /></td>`;
+                        }
+                    }).join('')}
                 </tr>
             `).join('');
             setTimeout(() => autoAdjustColumns(), 50);
@@ -1404,7 +1400,8 @@
 
         function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
         
-        function updateQty(rowIndex, value) { db[rowIndex]['实际数量'] = value; saveData(); showToast("已保存", false); hideKeyboard(); }
+        function updateQty(rowIndex, value) { db[rowIndex]['实际数量'] = value; saveData(); showToast("数量已更新", false); hideKeyboard(); }
+        function updatePrice(rowIndex, value) { db[rowIndex]['实际价格'] = value; saveData(); showToast("价格已更新", false); hideKeyboard(); }
         function updateCell(rowIndex, col, value) { db[rowIndex][col] = value; saveData(); }
         
         function autoAdjustColumns() {
@@ -1471,7 +1468,6 @@
 
         function setupDragAndDrop() {
             const items = document.querySelectorAll('.col-item');
-            // iPad/iPhone 不支持 HTML5 拖拽，自动禁用拖拽
             const isTouch = 'ontouchend' in document;
             let draggedItem = null;
             items.forEach(item => {
@@ -1503,7 +1499,16 @@
         function openColModal() { renderColList(); document.getElementById('colModal').style.display = 'flex'; }
         function closeColModal() { document.getElementById('colModal').style.display = 'none'; render(); }
         function addColumn() { const newCol = document.getElementById('newColName').value.trim(); if (newCol && !columns.includes(newCol)) { columns.push(newCol); db.forEach(row => row[newCol] = ''); renderColList(); render(); saveData(); showToast(`已添加列: ${newCol}`, false); document.getElementById('newColName').value = ''; } else if (columns.includes(newCol)) showToast("列名已存在", true); }
-        function deleteColumn(colName) { if (confirm(`确定删除列 "${colName}" 吗？数据将丢失！`)) { const index = columns.indexOf(colName); if (index !== -1) { columns.splice(index, 1); db.forEach(row => delete row[colName]); renderColList(); render(); saveData(); showToast(`已删除列: ${colName}`, false); } } }
+        function deleteColumn(colName) { 
+            if (colName === '实际数量' || colName === '实际价格') {
+                showToast("⚠️ 核心列不能删除", true);
+                return;
+            }
+            if (confirm(`确定删除列 "${colName}" 吗？数据将丢失！`)) { 
+                const index = columns.indexOf(colName); 
+                if (index !== -1) { columns.splice(index, 1); db.forEach(row => delete row[colName]); renderColList(); render(); saveData(); showToast(`已删除列: ${colName}`, false); } 
+            } 
+        }
 
         // ---------- 导入导出 ----------
         document.getElementById('fileInput').onchange = function(e) {
@@ -1519,9 +1524,16 @@
                     const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
                     if (json.length > 0) {
                         columns = Object.keys(json[0]);
+                        // 确保"实际数量"和"实际价格"存在
                         if (!columns.includes('实际数量')) columns.unshift('实际数量');
-                        normalizeActualQtyColumnPosition();
-                        db = json.map(row => { const newRow = { ...row }; if (newRow['实际数量'] === undefined) newRow['实际数量'] = ''; return newRow; });
+                        if (!columns.includes('实际价格')) columns.push('实际价格');
+                        normalizeSpecialColumns();
+                        db = json.map(row => { 
+                            const newRow = { ...row }; 
+                            if (newRow['实际数量'] === undefined) newRow['实际数量'] = ''; 
+                            if (newRow['实际价格'] === undefined) newRow['实际价格'] = ''; 
+                            return newRow; 
+                        });
                         saveData(); render(); showToast(`✅ 导入成功！共 ${db.length} 条数据`, false);
                     } else showToast("文件无数据", true);
                 } catch(err) { console.error(err); showToast("解析失败", true); }
@@ -1542,17 +1554,16 @@
             XLSX.writeFile(wb, name.trim() + ".xlsx");
             showToast("✅ 导出成功", false);
         }
-        function hardReset() { if (confirm("⚠️ 确定清空所有数据吗？此操作不可恢复！")) { localStorage.removeItem(STORAGE_KEY); db = []; columns = ['实际数量', '商品名称', '编码', '价格']; normalizeActualQtyColumnPosition(); saveData(); render(); showToast("已清空所有数据", false); } }
+        function hardReset() { if (confirm("⚠️ 确定清空所有数据吗？此操作不可恢复！")) { localStorage.removeItem(STORAGE_KEY); db = []; columns = ['实际数量', '实际价格', '商品名称', '编码', '价格']; normalizeSpecialColumns(); saveData(); render(); showToast("已清空所有数据", false); } }
 
         // ---------- 初始化事件 ----------
         window.addEventListener('resize', () => setTimeout(() => autoAdjustColumns(), 100));
         window.addEventListener('beforeunload', () => { if (scanning) stopScanning(true); });
-        document.addEventListener('touchstart', function(e) { if (currentInputElement && !e.target.closest('.qty-input') && !e.target.closest('#manualInput')) hideKeyboard(); });
+        document.addEventListener('touchstart', function(e) { if (currentInputElement && !e.target.closest('.qty-input') && !e.target.closest('.price-input') && !e.target.closest('#manualInput')) hideKeyboard(); });
         
         loadData(); render(); setupKeyboardListener();
         initAuthSystem();
         
-        // 授权输入框回车提交
         const authInput = document.getElementById('authInput');
         if (authInput) authInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifyAuthCode(); });
         
@@ -1561,11 +1572,10 @@
         document.getElementById('scanBtn').onclick = () => { if (scanning) stopScanning(true); else startScanning(); hideKeyboard(); };
         document.getElementById('showKeyboardBtn').onclick = () => showKeyboard();
         
-        // 绑定顶部增强按钮
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
         
-        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - 音量提升50% | 增强开关移至左上角 | iPad扫描框上移10%`);
+        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - 新增"实际价格"列 | 扫码后聚焦数量 | 两列均可拖拽排列`);
     </script>
 </body>
 </html>
