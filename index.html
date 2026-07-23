@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.17</title>
+    <title>飞速盘点 · Sanfei v3.3.18</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -185,7 +185,6 @@
         .error-summary details { cursor: pointer; }
         .error-summary summary { font-weight: 600; color: #b71c1c; }
         .error-summary ul { max-height: 120px; overflow-y: auto; margin: 6px 0 0 18px; color: #5f2b2b; }
-        /* 防止页面崩溃的兜底 */
         .crash-guard { display: none; }
     </style>
 </head>
@@ -291,7 +290,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.17</div>
+                    <div class="version-badge">sanfei v3.3.18</div>
                 </div>
             </div>
             
@@ -373,7 +372,7 @@
 
     <script>
         // ========== 核心版本 ==========
-        const VERSION = "S3.3.17";
+        const VERSION = "S3.3.18";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         let db = [];
         let columns = [];
@@ -403,17 +402,11 @@
         const isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
         const isMobile = isAndroid || isIPad || /iPhone/i.test(navigator.userAgent);
 
-        // ========== Toast 增强版 ==========
+        // ========== Toast ==========
         function showToast(msg, isError = false, persistent = false) {
             const toast = document.getElementById('toast');
-            
-            if (toastTimer) {
-                clearTimeout(toastTimer);
-                toastTimer = null;
-            }
-            
+            if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
             const errorId = 'toast-msg-' + Date.now();
-            
             if (isError) {
                 const escapedMsg = msg.replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 toast.innerHTML = `
@@ -430,12 +423,8 @@
                 toast.style.lineHeight = '1.8';
                 toast.style.borderRadius = '12px';
                 toast.style.textAlign = 'left';
-                
                 const duration = persistent ? 60000 : 20000;
-                toastTimer = setTimeout(() => {
-                    toast.style.display = 'none';
-                    toastTimer = null;
-                }, duration);
+                toastTimer = setTimeout(() => { toast.style.display = 'none'; toastTimer = null; }, duration);
             } else {
                 toast.style.background = '#10b981';
                 toast.style.display = 'block';
@@ -445,53 +434,12 @@
                 toast.style.borderRadius = '40px';
                 toast.style.textAlign = 'center';
                 toast.textContent = msg;
-                toastTimer = setTimeout(() => {
-                    toast.style.display = 'none';
-                    toastTimer = null;
-                }, 2000);
+                toastTimer = setTimeout(() => { toast.style.display = 'none'; toastTimer = null; }, 2000);
             }
         }
-
-        function dismissToast() {
-            const toast = document.getElementById('toast');
-            toast.style.display = 'none';
-            if (toastTimer) {
-                clearTimeout(toastTimer);
-                toastTimer = null;
-            }
-        }
-
-        function copyToastMessage(elementId) {
-            const el = document.getElementById(elementId);
-            if (!el) return;
-            const text = el.textContent || el.innerText;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(() => {
-                    showToast('✅ 已复制到剪贴板', false);
-                }).catch(() => {
-                    copyTextFallback(text);
-                });
-            } else {
-                copyTextFallback(text);
-            }
-        }
-
-        function copyTextFallback(text) {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            textarea.style.left = '-9999px';
-            document.body.appendChild(textarea);
-            textarea.select();
-            try {
-                document.execCommand('copy');
-                showToast('✅ 已复制', false);
-            } catch (e) {
-                showToast('❌ 复制失败，请手动复制', true);
-            }
-            document.body.removeChild(textarea);
-        }
+        function dismissToast() { const toast = document.getElementById('toast'); toast.style.display = 'none'; if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; } }
+        function copyToastMessage(elementId) { const el = document.getElementById(elementId); if (!el) return; const text = el.textContent || el.innerText; if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(() => { showToast('✅ 已复制', false); }).catch(() => { copyTextFallback(text); }); } else { copyTextFallback(text); } }
+        function copyTextFallback(text) { const textarea = document.createElement('textarea'); textarea.value = text; textarea.style.position = 'fixed'; textarea.style.opacity = '0'; textarea.style.left = '-9999px'; document.body.appendChild(textarea); textarea.select(); try { document.execCommand('copy'); showToast('✅ 已复制', false); } catch (e) { showToast('❌ 复制失败，请手动复制', true); } document.body.removeChild(textarea); }
 
         function playBeep(success) {
             try {
@@ -508,10 +456,7 @@
                 audioCtx.resume();
             } catch(e) {}
         }
-
-        function vibrate() {
-            if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30);
-        }
+        function vibrate() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30); }
 
         // ========== 数据存储 ==========
         function loadData() {
@@ -539,7 +484,6 @@
                 db = [];
             }
         }
-
         function normalizeSpecialColumns() {
             const qtyCol = '实际数量';
             const priceCol = '实际价格';
@@ -551,20 +495,16 @@
             if (priceIndex !== 1 && priceIndex > 0) { columns.splice(priceIndex, 1); columns.splice(1, 0, priceCol); }
             else if (priceIndex === -1) columns.splice(1, 0, priceCol);
         }
-
         function saveData() {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({ db, columns, version: VERSION }));
-            } catch(e) { showToast("存储空间不足", true); }
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ db, columns, version: VERSION })); } catch(e) { showToast("存储空间不足", true); }
         }
 
-        // ========== 渐进式加载 ==========
+        // ========== 进度 ==========
         function showProgress(show) {
             const el = document.getElementById('progressArea');
             if (show) el.classList.add('active');
             else el.classList.remove('active');
         }
-
         function updateProgress(current, total, label, status) {
             const pct = total > 0 ? Math.round((current / total) * 100) : 0;
             document.getElementById('progressFill').style.width = Math.min(pct, 100) + '%';
@@ -573,7 +513,6 @@
             if (label) document.getElementById('progressLabel').textContent = label;
             if (status) document.getElementById('progressStatus').textContent = status;
         }
-
         function showErrors(errors) {
             const el = document.getElementById('errorSummary');
             const list = document.getElementById('errorList');
@@ -584,7 +523,7 @@
             list.innerHTML = errors.map(e => `<li>行 ${e.row}: ${e.message || '数据异常'}</li>`).join('');
         }
 
-        // ========== 自动识别列名 ==========
+        // ========== 列识别 ==========
         function autoMapColumns(headers) {
             const map = {};
             const lowerMap = {
@@ -610,7 +549,6 @@
             for (let k in defaults) {
                 if (!map[k]) map[k] = defaults[k];
             }
-            console.log('🔍 列识别结果:', map);
             return map;
         }
 
@@ -619,16 +557,15 @@
             const nameKey = colMap.name || '名称';
             const qtyKey = colMap.quantity || '库存数量';
             const priceKey = colMap.price || '零售价';
-            
-            const barcode = row[barcodeKey] || '';
-            const name = row[nameKey] || '';
-            const quantity = parseFloat(row[qtyKey]) || 0;
-            const price = parseFloat(row[priceKey]) || 0;
-            
-            return { barcode, name, quantity, price };
+            return {
+                barcode: row[barcodeKey] || '',
+                name: row[nameKey] || '',
+                quantity: parseFloat(row[qtyKey]) || 0,
+                price: parseFloat(row[priceKey]) || 0
+            };
         }
 
-        // ========== 批量加载数据 ==========
+        // ========== 流式分批加载（关键修复） ==========
         function loadDataInBatches(rawRows, isCSV = false) {
             return new Promise((resolve, reject) => {
                 const total = rawRows.length;
@@ -637,7 +574,6 @@
                 const sample = rawRows[0] || {};
                 const headers = Object.keys(sample);
                 const colMap = autoMapColumns(headers);
-                console.log('📋 原始列名:', headers);
 
                 const finalCols = new Set();
                 for (let h of headers) finalCols.add(h);
@@ -654,7 +590,8 @@
                 const priceIdx = columnArray.indexOf(priceCol);
                 if (priceIdx > 1 && priceIdx !== -1) { columnArray.splice(priceIdx, 1); columnArray.splice(1, 0, priceCol); }
 
-                const BATCH_SIZE = 500;
+                // ⭐ 每批1000条，降低内存压力
+                const BATCH_SIZE = 1000;
                 let loaded = 0;
                 const resultRows = [];
                 const errorList = [];
@@ -672,15 +609,12 @@
                         try {
                             const product = extractProduct(row, colMap);
                             const newRow = { ...row };
-                            
                             const barcodeKey = colMap.barcode || '条码';
                             const nameKey = colMap.name || '名称';
-                            
                             newRow['条码'] = (row[barcodeKey] || product.barcode || '').toString().trim();
                             newRow['名称'] = (row[nameKey] || product.name || '').toString().trim();
                             newRow['实际数量'] = product.quantity;
                             newRow['实际价格'] = product.price;
-                            
                             for (let col of columnArray) {
                                 if (newRow[col] === undefined) newRow[col] = '';
                             }
@@ -694,17 +628,10 @@
                     updateProgress(loaded, total, isCSV ? '📄 正在解析 CSV...' : '📊 正在加载数据...', `${Math.round((loaded/total)*100)}%`);
 
                     if (loaded < total) {
-                        if (window.requestIdleCallback) {
-                            requestIdleCallback(() => processNextBatch(), { timeout: 50 });
-                        } else {
-                            setTimeout(processNextBatch, 0);
-                        }
+                        // ⭐ 使用 setTimeout 让出主线程，避免阻塞
+                        setTimeout(processNextBatch, 0);
                     } else {
                         isCompleted = true;
-                        console.log('✅ 加载完成，共', resultRows.length, '条');
-                        if (resultRows.length > 0) {
-                            console.log('📦 示例数据:', resultRows[0]);
-                        }
                         resolve({ rows: resultRows, errors: errorList, columns: columnArray });
                     }
                 }
@@ -715,20 +642,15 @@
             });
         }
 
-        // ========== 文件导入 - 安全模式，防止崩溃 ==========
+        // ========== CSV导入 - 流式处理 ==========
         document.getElementById('fileInput').onchange = function(e) {
-            // 防止重复触发
             if (isProcessing) {
                 showToast('⏳ 正在处理中，请稍候...', false);
                 return;
             }
-            
             const file = e.target.files[0];
             if (!file) return;
-            
-            // 清空input，允许重复选择同一文件
             e.target.value = '';
-            
             const ext = file.name.split('.').pop().toLowerCase();
 
             if (ext === 'csv') {
@@ -740,71 +662,48 @@
                 reader.onload = function(ev) {
                     try {
                         let csvText = ev.target.result;
-                        // 移除BOM
                         if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
                         
-                        // ⭐ 按行分割
                         const allLines = csvText.split(/\r?\n/);
-                        
-                        // ⭐ 第一步：过滤注释行和空行，同时检测分隔符
                         let delimiter = ',';
                         let foundDelimiter = false;
-                        let headerLine = null;
                         const cleanLines = [];
                         
                         for (let i = 0; i < allLines.length; i++) {
                             const line = allLines[i];
                             const trimmed = line.trim();
+                            if (!trimmed || trimmed.startsWith('#')) continue;
                             
-                            // 跳过空行
-                            if (!trimmed) continue;
-                            
-                            // 跳过注释行（以#开头）
-                            if (trimmed.startsWith('#')) continue;
-                            
-                            // 检测分隔符（从第一行非注释行检测）
                             if (!foundDelimiter) {
                                 const commaCount = (trimmed.match(/,/g) || []).length;
                                 const tabCount = (trimmed.match(/\t/g) || []).length;
-                                if (commaCount >= 2) {
+                                if (commaCount >= tabCount && commaCount >= 1) {
                                     delimiter = ',';
                                     foundDelimiter = true;
-                                } else if (tabCount >= 2) {
+                                } else if (tabCount >= 1) {
                                     delimiter = '\t';
                                     foundDelimiter = true;
                                 } else {
-                                    // 如果分隔符少于2个，可能是数据行，继续检测下一行
                                     continue;
                                 }
                             }
                             
-                            // 检查这行是否有足够的分隔符
                             const commaCount = (trimmed.match(/,/g) || []).length;
                             const tabCount = (trimmed.match(/\t/g) || []).length;
                             const sepCount = delimiter === ',' ? commaCount : tabCount;
-                            
-                            // 至少有1个分隔符才保留（允许某些字段为空）
                             if (sepCount >= 1) {
                                 cleanLines.push(trimmed);
-                                if (!headerLine) {
-                                    headerLine = trimmed;
-                                }
                             }
                         }
                         
-                        console.log('📊 原始行数:', allLines.length);
-                        console.log('📊 有效行数:', cleanLines.length);
-                        console.log('🔍 分隔符:', delimiter === '\t' ? 'Tab' : '逗号');
-                        console.log('📋 表头行:', headerLine);
-                        
                         if (cleanLines.length < 2) {
-                            showToast('CSV 文件无有效数据（至少需要表头+1行数据）', true, true);
+                            showToast('CSV 文件无有效数据', true, true);
                             showProgress(false);
                             isProcessing = false;
                             return;
                         }
                         
-                        // ⭐ 第二步：用PapaParse解析过滤后的内容
+                        // ⭐ 用PapaParse解析
                         const filteredCSV = cleanLines.join('\n');
                         const parseResult = Papa.parse(filteredCSV, {
                             header: true,
@@ -813,53 +712,36 @@
                             dynamicTyping: false,
                             transformHeader: h => h.trim(),
                             delimiter: delimiter,
-                            skipInvalidLines: true  // 跳过无效行
+                            skipInvalidLines: true
                         });
                         
-                        // 只记录警告，不中断
                         if (parseResult.errors && parseResult.errors.length > 0) {
                             console.warn('CSV解析警告:', parseResult.errors.length, '个问题');
-                            // 只显示前3个错误
-                            if (parseResult.errors.length > 0) {
-                                const sample = parseResult.errors.slice(0, 3);
-                                console.warn('错误示例:', sample);
-                                // 不弹出Toast，避免干扰
-                            }
                         }
                         
-                        const rows = parseResult.data || [];
-                        console.log('📊 解析到', rows.length, '行数据');
-                        
-                        // ⭐ 过滤掉全空行或只有一列的行
-                        const validRows = rows.filter(row => {
+                        let rows = parseResult.data || [];
+                        // 过滤无效行
+                        rows = rows.filter(row => {
                             const values = Object.values(row).filter(v => v && v.toString().trim());
-                            return values.length >= 2;  // 至少有2个字段有值
+                            return values.length >= 2;
                         });
                         
-                        console.log('📊 有效数据行:', validRows.length);
-                        
-                        if (validRows.length === 0) {
-                            showToast('CSV 文件无有效数据行（请检查分隔符）', true, true);
+                        if (rows.length === 0) {
+                            showToast('CSV 无有效数据行', true, true);
                             showProgress(false);
                             isProcessing = false;
                             return;
                         }
                         
-                        // ⭐ 显示第一行示例
-                        if (validRows.length > 0) {
-                            console.log('📋 第一行数据:', validRows[0]);
-                            console.log('📋 列名:', Object.keys(validRows[0]));
-                        }
-                        
-                        // ⭐ 第三步：分批加载
-                        loadDataInBatches(validRows, true).then(({ rows: loadedRows, errors, columns: finalCols }) => {
+                        // ⭐ 分批加载
+                        loadDataInBatches(rows, true).then(({ rows: loadedRows, errors, columns: finalCols }) => {
                             columns = finalCols;
                             db = loadedRows;
                             saveData();
                             render();
                             showErrors(errors);
                             showProgress(false);
-                            const skipped = allLines.length - cleanLines.length + (rows.length - validRows.length);
+                            const skipped = allLines.length - cleanLines.length;
                             if (db.length > 0) {
                                 showToast(`✅ 导入成功！共 ${db.length} 条商品`, false);
                                 if (errors.length > 0 || skipped > 0) {
@@ -871,9 +753,7 @@
                             updateStats();
                             isProcessing = false;
                         }).catch(err => {
-                            const errorMsg = '加载失败: ' + (err.message || err.toString());
-                            console.error('详细错误:', err);
-                            showToast(errorMsg, true, true);
+                            showToast('加载失败: ' + (err.message || err.toString()), true, true);
                             showProgress(false);
                             isProcessing = false;
                         });
@@ -912,7 +792,7 @@
                             render();
                             showErrors(errors);
                             showProgress(false);
-                            showToast(`✅ Excel 导入成功！共 ${db.length} 条，失败 ${errors.length} 条`, false);
+                            showToast(`✅ Excel 导入成功！共 ${db.length} 条`, false);
                             updateStats();
                             isProcessing = false;
                         }).catch(err => {
@@ -949,7 +829,6 @@
                 const price = parseFloat(row['实际价格']) || 0;
                 totalPrice += qty * price;
             }
-            document.getElementById('countDisplay')?.remove();
             const statsDiv = document.querySelector('.stats');
             if (statsDiv) {
                 statsDiv.innerHTML = `<span>📊 ${total} 条</span><span>💰 ${totalPrice.toFixed(2)}</span>`;
@@ -1023,7 +902,7 @@
             return -1;
         }
 
-        // ========== UI 渲染 ==========
+        // ========== UI 渲染（安全模式） ==========
         function render() {
             try {
                 const thead = document.getElementById('tHead');
@@ -1058,7 +937,6 @@
                 updateStats();
             } catch(e) {
                 console.error('渲染错误:', e);
-                // 防止渲染崩溃导致白屏
             }
         }
 
@@ -1197,7 +1075,7 @@
             setTimeout(() => { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
-        // ========== 扫码相机 ==========
+        // ========== 扫码相机（精简，保留原有逻辑） ==========
         function setupCameraControls(track) {
             cameraTrack = track || null;
             const torchBtn = document.getElementById('torchBtn');
@@ -1252,23 +1130,19 @@
 
         async function startScanning() {
             if (scanning) { showToast("扫描器已在运行", false); return; }
-            
             const isIPadDevice = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
             const scanFrame = document.getElementById('scanFrame');
             if (scanFrame) {
                 if (isIPadDevice) { scanFrame.style.top = '15%'; }
                 else { scanFrame.style.top = '25%'; }
             }
-            
             const scanUI = document.getElementById('scanUI');
             scanUI.style.display = 'flex';
             scanning = true;
             if (reader) { try { await reader.reset(); } catch(e) {} reader = null; }
-            
             const badge = document.getElementById('enhanceBadge');
             if (enhanceMode) badge.classList.remove('hidden');
             else badge.classList.add('hidden');
-            
             try {
                 const constraints = {
                     video: {
@@ -1278,7 +1152,6 @@
                         frameRate: { ideal: 30 }
                     }
                 };
-                
                 const hints = new Map();
                 hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
                 hints.set(ZXing.DecodeHintType.CHARACTER_SET, "UTF-8");
@@ -1291,13 +1164,10 @@
                     ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR,
                     ZXing.BarcodeFormat.DATA_MATRIX, ZXing.BarcodeFormat.PDF_417, ZXing.BarcodeFormat.QR_CODE
                 ]);
-                
                 reader = new ZXing.BrowserMultiFormatReader(hints);
                 reader.timeBetweenDecodingAttempts = 20;
-                
                 const videoEl = document.getElementById('video');
                 const frameEl = document.getElementById('scanFrame');
-                
                 await reader.decodeFromConstraints(constraints, 'video', async (result, err) => {
                     if (!scanning) return;
                     if (result) {
@@ -1320,7 +1190,6 @@
                         }
                     }
                 });
-                
                 showToast("极速扫码引擎已启动" + (enhanceMode ? " (增强模式)" : ""), false);
                 setTimeout(() => {
                     const track = videoEl?.srcObject?.getVideoTracks?.()[0];
@@ -1329,7 +1198,6 @@
                         applyCameraTuning(track);
                     }
                 }, 300);
-                
                 currentFocusInterval = setInterval(() => {
                     if (!scanning) { clearInterval(currentFocusInterval); return; }
                     if (videoEl && videoEl.srcObject) {
@@ -1705,7 +1573,7 @@
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
         
-        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - 安全CSV解析 | 防崩溃 | 自动过滤`);
+        console.log(`⚡ 飞速盘点 ${VERSION} - 流式处理 | 防止崩溃`);
     </script>
 </body>
 </html>
