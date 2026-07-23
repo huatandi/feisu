@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.8</title>
+    <title>飞速盘点 · Sanfei v3.3.9</title>
     <!-- SheetJS (xlsx) 保持现有逻辑 -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <!-- PapaParse (CSV 解析) -->
@@ -144,7 +144,7 @@
         .admin-code-item.used .status-badge { background: #94a3b8; }
         .admin-gen-btn { display: block; width: 100%; margin-top: 12px; padding: 12px; background: #8b5cf6; color: #fff; border: none; border-radius: 12px; font-weight: 900; font-size: 15px; cursor: pointer; }
 
-        /* 渐进式加载进度条 - 增强 */
+        /* 渐进式加载进度条 */
         #progressArea {
             background: #eef3fa; border-radius: 20px; padding: 16px 22px;
             margin: 6px 0 12px 0; display: none; flex-direction: column; gap: 6px;
@@ -160,12 +160,6 @@
         .error-summary details { cursor: pointer; }
         .error-summary summary { font-weight: 600; color: #b71c1c; }
         .error-summary ul { max-height: 120px; overflow-y: auto; margin: 6px 0 0 18px; color: #5f2b2b; }
-        .file-label-csv {
-            background: #0b6e4f; color: white; padding: 8px 20px;
-            border-radius: 40px; font-weight: 500; font-size: 14px; cursor: pointer;
-            transition: 0.15s; display: inline-flex; align-items: center; gap: 6px;
-        }
-        .file-label-csv:hover { background: #0a5a40; transform: scale(0.97); }
     </style>
 </head>
 <body>
@@ -272,7 +266,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.8</div>
+                    <div class="version-badge">sanfei v3.3.9</div>
                 </div>
             </div>
             
@@ -291,7 +285,7 @@
         </div>
 
         <div class="scrollable-area">
-            <!-- 进度区域 (渐进加载 + CSV 专用) -->
+            <!-- 进度区域 -->
             <div id="progressArea">
                 <div class="progress-title">
                     <span id="progressLabel">⏳ 正在读取数据...</span>
@@ -357,7 +351,7 @@
 
     <script>
         // ========== 核心版本 ==========
-        const VERSION = "S3.3.8";
+        const VERSION = "S3.3.9";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         let db = [];
         let columns = [];
@@ -486,22 +480,27 @@
             list.innerHTML = errors.map(e => `<li>行 ${e.row}: ${e.message || '数据异常'}</li>`).join('');
         }
 
-        // 自动识别列名 (支持 条码/Barcode/编码/SKU/名称/Name/数量/Qty/库存/售价/Price)
+        // 自动识别列名
         function autoMapColumns(headers) {
             const map = {};
             const lowerMap = {
                 '条码': 'barcode', 'barcode': 'barcode', 'code': 'barcode', '编码': 'barcode', 'sku': 'barcode',
-                '名称': 'name', 'name': 'name', '商品名称': 'name', '商品名': 'name', 'product': 'name',
+                '名称': 'name', 'name': 'name', '商品名称': 'name', '商品名': 'name', 'product': 'name', '品名': 'name',
                 '数量': 'quantity', 'qty': 'quantity', '库存': 'quantity', 'quantity': 'quantity',
-                '售价': 'price', 'price': 'price', '价格': 'price', '单价': 'price'
+                '售价': 'price', 'price': 'price', '价格': 'price', '单价': 'price', '金额': 'price', '销售价': 'price'
             };
             for (let h of headers) {
                 const hTrim = h.trim();
                 const lower = hTrim.toLowerCase();
-                if (lowerMap[lower]) {
-                    map[lowerMap[lower]] = hTrim;
-                } else {
-                    // 尝试模糊匹配
+                let matched = false;
+                for (let key in lowerMap) {
+                    if (lower === key || lower.includes(key) || key.includes(lower)) {
+                        map[lowerMap[key]] = hTrim;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
                     for (let key in lowerMap) {
                         if (lower.includes(key) || key.includes(lower)) {
                             map[lowerMap[key]] = hTrim;
@@ -510,7 +509,6 @@
                     }
                 }
             }
-            // 保证四个核心字段都有映射，如果没有则使用默认名称
             const defaults = { barcode: '条码', name: '名称', quantity: '数量', price: '售价' };
             for (let k in defaults) {
                 if (!map[k]) map[k] = defaults[k];
@@ -537,19 +535,21 @@
                 const sample = rawRows[0] || {};
                 const headers = Object.keys(sample);
                 const colMap = autoMapColumns(headers);
-                // 确定最终列: 优先使用识别出的列，再加上所有原始列
+                console.log('🔍 列识别结果:', colMap);
+                console.log('📋 原始列名:', headers);
+
+                // 确定最终列
                 const finalCols = new Set();
                 for (let h of headers) finalCols.add(h);
-                // 确保核心列存在
                 const coreCols = ['barcode', 'name', 'quantity', 'price'];
                 for (let c of coreCols) {
-                    if (colMap[c] && !finalCols.has(colMap[c])) finalCols.add(colMap[c]);
+                    if (colMap[c] && !finalCols.has(colMap[c])) {
+                        finalCols.add(colMap[c]);
+                    }
                 }
-                // 保证 '实际数量' 和 '实际价格' 在列中
                 finalCols.add('实际数量');
                 finalCols.add('实际价格');
                 const columnArray = Array.from(finalCols);
-                // 将 '实际数量' 和 '实际价格' 移到前面
                 const qtyCol = '实际数量';
                 const priceCol = '实际价格';
                 const qtyIdx = columnArray.indexOf(qtyCol);
@@ -575,10 +575,17 @@
                         try {
                             const product = extractProduct(row, colMap);
                             const newRow = { ...row };
-                            // 设置核心字段
+                            const barcodeKey = colMap.barcode || '条码';
+                            const nameKey = colMap.name || '名称';
+                            const qtyKey = colMap.quantity || '数量';
+                            const priceKey = colMap.price || '售价';
+                            
+                            if (row[barcodeKey] !== undefined) newRow['条码'] = row[barcodeKey];
+                            if (row[nameKey] !== undefined) newRow['名称'] = row[nameKey];
+                            
                             newRow['实际数量'] = product.quantity;
                             newRow['实际价格'] = product.price;
-                            // 确保所有列存在
+                            
                             for (let col of columnArray) {
                                 if (newRow[col] === undefined) newRow[col] = '';
                             }
@@ -592,7 +599,6 @@
                     updateProgress(loaded, total, isCSV ? '📄 正在解析 CSV...' : '📊 正在加载数据...', `${Math.round((loaded/total)*100)}%`);
 
                     if (loaded < total) {
-                        // 让出主线程
                         if (window.requestIdleCallback) {
                             requestIdleCallback(() => processNextBatch(), { timeout: 50 });
                         } else {
@@ -600,34 +606,31 @@
                         }
                     } else {
                         isCompleted = true;
+                        console.log('✅ 加载完成，共', resultRows.length, '条，示例数据:', resultRows[0]);
                         resolve({ rows: resultRows, errors: errorList, columns: columnArray });
                     }
                 }
 
-                // 开始处理
                 updateProgress(0, total, isCSV ? '📄 正在解析 CSV...' : '📊 正在加载数据...', '0%');
                 showProgress(true);
                 setTimeout(processNextBatch, 10);
             });
         }
 
-        // ---------- 文件导入 (支持 xlsx / csv) ----------
+        // ---------- 文件导入 ----------
         document.getElementById('fileInput').onchange = function(e) {
             const file = e.target.files[0];
             if (!file) return;
             const ext = file.name.split('.').pop().toLowerCase();
 
             if (ext === 'csv') {
-                // CSV 使用 PapaParse 渐进加载
                 showProgress(true);
                 updateProgress(0, 1, '📄 正在读取 CSV 文件...', '准备中');
                 const reader = new FileReader();
                 reader.onload = function(ev) {
                     try {
                         let csvText = ev.target.result;
-                        // 移除 UTF-8 BOM
                         if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
-                        // 使用 PapaParse 解析
                         const parseResult = Papa.parse(csvText, {
                             header: true,
                             skipEmptyLines: true,
@@ -636,7 +639,6 @@
                             transformHeader: h => h.trim()
                         });
                         if (parseResult.errors && parseResult.errors.length > 0) {
-                            // 记录解析错误
                             console.warn('CSV 解析警告:', parseResult.errors);
                         }
                         const rows = parseResult.data || [];
@@ -645,7 +647,6 @@
                             showProgress(false);
                             return;
                         }
-                        // 渐进加载
                         loadDataInBatches(rows, true).then(({ rows: loadedRows, errors, columns: finalCols }) => {
                             columns = finalCols;
                             db = loadedRows;
@@ -654,7 +655,6 @@
                             showErrors(errors);
                             showProgress(false);
                             showToast(`✅ CSV 导入成功！共 ${db.length} 条，失败 ${errors.length} 条`, false);
-                            // 更新统计
                             updateStats();
                         }).catch(err => {
                             showToast('CSV 加载失败: ' + err.message, true);
@@ -672,7 +672,7 @@
                 return;
             }
 
-            // Excel (.xlsx / .xls) 保持原有逻辑
+            // Excel 保持原有逻辑
             showToast("正在导入 Excel...", false);
             const fileReader = new FileReader();
             fileReader.onload = function(ev) {
@@ -682,7 +682,6 @@
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
                     if (json.length > 0) {
-                        // 使用同样的渐进加载
                         loadDataInBatches(json, false).then(({ rows: loadedRows, errors, columns: finalCols }) => {
                             columns = finalCols;
                             db = loadedRows;
@@ -791,7 +790,7 @@
             return -1;
         }
 
-        // ---------- UI 交互 (渲染) ----------
+        // ---------- UI 交互 ----------
         function render() {
             const thead = document.getElementById('tHead');
             const tbody = document.getElementById('tBody');
@@ -960,7 +959,7 @@
             setTimeout(() => { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
-        // ---------- 扫码相机 (保留原有) ----------
+        // ---------- 扫码相机 ----------
         function setupCameraControls(track) {
             cameraTrack = track || null;
             const torchBtn = document.getElementById('torchBtn');
@@ -1295,7 +1294,7 @@
             } 
         }
 
-        // ---------- 导出 (保留原有) ----------
+        // ---------- 导出 ----------
         function exportExcel() {
             if (!db.length) { showToast("暂无数据可导出", true); return; }
             const defaultName = `飞速盘点_${new Date().toLocaleDateString()}`;
@@ -1354,7 +1353,7 @@
             document.body.classList.remove('keyboard-open');
         }
 
-        // ---------- 授权管理 (保留原有) ----------
+        // ---------- 授权管理 ----------
         function initAuthSystem() {
             const presetList = ["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];
             const presetCodes = presetList.map(c => ({ code: c, used: false, deviceId: '' }));
