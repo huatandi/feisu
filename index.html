@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.25</title>
+    <title>飞速盘点 · Sanfei v3.3.26</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -182,7 +182,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.25</div>
+                    <div class="version-badge">sanfei v3.3.26</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
@@ -225,7 +225,7 @@
     </div>
 
     <script>
-        var VERSION = "S3.3.25";
+        var VERSION = "S3.3.26";
         var STORAGE_KEY = "FEISUPANDIAN_DATA";
         var db = [];
         var columns = [];
@@ -243,6 +243,7 @@
         var AUTO_ENHANCE_THRESHOLD = 3;
         var toastTimer = null;
         var isProcessing = false;
+        var debugLineCount = 0;
 
         var isAndroid = /Android/i.test(navigator.userAgent);
         var isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
@@ -293,7 +294,7 @@
         function playBeep(success) { try { var audioCtx = new (window.AudioContext || window.webkitAudioContext)(); var oscillator = audioCtx.createOscillator(); var gainNode = audioCtx.createGain(); oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.frequency.value = success ? 1200 : 400; gainNode.gain.value = 0.6; oscillator.start(); gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2); oscillator.stop(audioCtx.currentTime + 0.2); audioCtx.resume(); } catch(e) {} }
         function vibrate() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30); }
 
-        // ==================== 核心：字段映射函数（修复数量和价格） ====================
+        // ==================== 核心：字段映射函数（简化版，不易出错） ====================
         function getField(row, names) {
             for (var i = 0; i < names.length; i++) {
                 var name = names[i];
@@ -304,52 +305,22 @@
             return '';
         }
 
-        // ⭐ 获取原始行中的所有字段名
-        function getAllFieldNames(row) {
-            var keys = [];
-            for (var key in row) {
-                if (row.hasOwnProperty(key)) {
-                    keys.push(key);
-                }
-            }
-            return keys;
-        }
-
         function extractProduct(row) {
-            // ⭐ 调试：打印第一行的所有字段名
-            if (window._debugFirstRow === undefined) {
-                window._debugFirstRow = true;
-                console.log('📋 原始CSV列名:', getAllFieldNames(row));
-            }
-
-            // 条码 - 多种可能的列名
-            var barcode = getField(row, [
-                '条码', 'barcode', 'Barcode', 'BARCODE',
-                '商品编码', '编码', 'code', 'Code', 'CODE',
-                'sku', 'SKU'
-            ]);
-
+            // 条码
+            var barcode = getField(row, ['条码', 'barcode', 'Barcode', '商品编码', '编码', 'code', 'Code', 'sku', 'SKU']);
+            
             // 名称
-            var name = getField(row, [
-                '名称', '商品名称', 'name', 'Name', 'NAME',
-                '品名', '产品名称', '货品名称'
-            ]);
-
-            // ⭐ 数量 - 支持"库存数量"和"数量"
-            var qtyStr = getField(row, [
-                '库存数量', '数量', '库存', 'qty', 'Qty', 'QTY',
-                'quantity', 'Quantity', '库存量'
-            ]);
+            var name = getField(row, ['名称', '商品名称', 'name', 'Name', '品名', '产品名称']);
+            
+            // 数量
+            var qtyStr = getField(row, ['库存数量', '数量', '库存', 'qty', 'Qty', 'quantity', 'Quantity']);
             var qty = parseFloat(qtyStr) || 0;
-
-            // ⭐ 价格 - 支持"零售价"和"价格"
-            var priceStr = getField(row, [
-                '零售价', '售价', '价格', 'price', 'Price', 'PRICE',
-                '单价', '销售价', '卖价'
-            ]);
+            
+            // 价格
+            var priceStr = getField(row, ['零售价', '售价', '价格', 'price', 'Price', '单价', '销售价']);
             var price = parseFloat(priceStr) || 0;
 
-            // 如果没有条码，尝试从所有字段中找数字
+            // 如果没有条码，尝试找数字
             if (!barcode) {
                 for (var key in row) {
                     var val = String(row[key] || '').trim();
@@ -365,18 +336,13 @@
             }
 
             // 调试前3行
-            if (window._debugLineCount === undefined) {
-                window._debugLineCount = 0;
-            }
-            window._debugLineCount++;
-            if (window._debugLineCount <= 3) {
-                console.log('📦 第' + window._debugLineCount + '行提取结果:', {
+            debugLineCount++;
+            if (debugLineCount <= 3) {
+                console.log('📦 第' + debugLineCount + '行:', {
                     barcode: barcode,
                     name: name,
                     quantity: qty,
-                    price: price,
-                    qtyStr: qtyStr,
-                    priceStr: priceStr
+                    price: price
                 });
             }
 
@@ -476,9 +442,9 @@
                             csvText = csvText.slice(1);
                         }
 
-                        // ⭐ 重置调试计数器
-                        window._debugFirstRow = undefined;
-                        window._debugLineCount = 0;
+                        // 重置调试计数器
+                        debugLineCount = 0;
+                        var firstRowPrinted = false;
 
                         Papa.parse(csvText, {
                             header: true,
@@ -495,6 +461,12 @@
 
                                 result.total++;
 
+                                // 打印第一行的列名
+                                if (!firstRowPrinted) {
+                                    firstRowPrinted = true;
+                                    console.log('📋 原始CSV列名:', Object.keys(row));
+                                }
+
                                 var product = extractProduct(row);
 
                                 if (product.valid) {
@@ -503,7 +475,7 @@
                                         name: product.name,
                                         quantity: product.quantity,
                                         price: product.price,
-                                        original: row  // ⭐ 保留原始数据，用于显示所有列
+                                        original: row
                                     });
                                     result.valid++;
                                 } else {
@@ -574,14 +546,13 @@
                         return;
                     }
 
-                    // ⭐ 收集所有列名（从原始数据中获取）
+                    // 收集所有列名
                     var allColumns = new Set();
                     allColumns.add('实际数量');
                     allColumns.add('实际价格');
                     allColumns.add('条码');
                     allColumns.add('名称');
 
-                    // 从原始数据中收集所有列名
                     for (var i = 0; i < result.rows.length; i++) {
                         var r = result.rows[i];
                         if (r.original) {
@@ -601,19 +572,13 @@
                     if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
                     var priceIdx = finalCols.indexOf(priceCol);
                     if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
-                    // 条码和名称放在后面
-                    var barcodeIdx = finalCols.indexOf('条码');
-                    if (barcodeIdx > 0 && barcodeIdx !== 2) { finalCols.splice(barcodeIdx, 1); finalCols.splice(2, 0, '条码'); }
-                    var nameIdx = finalCols.indexOf('名称');
-                    if (nameIdx > 0 && nameIdx !== 3) { finalCols.splice(nameIdx, 1); finalCols.splice(3, 0, '名称'); }
 
-                    // ⭐ 转换数据格式 - 保留所有原始列
+                    // 转换数据
                     var loadedRows = [];
                     for (var i = 0; i < result.rows.length; i++) {
                         var r = result.rows[i];
                         var newRow = {};
 
-                        // 先复制所有原始数据
                         if (r.original) {
                             for (var key in r.original) {
                                 if (r.original.hasOwnProperty(key)) {
@@ -622,7 +587,6 @@
                             }
                         }
 
-                        // 覆盖/添加标准字段
                         newRow['条码'] = r.barcode || '';
                         newRow['名称'] = r.name || '';
                         newRow['实际数量'] = r.quantity || 0;
@@ -635,7 +599,7 @@
                     db = loadedRows;
 
                     console.log('✅ 最终数据条数:', db.length);
-                    console.log('📋 最终列名:', columns);
+                    console.log('📋 最终列数:', columns.length);
                     if (db.length > 0) {
                         console.log('📦 第一条数据:', db[0]);
                     }
@@ -992,7 +956,7 @@
             setTimeout(function() { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
-        // ========== 扫码相机（精简，保留功能） ==========
+        // ========== 扫码相机 ==========
         function setupCameraControls(track) {
             cameraTrack = track || null;
             var torchBtn = document.getElementById('torchBtn');
@@ -1468,7 +1432,7 @@
         var topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = function() { toggleEnhanceMode(); };
         
-        console.log('⚡ 飞速盘点 ' + VERSION + ' - 修复数量和价格映射');
+        console.log('⚡ 飞速盘点 ' + VERSION + ' - 紧急修复');
         console.log('📌 请打开浏览器控制台(F12)查看导入日志');
     </script>
 </body>
