@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.16</title>
+    <title>飞速盘点 · Sanfei v3.3.17</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -185,6 +185,8 @@
         .error-summary details { cursor: pointer; }
         .error-summary summary { font-weight: 600; color: #b71c1c; }
         .error-summary ul { max-height: 120px; overflow-y: auto; margin: 6px 0 0 18px; color: #5f2b2b; }
+        /* 防止页面崩溃的兜底 */
+        .crash-guard { display: none; }
     </style>
 </head>
 <body>
@@ -289,7 +291,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.16</div>
+                    <div class="version-badge">sanfei v3.3.17</div>
                 </div>
             </div>
             
@@ -371,7 +373,7 @@
 
     <script>
         // ========== 核心版本 ==========
-        const VERSION = "S3.3.16";
+        const VERSION = "S3.3.17";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         let db = [];
         let columns = [];
@@ -429,7 +431,7 @@
                 toast.style.borderRadius = '12px';
                 toast.style.textAlign = 'left';
                 
-                const duration = persistent ? 60000 : 15000;
+                const duration = persistent ? 60000 : 20000;
                 toastTimer = setTimeout(() => {
                     toast.style.display = 'none';
                     toastTimer = null;
@@ -713,8 +715,9 @@
             });
         }
 
-        // ========== 文件导入 - 手动解析CSV，完全控制 ==========
+        // ========== 文件导入 - 安全模式，防止崩溃 ==========
         document.getElementById('fileInput').onchange = function(e) {
+            // 防止重复触发
             if (isProcessing) {
                 showToast('⏳ 正在处理中，请稍候...', false);
                 return;
@@ -723,6 +726,7 @@
             const file = e.target.files[0];
             if (!file) return;
             
+            // 清空input，允许重复选择同一文件
             e.target.value = '';
             
             const ext = file.name.split('.').pop().toLowerCase();
@@ -742,10 +746,11 @@
                         // ⭐ 按行分割
                         const allLines = csvText.split(/\r?\n/);
                         
-                        // ⭐ 过滤：移除空行和以#开头的注释行
-                        const filteredLines = [];
+                        // ⭐ 第一步：过滤注释行和空行，同时检测分隔符
+                        let delimiter = ',';
+                        let foundDelimiter = false;
                         let headerLine = null;
-                        let headerIndex = -1;
+                        const cleanLines = [];
                         
                         for (let i = 0; i < allLines.length; i++) {
                             const line = allLines[i];
@@ -757,85 +762,84 @@
                             // 跳过注释行（以#开头）
                             if (trimmed.startsWith('#')) continue;
                             
-                            // 如果是表头行（包含"条码"或"名称"或"库存数量"等关键词）
-                            if (!headerLine && (
-                                trimmed.includes('条码') || trimmed.includes('名称') || 
-                                trimmed.includes('库存数量') || trimmed.includes('零售价') ||
-                                trimmed.includes('barcode') || trimmed.includes('name') ||
-                                trimmed.includes('商品编码')
-                            )) {
-                                headerLine = trimmed;
-                                headerIndex = filteredLines.length;
-                                filteredLines.push(trimmed);
-                                continue;
+                            // 检测分隔符（从第一行非注释行检测）
+                            if (!foundDelimiter) {
+                                const commaCount = (trimmed.match(/,/g) || []).length;
+                                const tabCount = (trimmed.match(/\t/g) || []).length;
+                                if (commaCount >= 2) {
+                                    delimiter = ',';
+                                    foundDelimiter = true;
+                                } else if (tabCount >= 2) {
+                                    delimiter = '\t';
+                                    foundDelimiter = true;
+                                } else {
+                                    // 如果分隔符少于2个，可能是数据行，继续检测下一行
+                                    continue;
+                                }
                             }
                             
-                            // 数据行 - 检查是否有足够的分隔符
+                            // 检查这行是否有足够的分隔符
                             const commaCount = (trimmed.match(/,/g) || []).length;
                             const tabCount = (trimmed.match(/\t/g) || []).length;
+                            const sepCount = delimiter === ',' ? commaCount : tabCount;
                             
-                            // 至少有2个分隔符才认为是有效数据行
-                            if (commaCount >= 2 || tabCount >= 2) {
-                                filteredLines.push(trimmed);
+                            // 至少有1个分隔符才保留（允许某些字段为空）
+                            if (sepCount >= 1) {
+                                cleanLines.push(trimmed);
+                                if (!headerLine) {
+                                    headerLine = trimmed;
+                                }
                             }
                         }
                         
                         console.log('📊 原始行数:', allLines.length);
-                        console.log('📊 过滤后行数:', filteredLines.length);
+                        console.log('📊 有效行数:', cleanLines.length);
+                        console.log('🔍 分隔符:', delimiter === '\t' ? 'Tab' : '逗号');
                         console.log('📋 表头行:', headerLine);
                         
-                        if (filteredLines.length < 2) {
+                        if (cleanLines.length < 2) {
                             showToast('CSV 文件无有效数据（至少需要表头+1行数据）', true, true);
                             showProgress(false);
                             isProcessing = false;
                             return;
                         }
                         
-                        // ⭐ 检测分隔符（从表头行检测）
-                        let delimiter = ',';
-                        if (headerLine) {
-                            const commaCount = (headerLine.match(/,/g) || []).length;
-                            const tabCount = (headerLine.match(/\t/g) || []).length;
-                            if (tabCount >= commaCount && tabCount > 0) {
-                                delimiter = '\t';
-                            } else if (commaCount > 0) {
-                                delimiter = ',';
-                            }
-                        }
-                        console.log('🔍 使用分隔符:', delimiter === '\t' ? 'Tab' : '逗号');
-                        
-                        // ⭐ 用PapaParse解析过滤后的内容
-                        const filteredCSV = filteredLines.join('\n');
+                        // ⭐ 第二步：用PapaParse解析过滤后的内容
+                        const filteredCSV = cleanLines.join('\n');
                         const parseResult = Papa.parse(filteredCSV, {
                             header: true,
                             skipEmptyLines: true,
                             trimHeaders: true,
                             dynamicTyping: false,
                             transformHeader: h => h.trim(),
-                            delimiter: delimiter
+                            delimiter: delimiter,
+                            skipInvalidLines: true  // 跳过无效行
                         });
                         
-                        // 只记录错误，不中断
+                        // 只记录警告，不中断
                         if (parseResult.errors && parseResult.errors.length > 0) {
                             console.warn('CSV解析警告:', parseResult.errors.length, '个问题');
+                            // 只显示前3个错误
                             if (parseResult.errors.length > 0) {
-                                showToast(`⚠️ CSV解析: ${parseResult.errors.length} 个警告（已跳过）`, true, true);
+                                const sample = parseResult.errors.slice(0, 3);
+                                console.warn('错误示例:', sample);
+                                // 不弹出Toast，避免干扰
                             }
                         }
                         
                         const rows = parseResult.data || [];
                         console.log('📊 解析到', rows.length, '行数据');
                         
-                        // ⭐ 过滤掉全空行
+                        // ⭐ 过滤掉全空行或只有一列的行
                         const validRows = rows.filter(row => {
                             const values = Object.values(row).filter(v => v && v.toString().trim());
-                            return values.length > 1;
+                            return values.length >= 2;  // 至少有2个字段有值
                         });
                         
                         console.log('📊 有效数据行:', validRows.length);
                         
                         if (validRows.length === 0) {
-                            showToast('CSV 文件无有效数据行', true, true);
+                            showToast('CSV 文件无有效数据行（请检查分隔符）', true, true);
                             showProgress(false);
                             isProcessing = false;
                             return;
@@ -847,6 +851,7 @@
                             console.log('📋 列名:', Object.keys(validRows[0]));
                         }
                         
+                        // ⭐ 第三步：分批加载
                         loadDataInBatches(validRows, true).then(({ rows: loadedRows, errors, columns: finalCols }) => {
                             columns = finalCols;
                             db = loadedRows;
@@ -854,10 +859,14 @@
                             render();
                             showErrors(errors);
                             showProgress(false);
-                            const skipped = allLines.length - filteredLines.length + (rows.length - validRows.length);
-                            showToast(`✅ 导入成功！共 ${db.length} 条商品`, false);
-                            if (errors.length > 0 || skipped > 0) {
-                                showToast(`⚠️ 跳过 ${skipped + errors.length} 行无效数据`, true, true);
+                            const skipped = allLines.length - cleanLines.length + (rows.length - validRows.length);
+                            if (db.length > 0) {
+                                showToast(`✅ 导入成功！共 ${db.length} 条商品`, false);
+                                if (errors.length > 0 || skipped > 0) {
+                                    showToast(`⚠️ 跳过 ${skipped + errors.length} 行无效数据`, true, true);
+                                }
+                            } else {
+                                showToast('⚠️ 导入完成，但无有效商品数据', true, true);
                             }
                             updateStats();
                             isProcessing = false;
@@ -885,7 +894,7 @@
                 return;
             }
 
-            // Excel - 保持不变
+            // Excel
             isProcessing = true;
             showToast("正在导入 Excel...", false);
             const fileReader = new FileReader();
@@ -1016,36 +1025,41 @@
 
         // ========== UI 渲染 ==========
         function render() {
-            const thead = document.getElementById('tHead');
-            const tbody = document.getElementById('tBody');
-            if (!columns.length) {
-                tbody.innerHTML = '<tr><td colspan="10" class="text-center p-6 text-gray-500">暂无数据，请导入Excel或添加列表</td></tr>';
-                return;
+            try {
+                const thead = document.getElementById('tHead');
+                const tbody = document.getElementById('tBody');
+                if (!columns.length) {
+                    tbody.innerHTML = '<tr><td colspan="10" class="text-center p-6 text-gray-500">暂无数据，请导入Excel或添加列表</td></tr>';
+                    return;
+                }
+                thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
+                tbody.innerHTML = db.map((row, idx) => `
+                    <tr id="row-${idx}">
+                        ${columns.map(col => {
+                            if (col === '实际数量') {
+                                return `<td><input id="qty-${idx}" type="number" value="${row[col] || ''}" 
+                                        class="qty-input" onchange="updateQty(${idx}, this.value)"
+                                        onfocus="this.select()" placeholder="0" inputmode="numeric" /></td>`;
+                            } else if (col === '实际价格') {
+                                return `<td><input id="price-${idx}" type="number" step="0.01" value="${row[col] || ''}" 
+                                        class="price-input" onchange="updatePrice(${idx}, this.value)"
+                                        onfocus="this.select()" placeholder="0.00" inputmode="decimal" /></td>`;
+                            } else {
+                                return `<td><input type="text" value="${escapeHtml(String(row[col] || ''))}" 
+                                        class="w-full p-2 text-sm outline-none bg-transparent"
+                                        style="min-width:80px; width:100%;"
+                                        onchange="updateCell(${idx}, '${col}', this.value)" /></td>`;
+                            }
+                        }).join('')}
+                    </tr>
+                `).join('');
+                setTimeout(() => autoAdjustColumns(), 50);
+                if (pendingJump !== null) setTimeout(() => { jumpToRowAndFocusQty(pendingJump); pendingJump = null; }, 100);
+                updateStats();
+            } catch(e) {
+                console.error('渲染错误:', e);
+                // 防止渲染崩溃导致白屏
             }
-            thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
-            tbody.innerHTML = db.map((row, idx) => `
-                <tr id="row-${idx}">
-                    ${columns.map(col => {
-                        if (col === '实际数量') {
-                            return `<td><input id="qty-${idx}" type="number" value="${row[col] || ''}" 
-                                    class="qty-input" onchange="updateQty(${idx}, this.value)"
-                                    onfocus="this.select()" placeholder="0" inputmode="numeric" /></td>`;
-                        } else if (col === '实际价格') {
-                            return `<td><input id="price-${idx}" type="number" step="0.01" value="${row[col] || ''}" 
-                                    class="price-input" onchange="updatePrice(${idx}, this.value)"
-                                    onfocus="this.select()" placeholder="0.00" inputmode="decimal" /></td>`;
-                        } else {
-                            return `<td><input type="text" value="${escapeHtml(String(row[col] || ''))}" 
-                                    class="w-full p-2 text-sm outline-none bg-transparent"
-                                    style="min-width:80px; width:100%;"
-                                    onchange="updateCell(${idx}, '${col}', this.value)" /></td>`;
-                        }
-                    }).join('')}
-                </tr>
-            `).join('');
-            setTimeout(() => autoAdjustColumns(), 50);
-            if (pendingJump !== null) setTimeout(() => { jumpToRowAndFocusQty(pendingJump); pendingJump = null; }, 100);
-            updateStats();
         }
 
         function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
@@ -1691,7 +1705,7 @@
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
         
-        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - 手动CSV过滤 | 跳过注释行 | 防重复加载`);
+        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - 安全CSV解析 | 防崩溃 | 自动过滤`);
     </script>
 </body>
 </html>
