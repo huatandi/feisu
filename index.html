@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.14</title>
+    <title>飞速盘点 · Sanfei v3.3.15</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -289,7 +289,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.14</div>
+                    <div class="version-badge">sanfei v3.3.15</div>
                 </div>
             </div>
             
@@ -371,7 +371,7 @@
 
     <script>
         // ========== 核心版本 ==========
-        const VERSION = "S3.3.14";
+        const VERSION = "S3.3.15";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         let db = [];
         let columns = [];
@@ -390,6 +390,7 @@
         let lastDecodeSucceeded = true;
         let preprocessCanvas = null;
         let toastTimer = null;
+        let isProcessing = false;  // ⭐ 防止重复加载
 
         const AUTH_STORAGE_KEY = "FEISUPANDIAN_AUTH_V2";
         let authCodes = [];
@@ -712,112 +713,171 @@
             });
         }
 
-        // ========== 文件导入 - 智能检测分隔符，跳过注释行 ==========
+        // ========== 文件导入 - 智能检测分隔符，跳过注释行，忽略错误行 ==========
         document.getElementById('fileInput').onchange = function(e) {
+            // ⭐ 防止重复触发
+            if (isProcessing) {
+                showToast('⏳ 正在处理中，请稍候...', false);
+                return;
+            }
+            
             const file = e.target.files[0];
             if (!file) return;
+            
+            // ⭐ 清空input，允许重复选择同一文件
+            e.target.value = '';
+            
             const ext = file.name.split('.').pop().toLowerCase();
 
             if (ext === 'csv') {
+                isProcessing = true;
                 showProgress(true);
                 updateProgress(0, 1, '📄 正在读取 CSV 文件...', '准备中');
+                
                 const reader = new FileReader();
                 reader.onload = function(ev) {
                     try {
                         let csvText = ev.target.result;
+                        // 移除BOM
                         if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
                         
-                        // ⭐ 智能检测：自动识别逗号或Tab分隔符
+                        // ⭐ 智能检测分隔符
                         const lines = csvText.split('\n');
                         let delimiter = ',';
                         let headerLine = '';
+                        let headerLineNum = 0;
                         
                         // 查找第一个非注释行作为表头
-                        for (let line of lines) {
-                            const trimmed = line.trim();
+                        for (let i = 0; i < lines.length; i++) {
+                            const trimmed = lines[i].trim();
                             if (!trimmed || trimmed.startsWith('#')) continue;
                             // 检测逗号和Tab数量
                             const commaCount = (trimmed.match(/,/g) || []).length;
                             const tabCount = (trimmed.match(/\t/g) || []).length;
-                            if (commaCount >= tabCount) {
+                            if (commaCount >= tabCount && commaCount > 0) {
                                 delimiter = ',';
-                            } else {
+                            } else if (tabCount > 0) {
                                 delimiter = '\t';
+                            } else {
+                                // 如果都没有，尝试用逗号
+                                delimiter = ',';
                             }
                             headerLine = trimmed;
+                            headerLineNum = i;
                             break;
                         }
                         
                         console.log('🔍 检测到分隔符:', delimiter === '\t' ? 'Tab (制表符)' : '逗号');
                         console.log('📋 表头行:', headerLine);
                         
-                        // ⭐ 过滤掉注释行（以#开头的行）
+                        // ⭐ 过滤掉注释行（以#开头的行）和空行
                         const filteredLines = lines.filter(line => {
                             const trimmed = line.trim();
                             return trimmed && !trimmed.startsWith('#');
                         });
                         
-                        // 重新组合过滤后的CSV
+                        if (filteredLines.length === 0) {
+                            showToast('CSV 文件无有效数据', true, true);
+                            showProgress(false);
+                            isProcessing = false;
+                            return;
+                        }
+                        
                         const filteredCSV = filteredLines.join('\n');
                         console.log('📊 过滤后行数:', filteredLines.length);
                         
+                        // ⭐ PapaParse 配置 - 忽略错误行
                         const parseResult = Papa.parse(filteredCSV, {
                             header: true,
                             skipEmptyLines: true,
                             trimHeaders: true,
                             dynamicTyping: false,
                             transformHeader: h => h.trim(),
-                            delimiter: delimiter
+                            delimiter: delimiter,
+                            skipInvalidLines: true,  // ⭐ 跳过无效行
+                            comments: false  // 我们已经手动过滤了注释
                         });
                         
+                        // ⭐ 只记录错误，不中断解析
                         if (parseResult.errors && parseResult.errors.length > 0) {
-                            console.error('CSV解析错误详情:', parseResult.errors);
-                            showToast(`⚠️ CSV解析警告: ${parseResult.errors.length} 个问题`, true, true);
+                            console.warn('CSV解析警告:', parseResult.errors.length, '个问题');
+                            // 只显示前5个错误
+                            const sampleErrors = parseResult.errors.slice(0, 5);
+                            console.warn('错误示例:', sampleErrors);
+                            if (parseResult.errors.length > 0) {
+                                showToast(`⚠️ CSV解析: ${parseResult.errors.length} 个警告（已跳过）`, true, true);
+                            }
                         }
+                        
                         const rows = parseResult.data || [];
                         if (rows.length === 0) {
                             showToast('CSV 文件无有效数据', true, true);
                             showProgress(false);
+                            isProcessing = false;
                             return;
                         }
+                        
                         console.log('📊 解析到', rows.length, '行数据');
                         if (rows.length > 0) {
                             console.log('📋 第一行数据:', rows[0]);
                             console.log('📋 列名:', Object.keys(rows[0]));
                         }
                         
-                        loadDataInBatches(rows, true).then(({ rows: loadedRows, errors, columns: finalCols }) => {
+                        // ⭐ 过滤掉全空行
+                        const validRows = rows.filter(row => {
+                            const values = Object.values(row).filter(v => v && v.toString().trim());
+                            return values.length > 0;
+                        });
+                        
+                        console.log('📊 有效数据行:', validRows.length);
+                        
+                        if (validRows.length === 0) {
+                            showToast('CSV 文件无有效数据', true, true);
+                            showProgress(false);
+                            isProcessing = false;
+                            return;
+                        }
+                        
+                        loadDataInBatches(validRows, true).then(({ rows: loadedRows, errors, columns: finalCols }) => {
                             columns = finalCols;
                             db = loadedRows;
                             saveData();
                             render();
                             showErrors(errors);
                             showProgress(false);
-                            showToast(`✅ CSV 导入成功！共 ${db.length} 条，失败 ${errors.length} 条`, false);
+                            const skipCount = rows.length - validRows.length + errors.length;
+                            showToast(`✅ CSV 导入成功！共 ${db.length} 条`, false);
+                            if (skipCount > 0 || errors.length > 0) {
+                                showToast(`⚠️ 跳过 ${skipCount + errors.length} 行无效数据`, true, true);
+                            }
                             updateStats();
+                            isProcessing = false;
                         }).catch(err => {
                             const errorMsg = 'CSV加载失败: ' + (err.message || err.toString());
                             console.error('详细错误:', err);
                             showToast(errorMsg, true, true);
                             showProgress(false);
+                            isProcessing = false;
                         });
                     } catch (err) {
                         console.error(err);
                         showToast('CSV解析失败: ' + (err.message || err.toString()), true, true);
                         showProgress(false);
+                        isProcessing = false;
                     }
                 };
                 reader.onerror = function() { 
                     const errorMsg = '读取CSV文件失败: ' + (this.error ? this.error.message : '未知错误');
                     showToast(errorMsg, true, true); 
                     showProgress(false);
+                    isProcessing = false;
                 };
                 reader.readAsText(file);
-                e.target.value = '';
                 return;
             }
 
             // Excel
+            isProcessing = true;
             showToast("正在导入 Excel...", false);
             const fileReader = new FileReader();
             fileReader.onload = function(ev) {
@@ -836,29 +896,33 @@
                             showProgress(false);
                             showToast(`✅ Excel 导入成功！共 ${db.length} 条，失败 ${errors.length} 条`, false);
                             updateStats();
+                            isProcessing = false;
                         }).catch(err => {
                             const errorMsg = 'Excel加载失败: ' + (err.message || err.toString());
                             console.error('详细错误:', err);
                             showToast(errorMsg, true, true);
                             showProgress(false);
+                            isProcessing = false;
                         });
                     } else {
                         showToast("文件无数据", true, true);
                         showProgress(false);
+                        isProcessing = false;
                     }
                 } catch(err) {
                     console.error(err);
                     showToast("解析失败: " + (err.message || err.toString()), true, true);
                     showProgress(false);
+                    isProcessing = false;
                 }
             };
             fileReader.onerror = function() { 
                 const errorMsg = '读取Excel文件失败: ' + (this.error ? this.error.message : '未知错误');
                 showToast(errorMsg, true, true); 
                 showProgress(false);
+                isProcessing = false;
             };
             fileReader.readAsArrayBuffer(file);
-            e.target.value = '';
         };
 
         // ========== 更新统计 ==========
@@ -1621,7 +1685,7 @@
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
         
-        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - CSV智能分隔 | 跳过注释行 | 自动列识别`);
+        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - CSV智能解析 | 跳过无效行 | 防重复加载`);
     </script>
 </body>
 </html>
