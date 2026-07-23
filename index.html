@@ -3,12 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.9</title>
-    <!-- SheetJS (xlsx) 保持现有逻辑 -->
+    <title>飞速盘点 · Sanfei v3.3.10</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <!-- PapaParse (CSV 解析) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <!-- zxing 扫码库 -->
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -79,12 +76,41 @@
         .row-focus { background: linear-gradient(90deg, #fef08a 0%, #fde047 100%) !important; }
         #toast { 
             position: fixed; top: 20%; left: 50%; transform: translateX(-50%); 
-            background: #1f2937; color: white; padding: 10px 20px; 
-            border-radius: 40px; z-index: 10000; display: none; 
-            font-weight: bold; text-align: center; white-space: nowrap;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-            pointer-events: none; font-size: 14px; backdrop-filter: blur(10px);
+            background: #1f2937; color: white; padding: 14px 20px; 
+            border-radius: 16px; z-index: 10000; display: none; 
+            font-weight: bold; text-align: center; 
+            box-shadow: 0 5px 30px rgba(0,0,0,0.5);
+            pointer-events: auto; font-size: 14px; backdrop-filter: blur(10px);
+            max-width: 92%; min-width: 200px;
+            line-height: 1.6;
+            border: 1px solid rgba(255,255,255,0.1);
         }
+        #toast .toast-close {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            padding: 2px 12px;
+            margin-left: 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: 0.1s;
+        }
+        #toast .toast-close:hover { background: rgba(255,255,255,0.3); }
+        #toast .toast-copy {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 6px;
+            color: white;
+            padding: 2px 12px;
+            margin-left: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: 0.1s;
+        }
+        #toast .toast-copy:hover { background: rgba(255,255,255,0.3); }
         #colModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(8px); }
         .modal-content { background: white; border-radius: 24px; max-width: 90%; width: 350px; max-height: 70vh; overflow: auto; }
         .scan-frame { position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%); width: 80%; height: 220px; border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.75); z-index: 10; pointer-events: none; background: rgba(0,0,0,0.1); }
@@ -144,7 +170,6 @@
         .admin-code-item.used .status-badge { background: #94a3b8; }
         .admin-gen-btn { display: block; width: 100%; margin-top: 12px; padding: 12px; background: #8b5cf6; color: #fff; border: none; border-radius: 12px; font-weight: 900; font-size: 15px; cursor: pointer; }
 
-        /* 渐进式加载进度条 */
         #progressArea {
             background: #eef3fa; border-radius: 20px; padding: 16px 22px;
             margin: 6px 0 12px 0; display: none; flex-direction: column; gap: 6px;
@@ -191,7 +216,6 @@
         </div>
     </div>
     <script>
-    // 授权系统 - 保持独立
     const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
     function getAuthData(){try{var s=localStorage.getItem(AUTH_SKEY);if(s)return JSON.parse(s)}catch(e){}return null}
     function saveAuthData(d){try{localStorage.setItem(AUTH_SKEY,JSON.stringify(d))}catch(e){}}
@@ -250,7 +274,6 @@
     }
     </script>
 
-    <!-- 管理员面板 -->
     <div id="adminPanel" class="admin-overlay">
         <div class="admin-box">
             <button onclick="closeAdminPanel()" class="admin-close">✕</button>
@@ -266,7 +289,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.9</div>
+                    <div class="version-badge">sanfei v3.3.10</div>
                 </div>
             </div>
             
@@ -285,7 +308,6 @@
         </div>
 
         <div class="scrollable-area">
-            <!-- 进度区域 -->
             <div id="progressArea">
                 <div class="progress-title">
                     <span id="progressLabel">⏳ 正在读取数据...</span>
@@ -299,7 +321,6 @@
                     <span id="progressStatus">准备中</span>
                 </div>
             </div>
-            <!-- 错误汇总 -->
             <div id="errorSummary" class="error-summary">
                 <details>
                     <summary id="errorSummaryTitle">⚠️ 导入完成，部分行失败</summary>
@@ -316,7 +337,6 @@
         </div>
     </div>
 
-    <!-- 底部固定按钮 -->
     <div class="bottom-fixed-btns">
         <div class="bottom-btns">
             <button id="scanBtn" class="bottom-btn bg-blue-600 text-white shadow-lg cam-btn-large">📷 扫码</button>
@@ -351,7 +371,7 @@
 
     <script>
         // ========== 核心版本 ==========
-        const VERSION = "S3.3.9";
+        const VERSION = "S3.3.10";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         let db = [];
         let columns = [];
@@ -369,8 +389,8 @@
         const AUTO_ENHANCE_THRESHOLD = 3;
         let lastDecodeSucceeded = true;
         let preprocessCanvas = null;
+        let toastTimer = null;
 
-        // 授权系统变量
         const AUTH_STORAGE_KEY = "FEISUPANDIAN_AUTH_V2";
         let authCodes = [];
         let isActivated = false;
@@ -380,13 +400,94 @@
         const isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
         const isMobile = isAndroid || isIPad || /iPhone/i.test(navigator.userAgent);
 
-        // ---------- 辅助函数 ----------
-        function showToast(msg, isError = false) {
+        // ========== Toast 增强版 ==========
+        function showToast(msg, isError = false, persistent = false) {
             const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.style.background = isError ? '#dc2626' : '#10b981';
-            toast.style.display = 'block';
-            setTimeout(() => toast.style.display = 'none', 1500);
+            
+            if (toastTimer) {
+                clearTimeout(toastTimer);
+                toastTimer = null;
+            }
+            
+            const errorId = 'toast-msg-' + Date.now();
+            
+            if (isError) {
+                const escapedMsg = msg.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                toast.innerHTML = `
+                    <span id="${errorId}" style="word-break:break-all;">${escapedMsg}</span>
+                    <button class="toast-copy" onclick="copyToastMessage('${errorId}')">📋 复制</button>
+                    <button class="toast-close" onclick="dismissToast()">✕</button>
+                `;
+                toast.style.background = '#dc2626';
+                toast.style.display = 'block';
+                toast.style.maxWidth = '92%';
+                toast.style.whiteSpace = 'normal';
+                toast.style.wordBreak = 'break-all';
+                toast.style.padding = '14px 20px';
+                toast.style.lineHeight = '1.8';
+                toast.style.borderRadius = '12px';
+                toast.style.textAlign = 'left';
+                
+                const duration = persistent ? 60000 : 15000;
+                toastTimer = setTimeout(() => {
+                    toast.style.display = 'none';
+                    toastTimer = null;
+                }, duration);
+            } else {
+                toast.style.background = '#10b981';
+                toast.style.display = 'block';
+                toast.style.whiteSpace = 'nowrap';
+                toast.style.maxWidth = '80%';
+                toast.style.padding = '10px 20px';
+                toast.style.borderRadius = '40px';
+                toast.style.textAlign = 'center';
+                toast.textContent = msg;
+                toastTimer = setTimeout(() => {
+                    toast.style.display = 'none';
+                    toastTimer = null;
+                }, 2000);
+            }
+        }
+
+        function dismissToast() {
+            const toast = document.getElementById('toast');
+            toast.style.display = 'none';
+            if (toastTimer) {
+                clearTimeout(toastTimer);
+                toastTimer = null;
+            }
+        }
+
+        function copyToastMessage(elementId) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            const text = el.textContent || el.innerText;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('✅ 已复制到剪贴板', false);
+                }).catch(() => {
+                    copyTextFallback(text);
+                });
+            } else {
+                copyTextFallback(text);
+            }
+        }
+
+        function copyTextFallback(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast('✅ 已复制', false);
+            } catch (e) {
+                showToast('❌ 复制失败，请手动复制', true);
+            }
+            document.body.removeChild(textarea);
         }
 
         function playBeep(success) {
@@ -409,7 +510,7 @@
             if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30);
         }
 
-        // ---------- 数据存储 ----------
+        // ========== 数据存储 ==========
         function loadData() {
             try {
                 const saved = localStorage.getItem(STORAGE_KEY);
@@ -454,7 +555,7 @@
             } catch(e) { showToast("存储空间不足", true); }
         }
 
-        // ---------- 渐进式加载核心 (CSV / Excel 通用) ----------
+        // ========== 渐进式加载 ==========
         function showProgress(show) {
             const el = document.getElementById('progressArea');
             if (show) el.classList.add('active');
@@ -480,14 +581,22 @@
             list.innerHTML = errors.map(e => `<li>行 ${e.row}: ${e.message || '数据异常'}</li>`).join('');
         }
 
-        // 自动识别列名
+        // ========== 自动识别列名 (增强版 - 支持库存数量、零售价等) ==========
         function autoMapColumns(headers) {
             const map = {};
             const lowerMap = {
+                // 条码相关
                 '条码': 'barcode', 'barcode': 'barcode', 'code': 'barcode', '编码': 'barcode', 'sku': 'barcode',
+                '商品编码': 'barcode', '货号': 'barcode', 'productcode': 'barcode',
+                // 名称相关
                 '名称': 'name', 'name': 'name', '商品名称': 'name', '商品名': 'name', 'product': 'name', '品名': 'name',
-                '数量': 'quantity', 'qty': 'quantity', '库存': 'quantity', 'quantity': 'quantity',
-                '售价': 'price', 'price': 'price', '价格': 'price', '单价': 'price', '金额': 'price', '销售价': 'price'
+                '产品名称': 'name', '货品名称': 'name',
+                // 数量相关 (支持 库存数量、数量、Qty等)
+                '库存数量': 'quantity', '数量': 'quantity', 'qty': 'quantity', 'quantity': 'quantity',
+                '库存': 'quantity', '库存量': 'quantity', '数量': 'quantity',
+                // 价格相关 (支持 零售价、售价、价格、单价等)
+                '零售价': 'price', '售价': 'price', 'price': 'price', '价格': 'price', '单价': 'price',
+                '销售价': 'price', '卖价': 'price', '市场价': 'price'
             };
             for (let h of headers) {
                 const hTrim = h.trim();
@@ -509,36 +618,39 @@
                     }
                 }
             }
-            const defaults = { barcode: '条码', name: '名称', quantity: '数量', price: '售价' };
+            const defaults = { barcode: '条码', name: '名称', quantity: '库存数量', price: '零售价' };
             for (let k in defaults) {
                 if (!map[k]) map[k] = defaults[k];
             }
+            console.log('🔍 列识别结果:', map);
             return map;
         }
 
-        // 从行数据中提取标准字段
         function extractProduct(row, colMap) {
-            const barcode = row[colMap.barcode] || '';
-            const name = row[colMap.name] || '';
-            const quantity = parseFloat(row[colMap.quantity]) || 0;
-            const price = parseFloat(row[colMap.price]) || 0;
+            const barcodeKey = colMap.barcode || '条码';
+            const nameKey = colMap.name || '名称';
+            const qtyKey = colMap.quantity || '库存数量';
+            const priceKey = colMap.price || '零售价';
+            
+            const barcode = row[barcodeKey] || '';
+            const name = row[nameKey] || '';
+            const quantity = parseFloat(row[qtyKey]) || 0;
+            const price = parseFloat(row[priceKey]) || 0;
+            
             return { barcode, name, quantity, price };
         }
 
-        // 批量加载数据 (渐进)
+        // ========== 批量加载数据 ==========
         function loadDataInBatches(rawRows, isCSV = false) {
             return new Promise((resolve, reject) => {
                 const total = rawRows.length;
                 if (total === 0) { resolve({ rows: [], errors: [] }); return; }
 
-                // 先识别列
                 const sample = rawRows[0] || {};
                 const headers = Object.keys(sample);
                 const colMap = autoMapColumns(headers);
-                console.log('🔍 列识别结果:', colMap);
                 console.log('📋 原始列名:', headers);
 
-                // 确定最终列
                 const finalCols = new Set();
                 for (let h of headers) finalCols.add(h);
                 const coreCols = ['barcode', 'name', 'quantity', 'price'];
@@ -549,6 +661,9 @@
                 }
                 finalCols.add('实际数量');
                 finalCols.add('实际价格');
+                finalCols.add('条码');
+                finalCols.add('名称');
+                
                 const columnArray = Array.from(finalCols);
                 const qtyCol = '实际数量';
                 const priceCol = '实际价格';
@@ -575,13 +690,27 @@
                         try {
                             const product = extractProduct(row, colMap);
                             const newRow = { ...row };
+                            
                             const barcodeKey = colMap.barcode || '条码';
                             const nameKey = colMap.name || '名称';
-                            const qtyKey = colMap.quantity || '数量';
-                            const priceKey = colMap.price || '售价';
                             
-                            if (row[barcodeKey] !== undefined) newRow['条码'] = row[barcodeKey];
-                            if (row[nameKey] !== undefined) newRow['名称'] = row[nameKey];
+                            // 设置条码
+                            if (row[barcodeKey] !== undefined && row[barcodeKey] !== '') {
+                                newRow['条码'] = String(row[barcodeKey]).trim();
+                            } else if (product.barcode) {
+                                newRow['条码'] = String(product.barcode).trim();
+                            } else {
+                                newRow['条码'] = '';
+                            }
+                            
+                            // 设置名称
+                            if (row[nameKey] !== undefined && row[nameKey] !== '') {
+                                newRow['名称'] = String(row[nameKey]).trim();
+                            } else if (product.name) {
+                                newRow['名称'] = String(product.name).trim();
+                            } else {
+                                newRow['名称'] = '';
+                            }
                             
                             newRow['实际数量'] = product.quantity;
                             newRow['实际价格'] = product.price;
@@ -606,7 +735,10 @@
                         }
                     } else {
                         isCompleted = true;
-                        console.log('✅ 加载完成，共', resultRows.length, '条，示例数据:', resultRows[0]);
+                        console.log('✅ 加载完成，共', resultRows.length, '条');
+                        if (resultRows.length > 0) {
+                            console.log('📦 示例数据:', resultRows[0]);
+                        }
                         resolve({ rows: resultRows, errors: errorList, columns: columnArray });
                     }
                 }
@@ -617,7 +749,7 @@
             });
         }
 
-        // ---------- 文件导入 ----------
+        // ========== 文件导入 ==========
         document.getElementById('fileInput').onchange = function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -639,11 +771,16 @@
                             transformHeader: h => h.trim()
                         });
                         if (parseResult.errors && parseResult.errors.length > 0) {
-                            console.warn('CSV 解析警告:', parseResult.errors);
+                            console.error('CSV解析错误详情:', parseResult.errors);
+                            const errorDetails = parseResult.errors.map(e => 
+                                `行 ${e.row}: ${e.message}`
+                            ).join('\n');
+                            showToast(`⚠️ CSV解析警告: ${parseResult.errors.length} 个问题`, true, true);
+                            console.error('CSV解析错误列表:\n' + errorDetails);
                         }
                         const rows = parseResult.data || [];
                         if (rows.length === 0) {
-                            showToast('CSV 文件无有效数据', true);
+                            showToast('CSV 文件无有效数据', true, true);
                             showProgress(false);
                             return;
                         }
@@ -657,22 +794,28 @@
                             showToast(`✅ CSV 导入成功！共 ${db.length} 条，失败 ${errors.length} 条`, false);
                             updateStats();
                         }).catch(err => {
-                            showToast('CSV 加载失败: ' + err.message, true);
+                            const errorMsg = 'CSV加载失败: ' + (err.message || err.toString());
+                            console.error('详细错误:', err);
+                            showToast(errorMsg, true, true);
                             showProgress(false);
                         });
                     } catch (err) {
                         console.error(err);
-                        showToast('CSV 解析失败: ' + err.message, true);
+                        showToast('CSV解析失败: ' + (err.message || err.toString()), true, true);
                         showProgress(false);
                     }
                 };
-                reader.onerror = function() { showToast('读取 CSV 文件失败', true); showProgress(false); };
+                reader.onerror = function() { 
+                    const errorMsg = '读取CSV文件失败: ' + (this.error ? this.error.message : '未知错误');
+                    showToast(errorMsg, true, true); 
+                    showProgress(false);
+                };
                 reader.readAsText(file);
                 e.target.value = '';
                 return;
             }
 
-            // Excel 保持原有逻辑
+            // Excel
             showToast("正在导入 Excel...", false);
             const fileReader = new FileReader();
             fileReader.onload = function(ev) {
@@ -692,25 +835,31 @@
                             showToast(`✅ Excel 导入成功！共 ${db.length} 条，失败 ${errors.length} 条`, false);
                             updateStats();
                         }).catch(err => {
-                            showToast('Excel 加载失败: ' + err.message, true);
+                            const errorMsg = 'Excel加载失败: ' + (err.message || err.toString());
+                            console.error('详细错误:', err);
+                            showToast(errorMsg, true, true);
                             showProgress(false);
                         });
                     } else {
-                        showToast("文件无数据", true);
+                        showToast("文件无数据", true, true);
                         showProgress(false);
                     }
                 } catch(err) {
                     console.error(err);
-                    showToast("解析失败", true);
+                    showToast("解析失败: " + (err.message || err.toString()), true, true);
                     showProgress(false);
                 }
             };
-            fileReader.onerror = function() { showToast("读取失败", true); showProgress(false); };
+            fileReader.onerror = function() { 
+                const errorMsg = '读取Excel文件失败: ' + (this.error ? this.error.message : '未知错误');
+                showToast(errorMsg, true, true); 
+                showProgress(false);
+            };
             fileReader.readAsArrayBuffer(file);
             e.target.value = '';
         };
 
-        // ---------- 更新统计 ----------
+        // ========== 更新统计 ==========
         function updateStats() {
             const total = db.length;
             let totalPrice = 0;
@@ -719,14 +868,17 @@
                 const price = parseFloat(row['实际价格']) || 0;
                 totalPrice += qty * price;
             }
-            document.getElementById('countDisplay').textContent = `📊 ${total} 条`;
-            document.getElementById('priceDisplay').textContent = `💰 ${totalPrice.toFixed(2)}`;
+            document.getElementById('countDisplay')?.remove();
+            const statsDiv = document.querySelector('.stats');
+            if (statsDiv) {
+                statsDiv.innerHTML = `<span>📊 ${total} 条</span><span>💰 ${totalPrice.toFixed(2)}</span>`;
+            }
         }
 
-        // ---------- 匹配逻辑 (完全保留原有) ----------
+        // ========== 匹配逻辑 ==========
         function preprocessCode(code) {
             if (!code) return code;
-            let cleaned = code.replace(/[^\w\d\-]/g, '');
+            let cleaned = String(code).replace(/[^\w\d\-]/g, '');
             if (cleaned.startsWith('*') && cleaned.endsWith('*')) cleaned = cleaned.slice(1, -1);
             if (cleaned.length === 12 && /^\d+$/.test(cleaned)) cleaned = '0' + cleaned;
             return cleaned;
@@ -790,7 +942,7 @@
             return -1;
         }
 
-        // ---------- UI 交互 ----------
+        // ========== UI 渲染 ==========
         function render() {
             const thead = document.getElementById('tHead');
             const tbody = document.getElementById('tBody');
@@ -824,7 +976,7 @@
             updateStats();
         }
 
-        function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+        function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
         
         function updateQty(rowIndex, value) { db[rowIndex]['实际数量'] = value; saveData(); showToast("数量已更新", false); hideKeyboard(); }
         function updatePrice(rowIndex, value) { db[rowIndex]['实际价格'] = value; saveData(); showToast("价格已更新", false); hideKeyboard(); }
@@ -935,7 +1087,7 @@
             lastDecodeSucceeded = true;
             playBeep(true);
             vibrate();
-            const productName = db[foundIndex]['商品名称'] || db[foundIndex]['名称'] || codeStr;
+            const productName = db[foundIndex]['名称'] || db[foundIndex]['商品名称'] || codeStr;
             showToast(`✅ ${productName}`, false);
             const scanFrame = document.getElementById('scanFrame');
             if (scanFrame) { scanFrame.classList.add('scan-success'); setTimeout(() => scanFrame.classList.remove('scan-success'), 200); }
@@ -959,7 +1111,7 @@
             setTimeout(() => { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
-        // ---------- 扫码相机 ----------
+        // ========== 扫码相机 ==========
         function setupCameraControls(track) {
             cameraTrack = track || null;
             const torchBtn = document.getElementById('torchBtn');
@@ -1232,7 +1384,7 @@
             return null;
         }
 
-        // ---------- 列管理 ----------
+        // ========== 列管理 ==========
         function renderColList() {
             const container = document.getElementById('colList');
             container.innerHTML = columns.map((col, idx) => `
@@ -1294,7 +1446,7 @@
             } 
         }
 
-        // ---------- 导出 ----------
+        // ========== 导出 ==========
         function exportExcel() {
             if (!db.length) { showToast("暂无数据可导出", true); return; }
             const defaultName = `飞速盘点_${new Date().toLocaleDateString()}`;
@@ -1309,7 +1461,7 @@
 
         function hardReset() { if (confirm("⚠️ 确定清空所有数据吗？此操作不可恢复！")) { localStorage.removeItem(STORAGE_KEY); db = []; columns = ['实际数量', '实际价格', '商品名称', '编码', '价格']; normalizeSpecialColumns(); saveData(); render(); showToast("已清空所有数据", false); } }
 
-        // ---------- 键盘处理 ----------
+        // ========== 键盘处理 ==========
         function setupKeyboardListener() {
             if (!isMobile) return;
             if (window.visualViewport) {
@@ -1353,7 +1505,7 @@
             document.body.classList.remove('keyboard-open');
         }
 
-        // ---------- 授权管理 ----------
+        // ========== 授权管理 ==========
         function initAuthSystem() {
             const presetList = ["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];
             const presetCodes = presetList.map(c => ({ code: c, used: false, deviceId: '' }));
@@ -1434,7 +1586,7 @@
             showToast(`✅ 已追加 ${added} 个新授权码`, false);
         }
 
-        // ---------- 初始化 ----------
+        // ========== 初始化 ==========
         window.addEventListener('resize', () => setTimeout(() => autoAdjustColumns(), 100));
         window.addEventListener('beforeunload', () => { if (scanning) stopScanning(true); });
         document.addEventListener('touchstart', function(e) { if (currentInputElement && !e.target.closest('.qty-input') && !e.target.closest('.price-input') && !e.target.closest('#manualInput')) hideKeyboard(); });
