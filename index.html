@@ -581,20 +581,16 @@
             list.innerHTML = errors.map(e => `<li>行 ${e.row}: ${e.message || '数据异常'}</li>`).join('');
         }
 
-        // ========== 自动识别列名 (增强版 - 支持库存数量、零售价等) ==========
+        // ========== 自动识别列名 (增强版 - 支持Tab分隔) ==========
         function autoMapColumns(headers) {
             const map = {};
             const lowerMap = {
-                // 条码相关
                 '条码': 'barcode', 'barcode': 'barcode', 'code': 'barcode', '编码': 'barcode', 'sku': 'barcode',
                 '商品编码': 'barcode', '货号': 'barcode', 'productcode': 'barcode',
-                // 名称相关
                 '名称': 'name', 'name': 'name', '商品名称': 'name', '商品名': 'name', 'product': 'name', '品名': 'name',
                 '产品名称': 'name', '货品名称': 'name',
-                // 数量相关 (支持 库存数量、数量、Qty等)
                 '库存数量': 'quantity', '数量': 'quantity', 'qty': 'quantity', 'quantity': 'quantity',
-                '库存': 'quantity', '库存量': 'quantity', '数量': 'quantity',
-                // 价格相关 (支持 零售价、售价、价格、单价等)
+                '库存': 'quantity', '库存量': 'quantity',
                 '零售价': 'price', '售价': 'price', 'price': 'price', '价格': 'price', '单价': 'price',
                 '销售价': 'price', '卖价': 'price', '市场价': 'price'
             };
@@ -749,7 +745,7 @@
             });
         }
 
-        // ========== 文件导入 ==========
+        // ========== 文件导入 - 支持Tab分隔符 ==========
         document.getElementById('fileInput').onchange = function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -763,13 +759,23 @@
                     try {
                         let csvText = ev.target.result;
                         if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
+                        
+                        // ⭐ 自动检测分隔符：检测Tab还是逗号
+                        const firstLine = csvText.split('\n')[0] || '';
+                        const tabCount = (firstLine.match(/\t/g) || []).length;
+                        const commaCount = (firstLine.match(/,/g) || []).length;
+                        const delimiter = tabCount >= commaCount ? '\t' : ',';
+                        console.log('🔍 检测到分隔符:', delimiter === '\t' ? 'Tab (制表符)' : '逗号');
+                        
                         const parseResult = Papa.parse(csvText, {
                             header: true,
                             skipEmptyLines: true,
                             trimHeaders: true,
                             dynamicTyping: false,
-                            transformHeader: h => h.trim()
+                            transformHeader: h => h.trim(),
+                            delimiter: delimiter  // ⭐ 使用自动检测的分隔符
                         });
+                        
                         if (parseResult.errors && parseResult.errors.length > 0) {
                             console.error('CSV解析错误详情:', parseResult.errors);
                             const errorDetails = parseResult.errors.map(e => 
@@ -784,6 +790,8 @@
                             showProgress(false);
                             return;
                         }
+                        console.log('📊 解析到', rows.length, '行数据，示例:', rows[0]);
+                        
                         loadDataInBatches(rows, true).then(({ rows: loadedRows, errors, columns: finalCols }) => {
                             columns = finalCols;
                             db = loadedRows;
@@ -1619,7 +1627,7 @@
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
         
-        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - CSV支持 | 渐进加载 | 自动列识别`);
+        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - CSV支持 | 渐进加载 | 自动列识别 | Tab/逗号分隔`);
     </script>
 </body>
 </html>
