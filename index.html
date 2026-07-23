@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.13</title>
+    <title>飞速盘点 · Sanfei v3.3.14</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -289,7 +289,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.13</div>
+                    <div class="version-badge">sanfei v3.3.14</div>
                 </div>
             </div>
             
@@ -371,7 +371,7 @@
 
     <script>
         // ========== 核心版本 ==========
-        const VERSION = "S3.3.13";
+        const VERSION = "S3.3.14";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         let db = [];
         let columns = [];
@@ -712,7 +712,7 @@
             });
         }
 
-        // ========== 文件导入 - 强制Tab分隔符 ==========
+        // ========== 文件导入 - 智能检测分隔符，跳过注释行 ==========
         document.getElementById('fileInput').onchange = function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -727,15 +727,47 @@
                         let csvText = ev.target.result;
                         if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
                         
-                        console.log('🔍 使用分隔符: Tab (制表符)');
+                        // ⭐ 智能检测：自动识别逗号或Tab分隔符
+                        const lines = csvText.split('\n');
+                        let delimiter = ',';
+                        let headerLine = '';
                         
-                        const parseResult = Papa.parse(csvText, {
+                        // 查找第一个非注释行作为表头
+                        for (let line of lines) {
+                            const trimmed = line.trim();
+                            if (!trimmed || trimmed.startsWith('#')) continue;
+                            // 检测逗号和Tab数量
+                            const commaCount = (trimmed.match(/,/g) || []).length;
+                            const tabCount = (trimmed.match(/\t/g) || []).length;
+                            if (commaCount >= tabCount) {
+                                delimiter = ',';
+                            } else {
+                                delimiter = '\t';
+                            }
+                            headerLine = trimmed;
+                            break;
+                        }
+                        
+                        console.log('🔍 检测到分隔符:', delimiter === '\t' ? 'Tab (制表符)' : '逗号');
+                        console.log('📋 表头行:', headerLine);
+                        
+                        // ⭐ 过滤掉注释行（以#开头的行）
+                        const filteredLines = lines.filter(line => {
+                            const trimmed = line.trim();
+                            return trimmed && !trimmed.startsWith('#');
+                        });
+                        
+                        // 重新组合过滤后的CSV
+                        const filteredCSV = filteredLines.join('\n');
+                        console.log('📊 过滤后行数:', filteredLines.length);
+                        
+                        const parseResult = Papa.parse(filteredCSV, {
                             header: true,
                             skipEmptyLines: true,
                             trimHeaders: true,
                             dynamicTyping: false,
                             transformHeader: h => h.trim(),
-                            delimiter: "\t"
+                            delimiter: delimiter
                         });
                         
                         if (parseResult.errors && parseResult.errors.length > 0) {
@@ -1589,7 +1621,7 @@
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
         
-        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - CSV Tab分隔 | 渐进加载 | 自动列识别`);
+        console.log(`⚡ 飞速盘点 智能增强版 ${VERSION} - CSV智能分隔 | 跳过注释行 | 自动列识别`);
     </script>
 </body>
 </html>
