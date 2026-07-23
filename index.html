@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.33</title>
+    <title>飞速盘点 · Sanfei v3.3.34</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -130,7 +130,6 @@
         .scan-tool-btn.active { background: #f59e0b; border-color: #fcd34d; color: #111827; }
         .focus-guide { position: absolute; top: 10px; left: 0; right: 0; text-align: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); padding: 6px 12px; border-radius: 20px; width: fit-content; margin: 0 auto; font-size: 11px; color: #fff; z-index: 20; pointer-events: none; }
         .enhance-badge { position: absolute; bottom: 80px; right: 10px; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: 20px; font-size: 10px; color: #fbbf24; font-weight: bold; pointer-events: none; z-index: 15; }
-
         #progressArea {
             background: #eef3fa; border-radius: 20px; padding: 16px 22px;
             margin: 6px 0 12px 0; display: none; flex-direction: column; gap: 6px;
@@ -152,9 +151,6 @@
     </style>
 </head>
 <body>
-    <!-- 隐藏授权弹窗 -->
-    <div id="authOverlay" class="auth-overlay" style="display:none !important;"></div>
-
     <div id="toast"></div>
     <div id="colModal"><div class="modal-content p-5"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 class="text-xl font-bold">📋 列管理</h2><button onclick="closeColModal()" style="background:#1e293b;color:#fff;border:none;border-radius:999px;padding:8px 20px;font-weight:900;font-size:14px;cursor:pointer;">完成</button></div><p class="text-xs text-gray-500 text-center mb-3">💡 点击箭头上下排序</p><div id="colList" class="space-y-2 mb-4" style="max-height:55vh;overflow:auto;"></div><div class="flex gap-2 p-2 bg-gray-100 rounded-lg"><input type="text" id="newColName" placeholder="新列名..." class="flex-1 bg-white rounded-lg px-3 py-2 font-bold text-sm outline-none" /><button onclick="addColumn()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm">添加</button></div></div></div>
 
@@ -166,7 +162,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.33</div>
+                    <div class="version-badge">sanfei v3.3.34</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
@@ -209,11 +205,7 @@
     </div>
 
     <script>
-        // ========== 版本 ==========
-        var VERSION = "S3.3.33";
-        var STORAGE_KEY = "FEISUPANDIAN_DATA";
-
-        // ========== 全局变量 ==========
+        var VERSION = "S3.3.34";
         var db = [];
         var columns = [];
         var scanning = false;
@@ -235,7 +227,6 @@
         var isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
         var isMobile = isAndroid || isIPad || /iPhone/i.test(navigator.userAgent);
 
-        // ========== Toast ==========
         function showToast(msg, isError, persistent) {
             if (isError === undefined) isError = false;
             if (persistent === undefined) persistent = false;
@@ -275,20 +266,11 @@
         function playBeep(success) { try { var audioCtx = new (window.AudioContext || window.webkitAudioContext)(); var oscillator = audioCtx.createOscillator(); var gainNode = audioCtx.createGain(); oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.frequency.value = success ? 1200 : 400; gainNode.gain.value = 0.6; oscillator.start(); gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2); oscillator.stop(audioCtx.currentTime + 0.2); audioCtx.resume(); } catch(e) {} }
         function vibrate() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30); }
 
-        // ========== 提取数据 ==========
         function extractProduct(row) {
             var barcode = row['条码'] || row['barcode'] || row['Barcode'] || row['商品编码'] || row['编码'] || '';
             var name = row['名称'] || row['商品名称'] || row['name'] || row['Name'] || '';
-            
-            var qty = 0;
-            if (row['库存数量'] !== undefined && row['库存数量'] !== '') qty = parseFloat(row['库存数量']) || 0;
-            else if (row['数量'] !== undefined && row['数量'] !== '') qty = parseFloat(row['数量']) || 0;
-            else if (row['库存'] !== undefined && row['库存'] !== '') qty = parseFloat(row['库存']) || 0;
-            
-            var price = 0;
-            if (row['零售价'] !== undefined && row['零售价'] !== '') price = parseFloat(row['零售价']) || 0;
-            else if (row['售价'] !== undefined && row['售价'] !== '') price = parseFloat(row['售价']) || 0;
-            else if (row['价格'] !== undefined && row['价格'] !== '') price = parseFloat(row['价格']) || 0;
+            var qty = parseFloat(row['库存数量'] || row['数量'] || row['库存'] || 0) || 0;
+            var price = parseFloat(row['零售价'] || row['售价'] || row['价格'] || 0) || 0;
 
             if (!barcode) {
                 for (var key in row) {
@@ -308,21 +290,6 @@
                 price: price,
                 valid: (barcode && barcode !== '') || (name && name !== '')
             };
-        }
-
-        // ========== 存储 ==========
-        function saveData() {
-            console.log('📊 数据保存在内存中，共 ' + db.length + ' 条');
-        }
-
-        function hardReset() {
-            if (confirm("⚠️ 确定清空所有数据吗？此操作不可恢复！")) {
-                db = [];
-                columns = ['实际数量', '实际价格', '商品名称', '编码', '价格'];
-                normalizeSpecialColumns();
-                render();
-                showToast("已清空所有数据", false);
-            }
         }
 
         function normalizeSpecialColumns() {
@@ -357,99 +324,45 @@
             list.innerHTML = errors.map(function(e) { return '<li>行 ' + e.row + ': ' + (e.message || '数据异常') + '</li>'; }).join('');
         }
 
-        // ========== CSV导入 ==========
         function importCSV(file) {
             return new Promise(function(resolve, reject) {
-                var result = {
-                    rows: [],
-                    errors: [],
-                    total: 0,
-                    valid: 0
-                };
-
+                var result = { rows: [], errors: [], total: 0, valid: 0 };
                 var reader = new FileReader();
                 reader.onload = function(ev) {
                     try {
                         var csvText = ev.target.result;
-                        if (csvText.charCodeAt(0) === 0xFEFF) {
-                            csvText = csvText.slice(1);
-                        }
-
+                        if (csvText.charCodeAt(0) === 0xFEFF) { csvText = csvText.slice(1); }
                         var firstRowPrinted = false;
-
                         Papa.parse(csvText, {
-                            header: true,
-                            comments: '#',
-                            skipEmptyLines: true,
-                            trimHeaders: true,
-                            transformHeader: function(h) {
-                                return h.trim();
-                            },
+                            header: true, comments: '#', skipEmptyLines: true, trimHeaders: true,
+                            transformHeader: function(h) { return h.trim(); },
                             worker: false,
                             step: function(results) {
                                 var row = results.data;
                                 if (!row || Object.keys(row).length === 0) return;
-
                                 result.total++;
-
-                                if (!firstRowPrinted) {
-                                    firstRowPrinted = true;
-                                    console.log('📋 列名:', Object.keys(row));
-                                    console.log('📋 第一行:', row);
-                                }
-
+                                if (!firstRowPrinted) { firstRowPrinted = true; console.log('📋 列名:', Object.keys(row)); }
                                 var product = extractProduct(row);
-
                                 if (product.valid) {
-                                    result.rows.push({
-                                        barcode: product.barcode,
-                                        name: product.name,
-                                        quantity: product.quantity,
-                                        price: product.price,
-                                        original: row
-                                    });
+                                    result.rows.push({ barcode: product.barcode, name: product.name, quantity: product.quantity, price: product.price, original: row });
                                     result.valid++;
                                 } else {
-                                    result.errors.push({
-                                        row: result.total,
-                                        data: row,
-                                        message: '缺少条码或名称'
-                                    });
+                                    result.errors.push({ row: result.total, data: row, message: '缺少条码或名称' });
                                 }
-
-                                if (result.total % 100 === 0) {
-                                    updateProgress(result.total, 0, '📄 解析中...', result.total + ' 行');
-                                }
+                                if (result.total % 100 === 0) { updateProgress(result.total, 0, '📄 解析中...', result.total + ' 行'); }
                             },
-                            complete: function() {
-                                console.log('✅ 解析完成');
-                                console.log('📊 总行数:', result.total);
-                                console.log('✅ 有效:', result.valid);
-                                console.log('❌ 错误:', result.errors.length);
-                                resolve(result);
-                            },
-                            error: function(err) {
-                                console.error('PapaParse错误:', err);
-                                reject(err);
-                            }
+                            complete: function() { console.log('✅ 解析完成'); console.log('📊 总行数:', result.total); console.log('✅ 有效:', result.valid); console.log('❌ 错误:', result.errors.length); resolve(result); },
+                            error: function(err) { console.error('PapaParse错误:', err); reject(err); }
                         });
-                    } catch (err) {
-                        reject(err);
-                    }
+                    } catch (err) { reject(err); }
                 };
-                reader.onerror = function() {
-                    reject(new Error('读取文件失败'));
-                };
+                reader.onerror = function() { reject(new Error('读取文件失败')); };
                 reader.readAsText(file);
             });
         }
 
-        // ========== 文件导入入口 ==========
         document.getElementById('fileInput').onchange = function(e) {
-            if (isProcessing) {
-                showToast('⏳ 正在处理中...', false);
-                return;
-            }
+            if (isProcessing) { showToast('⏳ 正在处理中...', false); return; }
             var file = e.target.files[0];
             if (!file) return;
             e.target.value = '';
@@ -459,49 +372,23 @@
                 isProcessing = true;
                 showProgress(true);
                 updateProgress(0, 1, '📄 正在读取...', '准备中');
-
                 importCSV(file).then(function(result) {
-                    console.log('📊 解析到 ' + result.rows.length + ' 条数据');
-
-                    if (result.rows.length === 0) {
-                        showToast('⚠️ 没有有效数据行', true);
-                        showProgress(false);
-                        isProcessing = false;
-                        return;
-                    }
-
-                    // 收集所有列名
+                    if (result.rows.length === 0) { showToast('⚠️ 没有有效数据行', true); showProgress(false); isProcessing = false; return; }
                     var allColumns = new Set();
-                    allColumns.add('实际数量');
-                    allColumns.add('实际价格');
-                    allColumns.add('条码');
-                    allColumns.add('名称');
-
+                    allColumns.add('实际数量'); allColumns.add('实际价格'); allColumns.add('条码'); allColumns.add('名称');
                     for (var i = 0; i < result.rows.length; i++) {
                         var r = result.rows[i];
-                        if (r.original) {
-                            for (var key in r.original) {
-                                if (r.original.hasOwnProperty(key)) {
-                                    allColumns.add(key);
-                                }
-                            }
-                        }
+                        if (r.original) { for (var key in r.original) { if (r.original.hasOwnProperty(key)) { allColumns.add(key); } } }
                     }
-
                     var finalCols = Array.from(allColumns);
-                    var qtyCol = '实际数量';
-                    var priceCol = '实际价格';
-                    var qtyIdx = finalCols.indexOf(qtyCol);
-                    if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
-                    var priceIdx = finalCols.indexOf(priceCol);
-                    if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
+                    var qtyCol = '实际数量'; var priceCol = '实际价格';
+                    var qtyIdx = finalCols.indexOf(qtyCol); if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
+                    var priceIdx = finalCols.indexOf(priceCol); if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
 
-                    // 转换数据
                     var loadedRows = [];
                     for (var i = 0; i < result.rows.length; i++) {
                         var r = result.rows[i];
                         var newRow = {};
-
                         if (r.original) {
                             for (var key in r.original) {
                                 if (r.original.hasOwnProperty(key)) {
@@ -509,45 +396,28 @@
                                 }
                             }
                         }
-
                         newRow['条码'] = r.barcode || '';
                         newRow['名称'] = r.name || '';
                         newRow['实际数量'] = r.quantity || 0;
                         newRow['实际价格'] = r.price || 0;
-
                         loadedRows.push(newRow);
                     }
 
                     columns = finalCols;
                     db = loadedRows;
-
                     console.log('✅ 最终数据条数:', db.length);
-                    console.log('📋 列数:', columns.length);
-                    if (db.length > 0) {
-                        console.log('📦 第一条:', db[0]);
-                    }
-
                     render();
                     showErrors(result.errors.slice(0, 100));
                     showProgress(false);
-
-                    if (db.length > 0) {
-                        showToast('✅ 导入成功！共 ' + db.length + ' 条商品', false);
-                        if (result.errors.length > 0) {
-                            showToast('⚠️ 跳过 ' + result.errors.length + ' 行无效数据', true);
-                        }
-                    } else {
-                        showToast('⚠️ 无有效商品数据', true);
-                    }
+                    if (db.length > 0) { showToast('✅ 导入成功！共 ' + db.length + ' 条商品', false); if (result.errors.length > 0) { showToast('⚠️ 跳过 ' + result.errors.length + ' 行无效数据', true); } } 
+                    else { showToast('⚠️ 无有效商品数据', true); }
                     isProcessing = false;
-
                 }).catch(function(err) {
                     console.error('导入失败:', err);
                     showToast('❌ 导入失败: ' + (err.message || err.toString()), true);
                     showProgress(false);
                     isProcessing = false;
                 });
-
                 return;
             }
 
@@ -565,40 +435,24 @@
                         var resultRows = [];
                         var errorList = [];
                         var allColumns = new Set();
-                        allColumns.add('实际数量');
-                        allColumns.add('实际价格');
-                        allColumns.add('条码');
-                        allColumns.add('名称');
-
+                        allColumns.add('实际数量'); allColumns.add('实际价格'); allColumns.add('条码'); allColumns.add('名称');
                         for (var i = 0; i < json.length; i++) {
                             var row = json[i];
                             try {
                                 var product = extractProduct(row);
                                 var newRow = {};
-                                for (var key in row) {
-                                    if (row.hasOwnProperty(key)) {
-                                        newRow[key] = row[key];
-                                        allColumns.add(key);
-                                    }
-                                }
+                                for (var key in row) { if (row.hasOwnProperty(key)) { newRow[key] = row[key]; allColumns.add(key); } }
                                 newRow['条码'] = product.barcode || '';
                                 newRow['名称'] = product.name || '';
                                 newRow['实际数量'] = product.quantity || 0;
                                 newRow['实际价格'] = product.price || 0;
                                 resultRows.push(newRow);
-                            } catch (err) {
-                                errorList.push({ row: i + 1, message: err.message || '数据异常' });
-                            }
+                            } catch (err) { errorList.push({ row: i + 1, message: err.message || '数据异常' }); }
                         }
-
                         var finalCols = Array.from(allColumns);
-                        var qtyCol = '实际数量';
-                        var priceCol = '实际价格';
-                        var qtyIdx = finalCols.indexOf(qtyCol);
-                        if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
-                        var priceIdx = finalCols.indexOf(priceCol);
-                        if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
-
+                        var qtyCol = '实际数量'; var priceCol = '实际价格';
+                        var qtyIdx = finalCols.indexOf(qtyCol); if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
+                        var priceIdx = finalCols.indexOf(priceCol); if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
                         columns = finalCols;
                         db = resultRows;
                         render();
@@ -606,17 +460,8 @@
                         showProgress(false);
                         showToast('✅ Excel 导入成功！共 ' + db.length + ' 条', false);
                         isProcessing = false;
-                    } else {
-                        showToast("文件无数据", true);
-                        showProgress(false);
-                        isProcessing = false;
-                    }
-                } catch(err) {
-                    console.error(err);
-                    showToast("解析失败: " + (err.message || err.toString()), true);
-                    showProgress(false);
-                    isProcessing = false;
-                }
+                    } else { showToast("文件无数据", true); showProgress(false); isProcessing = false; }
+                } catch(err) { console.error(err); showToast("解析失败: " + (err.message || err.toString()), true); showProgress(false); isProcessing = false; }
             };
             fileReader.onerror = function() { showToast('读取Excel文件失败', true); showProgress(false); isProcessing = false; };
             fileReader.readAsArrayBuffer(file);
@@ -637,7 +482,6 @@
             }
         }
 
-        // ========== 匹配逻辑 ==========
         function preprocessCode(code) {
             if (!code) return code;
             var cleaned = String(code).replace(/[^\w\d\-]/g, '');
@@ -710,7 +554,6 @@
             return -1;
         }
 
-        // ========== UI 渲染 ==========
         function render() {
             try {
                 var thead = document.getElementById('tHead');
@@ -877,7 +720,6 @@
             setTimeout(function() { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
-        // ========== 扫码相机 ==========
         function setupCameraControls(track) {
             cameraTrack = track || null;
             var torchBtn = document.getElementById('torchBtn');
@@ -1138,7 +980,6 @@
             return null;
         }
 
-        // ========== 列管理 ==========
         function renderColList() {
             var container = document.getElementById('colList');
             container.innerHTML = columns.map(function(col, idx) {
@@ -1188,7 +1029,16 @@
             } 
         }
 
-        // ========== 导出 ==========
+        function hardReset() {
+            if (confirm("⚠️ 确定清空所有数据吗？此操作不可恢复！")) {
+                db = [];
+                columns = ['实际数量', '实际价格', '商品名称', '编码', '价格'];
+                normalizeSpecialColumns();
+                render();
+                showToast("已清空所有数据", false);
+            }
+        }
+
         function exportExcel() {
             if (!db.length) { showToast("暂无数据可导出", true); return; }
             var defaultName = '飞速盘点_' + new Date().toLocaleDateString();
@@ -1201,7 +1051,6 @@
             showToast("✅ 导出成功", false);
         }
 
-        // ========== 键盘处理 ==========
         function setupKeyboardListener() {
             if (!isMobile) return;
             if (window.visualViewport) {
@@ -1245,23 +1094,12 @@
             document.body.classList.remove('keyboard-open');
         }
 
-        // ========== 授权管理（已禁用） ==========
-        function initAuthSystem() {
-            // 已禁用授权系统，直接进入
-            console.log('✅ 授权已跳过，直接进入系统');
-        }
-
-        function openAdminPanel() {
-            showToast("⚠️ 管理员面板已禁用", true);
-        }
-
+        function initAuthSystem() { console.log('✅ 授权已跳过'); }
+        function openAdminPanel() { showToast("⚠️ 管理员面板已禁用", true); }
         function closeAdminPanel() { document.getElementById('adminPanel').style.display = 'none'; }
-
         function renderAdminCodeList() {}
-
         function generateNewCodes() {}
 
-        // ========== 初始化 ==========
         window.addEventListener('resize', function() { setTimeout(function() { autoAdjustColumns(); }, 100); });
         window.addEventListener('beforeunload', function() { if (scanning) stopScanning(true); });
         document.addEventListener('touchstart', function(e) { if (currentInputElement && !e.target.closest('.qty-input') && !e.target.closest('.price-input') && !e.target.closest('#manualInput')) hideKeyboard(); });
