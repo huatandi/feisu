@@ -3,88 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.26</title>
+    <title>飞速盘点 · Sanfei v3.3.27</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        body { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0; padding: 0;
-            min-height: 100vh;
-            overflow: hidden;
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            width: 100%; height: 100%;
-        }
-        .main-card {
-            background: white;
-            width: 100%; height: 100vh;
-            display: flex; flex-direction: column;
-            overflow: hidden; position: relative;
-        }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; min-height: 100vh; overflow: hidden; position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; }
+        .main-card { background: white; width: 100%; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
         .header-fixed { flex-shrink: 0; background: white; z-index: 20; }
-        .bottom-fixed-btns {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: white; padding: 12px 16px;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
-            z-index: 100; border-top: 1px solid #e2e8f0;
-            transition: bottom 0.3s ease-out;
-        }
+        .bottom-fixed-btns { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 16px; box-shadow: 0 -4px 20px rgba(0,0,0,0.15); z-index: 100; border-top: 1px solid #e2e8f0; transition: bottom 0.3s ease-out; }
         .keyboard-open .bottom-fixed-btns { bottom: 400px; }
         @media (max-width: 640px) { .keyboard-open .bottom-fixed-btns { bottom: 350px; } }
-        .scrollable-area {
-            flex: 1; overflow-y: auto; overflow-x: hidden;
-            -webkit-overflow-scrolling: touch;
-            padding: 0 16px 16px 16px;
-        }
-        .table-container { 
-            background: white; 
-            border: 1px solid #e2e8f0; 
-            border-radius: 12px; 
-            overflow-x: auto;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            position: relative;
-            width: 100%;
-            margin-bottom: 16px;
-        }
+        .scrollable-area { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding: 0 16px 16px 16px; }
+        .table-container { background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; width: 100%; margin-bottom: 16px; }
         table { border-collapse: collapse; width: 100%; min-width: 100%; table-layout: auto; }
-        th { 
-            position: sticky; top: 0; z-index: 50; 
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            color: white; border: 1px solid #334155; padding: 12px; 
-            font-size: 13px; text-align: left; font-weight: 600; white-space: nowrap;
-        }
+        th { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: 1px solid #334155; padding: 12px; font-size: 13px; text-align: left; font-weight: 600; white-space: nowrap; }
         td { border: 1px solid #e2e8f0; padding: 8px; white-space: nowrap; }
-        .qty-input { 
-            width: 100%; min-width: 80px; max-width: 120px; height: 50px; 
-            border: 3px solid #3b82f6 !important; text-align: center; 
-            font-size: 1.3rem; font-weight: 900; color: #1e40af; 
-            border-radius: 10px; background: #f0f9ff; transition: all 0.2s;
-        }
+        .qty-input { width: 100%; min-width: 80px; max-width: 120px; height: 50px; border: 3px solid #3b82f6 !important; text-align: center; font-size: 1.3rem; font-weight: 900; color: #1e40af; border-radius: 10px; background: #f0f9ff; transition: all 0.2s; }
         .qty-input:focus { background: #fef9c3; transform: scale(1.02); border-color: #ef4444 !important; outline: none; }
-        .price-input {
-            width: 100%; min-width: 80px; max-width: 120px; height: 50px;
-            border: 3px solid #10b981 !important; text-align: center;
-            font-size: 1.3rem; font-weight: 900; color: #065f46;
-            border-radius: 10px; background: #ecfdf5; transition: all 0.2s;
-        }
+        .price-input { width: 100%; min-width: 80px; max-width: 120px; height: 50px; border: 3px solid #10b981 !important; text-align: center; font-size: 1.3rem; font-weight: 900; color: #065f46; border-radius: 10px; background: #ecfdf5; transition: all 0.2s; }
         .price-input:focus { background: #fef9c3; transform: scale(1.02); border-color: #f59e0b !important; outline: none; }
         .row-focus { background: linear-gradient(90deg, #fef08a 0%, #fde047 100%) !important; }
-        #toast { 
-            position: fixed; top: 20%; left: 50%; transform: translateX(-50%); 
-            background: #1f2937; color: white; padding: 14px 20px; 
-            border-radius: 16px; z-index: 10000; display: none; 
-            font-weight: bold; text-align: center; 
-            box-shadow: 0 5px 30px rgba(0,0,0,0.5);
-            pointer-events: auto; font-size: 14px; backdrop-filter: blur(10px);
-            max-width: 92%; min-width: 200px;
-            line-height: 1.6;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
+        #toast { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 14px 20px; border-radius: 16px; z-index: 10000; display: none; font-weight: bold; text-align: center; box-shadow: 0 5px 30px rgba(0,0,0,0.5); pointer-events: auto; font-size: 14px; backdrop-filter: blur(10px); max-width: 92%; min-width: 200px; line-height: 1.6; border: 1px solid rgba(255,255,255,0.1); }
         #toast .toast-close { background: rgba(255,255,255,0.15); border: none; border-radius: 6px; color: white; padding: 2px 12px; margin-left: 12px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.1s; }
         #toast .toast-close:hover { background: rgba(255,255,255,0.3); }
         #toast .toast-copy { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: white; padding: 2px 12px; margin-left: 8px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.1s; }
@@ -148,11 +90,7 @@
         .admin-code-item.used .status-badge { background: #94a3b8; }
         .admin-gen-btn { display: block; width: 100%; margin-top: 12px; padding: 12px; background: #8b5cf6; color: #fff; border: none; border-radius: 12px; font-weight: 900; font-size: 15px; cursor: pointer; }
 
-        #progressArea {
-            background: #eef3fa; border-radius: 20px; padding: 16px 22px;
-            margin: 6px 0 12px 0; display: none; flex-direction: column; gap: 6px;
-            border: 1px solid #cbd7e6;
-        }
+        #progressArea { background: #eef3fa; border-radius: 20px; padding: 16px 22px; margin: 6px 0 12px 0; display: none; flex-direction: column; gap: 6px; border: 1px solid #cbd7e6; }
         #progressArea.active { display: flex; }
         .progress-title { font-weight: 600; font-size: 15px; display: flex; justify-content: space-between; color: #1e293b; }
         .progress-track { background: #d0dae8; height: 12px; border-radius: 40px; overflow: hidden; }
@@ -182,7 +120,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.26</div>
+                    <div class="version-badge">sanfei v3.3.27</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
@@ -225,7 +163,7 @@
     </div>
 
     <script>
-        var VERSION = "S3.3.26";
+        var VERSION = "S3.3.27";
         var STORAGE_KEY = "FEISUPANDIAN_DATA";
         var db = [];
         var columns = [];
@@ -243,7 +181,6 @@
         var AUTO_ENHANCE_THRESHOLD = 3;
         var toastTimer = null;
         var isProcessing = false;
-        var debugLineCount = 0;
 
         var isAndroid = /Android/i.test(navigator.userAgent);
         var isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
@@ -251,7 +188,6 @@
 
         window.onerror = function(msg, url, line, col, error) {
             console.error('全局错误:', msg, error);
-            showToast('❌ 错误: ' + msg + ' (行 ' + line + ')', true, true);
             return false;
         };
 
@@ -294,34 +230,19 @@
         function playBeep(success) { try { var audioCtx = new (window.AudioContext || window.webkitAudioContext)(); var oscillator = audioCtx.createOscillator(); var gainNode = audioCtx.createGain(); oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.frequency.value = success ? 1200 : 400; gainNode.gain.value = 0.6; oscillator.start(); gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2); oscillator.stop(audioCtx.currentTime + 0.2); audioCtx.resume(); } catch(e) {} }
         function vibrate() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30); }
 
-        // ==================== 核心：字段映射函数（简化版，不易出错） ====================
-        function getField(row, names) {
-            for (var i = 0; i < names.length; i++) {
-                var name = names[i];
-                if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
-                    return row[name];
-                }
-            }
-            return '';
-        }
-
+        // ==================== 简化版数据提取 ====================
         function extractProduct(row) {
             // 条码
-            var barcode = getField(row, ['条码', 'barcode', 'Barcode', '商品编码', '编码', 'code', 'Code', 'sku', 'SKU']);
-            
+            var barcode = row['条码'] || row['barcode'] || row['Barcode'] || row['商品编码'] || row['编码'] || '';
             // 名称
-            var name = getField(row, ['名称', '商品名称', 'name', 'Name', '品名', '产品名称']);
-            
+            var name = row['名称'] || row['商品名称'] || row['name'] || row['Name'] || '';
             // 数量
-            var qtyStr = getField(row, ['库存数量', '数量', '库存', 'qty', 'Qty', 'quantity', 'Quantity']);
-            var qty = parseFloat(qtyStr) || 0;
-            
+            var qty = parseFloat(row['库存数量'] || row['数量'] || row['库存'] || row['qty'] || 0) || 0;
             // 价格
-            var priceStr = getField(row, ['零售价', '售价', '价格', 'price', 'Price', '单价', '销售价']);
-            var price = parseFloat(priceStr) || 0;
+            var price = parseFloat(row['零售价'] || row['售价'] || row['价格'] || row['price'] || 0) || 0;
 
-            // 如果没有条码，尝试找数字
-            if (!barcode) {
+            if (!barcode && !name) {
+                // 尝试在所有字段中找
                 for (var key in row) {
                     var val = String(row[key] || '').trim();
                     if (val && /^\d{8,14}$/.test(val.replace(/-/g, ''))) {
@@ -335,27 +256,15 @@
                 name = barcode;
             }
 
-            // 调试前3行
-            debugLineCount++;
-            if (debugLineCount <= 3) {
-                console.log('📦 第' + debugLineCount + '行:', {
-                    barcode: barcode,
-                    name: name,
-                    quantity: qty,
-                    price: price
-                });
-            }
-
             return {
                 barcode: String(barcode).trim(),
                 name: String(name).trim(),
                 quantity: qty,
-                price: price,
-                valid: (barcode && barcode !== '') || (name && name !== '')
+                price: price
             };
         }
 
-        // ==================== 存储函数 ====================
+        // ==================== 存储 ====================
         function loadData() {
             try {
                 var saved = localStorage.getItem(STORAGE_KEY);
@@ -394,9 +303,6 @@
             try {
                 var jsonStr = JSON.stringify({ db: db, columns: columns, version: VERSION });
                 console.log('📊 数据大小:', Math.round(jsonStr.length / 1024), 'KB');
-                if (jsonStr.length > 4.5 * 1024 * 1024) {
-                    showToast('⚠️ 数据超过4.5MB，建议导出备份后重置', true, true);
-                }
                 localStorage.setItem(STORAGE_KEY, jsonStr);
             } catch(e) {
                 console.error('保存失败:', e);
@@ -442,8 +348,6 @@
                             csvText = csvText.slice(1);
                         }
 
-                        // 重置调试计数器
-                        debugLineCount = 0;
                         var firstRowPrinted = false;
 
                         Papa.parse(csvText, {
@@ -461,7 +365,6 @@
 
                                 result.total++;
 
-                                // 打印第一行的列名
                                 if (!firstRowPrinted) {
                                     firstRowPrinted = true;
                                     console.log('📋 原始CSV列名:', Object.keys(row));
@@ -469,7 +372,7 @@
 
                                 var product = extractProduct(row);
 
-                                if (product.valid) {
+                                if (product.barcode || product.name) {
                                     result.rows.push({
                                         barcode: product.barcode,
                                         name: product.name,
@@ -497,11 +400,6 @@
                                 console.log('❌ 错误行数:', result.errors.length);
 
                                 updateProgress(result.valid, result.valid, '✅ 解析完成', result.valid + ' 条有效数据');
-
-                                if (result.errors.length > 0) {
-                                    console.warn('⚠️ 错误示例:', result.errors.slice(0, 3));
-                                }
-
                                 resolve(result);
                             },
                             error: function(err) {
@@ -565,7 +463,6 @@
                     }
 
                     var finalCols = Array.from(allColumns);
-                    // 确保实际数量和实际价格在前两位
                     var qtyCol = '实际数量';
                     var priceCol = '实际价格';
                     var qtyIdx = finalCols.indexOf(qtyCol);
@@ -718,7 +615,7 @@
             }
         }
 
-        // ========== 匹配逻辑（保持不变） ==========
+        // ========== 匹配逻辑 ==========
         function preprocessCode(code) {
             if (!code) return code;
             var cleaned = String(code).replace(/[^\w\d\-]/g, '');
@@ -1432,8 +1329,7 @@
         var topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = function() { toggleEnhanceMode(); };
         
-        console.log('⚡ 飞速盘点 ' + VERSION + ' - 紧急修复');
-        console.log('📌 请打开浏览器控制台(F12)查看导入日志');
+        console.log('⚡ 飞速盘点 ' + VERSION + ' - 简化版，只加数量和价格');
     </script>
 </body>
 </html>
