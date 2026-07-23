@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.18</title>
+    <title>飞速盘点 · Sanfei v3.3.19</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -85,31 +85,9 @@
             line-height: 1.6;
             border: 1px solid rgba(255,255,255,0.1);
         }
-        #toast .toast-close {
-            background: rgba(255,255,255,0.15);
-            border: none;
-            border-radius: 6px;
-            color: white;
-            padding: 2px 12px;
-            margin-left: 12px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: bold;
-            transition: 0.1s;
-        }
+        #toast .toast-close { background: rgba(255,255,255,0.15); border: none; border-radius: 6px; color: white; padding: 2px 12px; margin-left: 12px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.1s; }
         #toast .toast-close:hover { background: rgba(255,255,255,0.3); }
-        #toast .toast-copy {
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.25);
-            border-radius: 6px;
-            color: white;
-            padding: 2px 12px;
-            margin-left: 8px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: bold;
-            transition: 0.1s;
-        }
+        #toast .toast-copy { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: white; padding: 2px 12px; margin-left: 8px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.1s; }
         #toast .toast-copy:hover { background: rgba(255,255,255,0.3); }
         #colModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(8px); }
         .modal-content { background: white; border-radius: 24px; max-width: 90%; width: 350px; max-height: 70vh; overflow: auto; }
@@ -185,7 +163,6 @@
         .error-summary details { cursor: pointer; }
         .error-summary summary { font-weight: 600; color: #b71c1c; }
         .error-summary ul { max-height: 120px; overflow-y: auto; margin: 6px 0 0 18px; color: #5f2b2b; }
-        .crash-guard { display: none; }
     </style>
 </head>
 <body>
@@ -290,7 +267,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.18</div>
+                    <div class="version-badge">sanfei v3.3.19</div>
                 </div>
             </div>
             
@@ -372,7 +349,7 @@
 
     <script>
         // ========== 核心版本 ==========
-        const VERSION = "S3.3.18";
+        const VERSION = "S3.3.19";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         let db = [];
         let columns = [];
@@ -565,7 +542,7 @@
             };
         }
 
-        // ========== 流式分批加载（关键修复） ==========
+        // ========== 流式分批加载 - 每批100条 ==========
         function loadDataInBatches(rawRows, isCSV = false) {
             return new Promise((resolve, reject) => {
                 const total = rawRows.length;
@@ -590,15 +567,16 @@
                 const priceIdx = columnArray.indexOf(priceCol);
                 if (priceIdx > 1 && priceIdx !== -1) { columnArray.splice(priceIdx, 1); columnArray.splice(1, 0, priceCol); }
 
-                // ⭐ 每批1000条，降低内存压力
-                const BATCH_SIZE = 1000;
+                // ⭐ 每批只处理100条，大幅降低内存压力
+                const BATCH_SIZE = 100;
                 let loaded = 0;
                 const resultRows = [];
                 const errorList = [];
                 let isCompleted = false;
+                let isPaused = false;
 
                 function processNextBatch() {
-                    if (isCompleted) return;
+                    if (isCompleted || isPaused) return;
                     const start = loaded;
                     const end = Math.min(start + BATCH_SIZE, total);
                     const batch = rawRows.slice(start, end);
@@ -628,8 +606,10 @@
                     updateProgress(loaded, total, isCSV ? '📄 正在解析 CSV...' : '📊 正在加载数据...', `${Math.round((loaded/total)*100)}%`);
 
                     if (loaded < total) {
-                        // ⭐ 使用 setTimeout 让出主线程，避免阻塞
-                        setTimeout(processNextBatch, 0);
+                        // ⭐ 使用 requestAnimationFrame 让浏览器有时间渲染UI
+                        requestAnimationFrame(() => {
+                            processNextBatch();
+                        });
                     } else {
                         isCompleted = true;
                         resolve({ rows: resultRows, errors: errorList, columns: columnArray });
@@ -638,11 +618,14 @@
 
                 updateProgress(0, total, isCSV ? '📄 正在解析 CSV...' : '📊 正在加载数据...', '0%');
                 showProgress(true);
-                setTimeout(processNextBatch, 10);
+                // 启动第一批
+                requestAnimationFrame(() => {
+                    processNextBatch();
+                });
             });
         }
 
-        // ========== CSV导入 - 流式处理 ==========
+        // ========== CSV导入 ==========
         document.getElementById('fileInput').onchange = function(e) {
             if (isProcessing) {
                 showToast('⏳ 正在处理中，请稍候...', false);
@@ -703,7 +686,6 @@
                             return;
                         }
                         
-                        // ⭐ 用PapaParse解析
                         const filteredCSV = cleanLines.join('\n');
                         const parseResult = Papa.parse(filteredCSV, {
                             header: true,
@@ -720,7 +702,6 @@
                         }
                         
                         let rows = parseResult.data || [];
-                        // 过滤无效行
                         rows = rows.filter(row => {
                             const values = Object.values(row).filter(v => v && v.toString().trim());
                             return values.length >= 2;
@@ -733,7 +714,6 @@
                             return;
                         }
                         
-                        // ⭐ 分批加载
                         loadDataInBatches(rows, true).then(({ rows: loadedRows, errors, columns: finalCols }) => {
                             columns = finalCols;
                             db = loadedRows;
@@ -902,7 +882,7 @@
             return -1;
         }
 
-        // ========== UI 渲染（安全模式） ==========
+        // ========== UI 渲染 ==========
         function render() {
             try {
                 const thead = document.getElementById('tHead');
@@ -1075,7 +1055,7 @@
             setTimeout(() => { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
-        // ========== 扫码相机（精简，保留原有逻辑） ==========
+        // ========== 扫码相机（保留完整逻辑） ==========
         function setupCameraControls(track) {
             cameraTrack = track || null;
             const torchBtn = document.getElementById('torchBtn');
@@ -1573,7 +1553,7 @@
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
         
-        console.log(`⚡ 飞速盘点 ${VERSION} - 流式处理 | 防止崩溃`);
+        console.log(`⚡ 飞速盘点 ${VERSION} - 每批100条 | requestAnimationFrame | 防崩溃`);
     </script>
 </body>
 </html>
