@@ -1,148 +1,1357 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>飞速打印 · Supeasy</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <title>飞速盘点 · Sanfei v3.3.29</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            min-height: 100dvh;
-            background: #1e1e24;
-            color: #f8fafc;
-            font-family: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', 'SimHei', 'SimSun', 'NSimSun', 'WenQuanYi Micro Hei', system-ui, -apple-system, sans-serif;
-            display: flex;
-            flex-direction: column;
-            padding: clamp(16px, 4vw, 24px);
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; min-height: 100vh; overflow: hidden; position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; }
+        .main-card { background: white; width: 100%; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .header-fixed { flex-shrink: 0; background: white; z-index: 20; }
+        .bottom-fixed-btns { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 16px; box-shadow: 0 -4px 20px rgba(0,0,0,0.15); z-index: 100; border-top: 1px solid #e2e8f0; transition: bottom 0.3s ease-out; }
+        .keyboard-open .bottom-fixed-btns { bottom: 400px; }
+        @media (max-width: 640px) { .keyboard-open .bottom-fixed-btns { bottom: 350px; } }
+        .scrollable-area { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding: 0 16px 16px 16px; }
+        .table-container { background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; width: 100%; margin-bottom: 16px; }
+        table { border-collapse: collapse; width: 100%; min-width: 100%; table-layout: auto; }
+        th { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: 1px solid #334155; padding: 12px; font-size: 13px; text-align: left; font-weight: 600; white-space: nowrap; }
+        td { border: 1px solid #e2e8f0; padding: 8px; white-space: nowrap; }
+        .qty-input { width: 100%; min-width: 80px; max-width: 120px; height: 50px; border: 3px solid #3b82f6 !important; text-align: center; font-size: 1.3rem; font-weight: 900; color: #1e40af; border-radius: 10px; background: #f0f9ff; transition: all 0.2s; }
+        .qty-input:focus { background: #fef9c3; transform: scale(1.02); border-color: #ef4444 !important; outline: none; }
+        .price-input { width: 100%; min-width: 80px; max-width: 120px; height: 50px; border: 3px solid #10b981 !important; text-align: center; font-size: 1.3rem; font-weight: 900; color: #065f46; border-radius: 10px; background: #ecfdf5; transition: all 0.2s; }
+        .price-input:focus { background: #fef9c3; transform: scale(1.02); border-color: #f59e0b !important; outline: none; }
+        .row-focus { background: linear-gradient(90deg, #fef08a 0%, #fde047 100%) !important; }
+        #toast { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 14px 20px; border-radius: 16px; z-index: 10000; display: none; font-weight: bold; text-align: center; box-shadow: 0 5px 30px rgba(0,0,0,0.5); pointer-events: auto; font-size: 14px; backdrop-filter: blur(10px); max-width: 92%; min-width: 200px; line-height: 1.6; border: 1px solid rgba(255,255,255,0.1); }
+        #toast .toast-close { background: rgba(255,255,255,0.15); border: none; border-radius: 6px; color: white; padding: 2px 12px; margin-left: 12px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.1s; }
+        #toast .toast-close:hover { background: rgba(255,255,255,0.3); }
+        #toast .toast-copy { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: white; padding: 2px 12px; margin-left: 8px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.1s; }
+        #toast .toast-copy:hover { background: rgba(255,255,255,0.3); }
+        #colModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(8px); }
+        .modal-content { background: white; border-radius: 24px; max-width: 90%; width: 350px; max-height: 70vh; overflow: auto; }
+        .scan-frame { position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%); width: 80%; height: 220px; border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.75); z-index: 10; pointer-events: none; background: rgba(0,0,0,0.1); }
+        .scan-line { position: absolute; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent); top: 0; animation: scanLineMove 1.2s infinite ease-in-out; box-shadow: 0 0 20px #3b82f6; }
+        @keyframes scanLineMove { 0%, 100% { top: 5%; } 50% { top: 95%; } }
+        .col-item { background: white; margin-bottom: 8px; border-radius: 12px; border: 1px solid #e2e8f0; transition: all 0.2s; cursor: move; touch-action: none; }
+        .col-item.dragging { opacity: 0.4; transform: scale(0.98); background: #dbeafe; }
+        .version-badge { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 16px; font-size: 10px; font-weight: bold; }
+        .btn-group-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0; }
+        .action-btn { padding: 12px 4px; border-radius: 12px; font-weight: bold; font-size: 13px; text-align: center; transition: all 0.1s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+        .bottom-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 600px; margin: 0 auto; }
+        .bottom-btn { padding: 14px 4px; border-radius: 14px; font-weight: bold; font-size: 16px; text-align: center; transition: all 0.1s; cursor: pointer; }
+        .cam-btn-large { background: #3b82f6; color: white; font-size: 28px; }
+        .keyboard-btn { background: #8b5cf6; color: white; font-size: 28px; }
+        .close-scan-btn { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.5); font-size: 18px; font-weight: 900; padding: 12px 24px; border-radius: 50px; border: 2px solid white; cursor: pointer; }
+        .close-scan-btn:active, .action-btn:active, .bottom-btn:active { transform: scale(0.97); }
+        .scan-header { background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); border-bottom: 3px solid #3b82f6; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; }
+        .scan-header-left { display: flex; gap: 12px; align-items: center; }
+        .scan-enhance-btn { background: #10b981; color: white; border: 2px solid white; border-radius: 50px; padding: 12px 24px; font-size: 18px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.5); transition: 0.1s; }
+        .scan-enhance-btn.active { background: #f59e0b; }
+        .scan-success { animation: flash 0.2s ease; }
+        @keyframes flash { 0%, 100% { border-color: #3b82f6; } 50% { border-color: #10b981; box-shadow: 0 0 0 2000px rgba(16,185,129,0.3); } }
+        #manualInput { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 16px; font-weight: bold; outline: none; }
+        #manualInput:focus { border-color: #3b82f6; }
+        @media (max-width: 640px) {
+            .action-btn { font-size: 10px; padding: 10px 2px; }
+            .bottom-btn { font-size: 14px; padding: 12px 4px; }
+            .qty-input { height: 45px; font-size: 1.1rem; min-width: 70px; }
+            .price-input { height: 45px; font-size: 1.1rem; min-width: 70px; }
+            .cam-btn-large { font-size: 24px; }
+            .keyboard-btn { font-size: 24px; }
+            .bottom-fixed-btns { padding: 8px 12px; }
+            .scrollable-area { padding: 0 12px 16px 12px; }
+            .scan-enhance-btn { padding: 12px 24px; font-size: 18px; }
         }
-        h1 {
-            font-size: clamp(22px, 6vw, 28px);
-            color: #fbbf24;
-            margin-bottom: 6px;
-        }
-        .sub {
-            font-size: clamp(12px, 3vw, 14px);
-            color: #64748b;
-            margin-bottom: clamp(20px, 5vh, 32px);
-            line-height: 1.5;
-        }
-        label {
-            display: block;
-            font-size: clamp(13px, 3.2vw, 15px);
-            font-weight: 700;
-            color: #94a3b8;
-            margin-bottom: 8px;
-        }
-        input {
-            width: 100%;
-            height: clamp(52px, 8vh, 60px);
-            border: 2px solid #3a3a44;
-            border-radius: 12px;
-            background: #0a0a0c;
-            color: #22c55e;
-            font-size: clamp(22px, 5.5vw, 28px);
-            font-weight: 800;
-            padding: 0 14px;
-            outline: none;
-        }
-        input:focus { border-color: #d97706; }
-        .hint {
-            font-size: clamp(11px, 2.8vw, 13px);
-            color: #64748b;
-            margin: 10px 0 20px;
-            line-height: 1.45;
-        }
-        .btn {
-            width: 100%;
-            min-height: clamp(52px, 8vh, 60px);
-            border: none;
-            border-radius: 12px;
-            font-size: clamp(17px, 4.2vw, 20px);
-            font-weight: 800;
-            color: #fff;
-            cursor: pointer;
-            margin-bottom: 10px;
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #d97706, #b45309);
-            box-shadow: 0 4px 0 #92400e;
-        }
-        .btn:active { filter: brightness(0.9); }
-        .status {
-            margin-top: auto;
-            padding-top: 16px;
-            font-size: 12px;
-            color: #475569;
-            text-align: center;
-        }
-        .ok { color: #22c55e; }
-        .err { color: #ef4444; }
+        .keyboard-open .scrollable-area { padding-bottom: 120px; }
+        .prefix-hit { background: #fef08a !important; box-shadow: inset 0 0 0 2px #f59e0b; }
+        .scan-tool-btn { background: #1e3a8a; color: #fff; border: 1px solid #60a5fa; border-radius: 9999px; padding: 8px 12px; font-size: 12px; font-weight: 700; }
+        .scan-tool-btn.active { background: #f59e0b; border-color: #fcd34d; color: #111827; }
+        .focus-guide { position: absolute; top: 10px; left: 0; right: 0; text-align: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); padding: 6px 12px; border-radius: 20px; width: fit-content; margin: 0 auto; font-size: 11px; color: #fff; z-index: 20; pointer-events: none; }
+        .enhance-badge { position: absolute; bottom: 80px; right: 10px; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: 20px; font-size: 10px; color: #fbbf24; font-weight: bold; pointer-events: none; z-index: 15; }
+        .auth-overlay { position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,0.88); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(12px); }
+        .auth-box { background: #fff; border-radius: 28px; width: min(92%, 400px); padding: 32px 24px 24px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        .auth-box h2 { font-size: 22px; font-weight: 900; margin: 0 0 6px; }
+        .auth-box p { font-size: 13px; color: #64748b; margin: 0 0 20px; }
+        .auth-input { width: 100%; padding: 14px; font-size: 22px; font-weight: 900; text-align: center; letter-spacing: 4px; border: 3px solid #3b82f6; border-radius: 14px; outline: none; background: #f0f9ff; }
+        .auth-btn { width: 100%; padding: 14px; margin-top: 14px; background: #3b82f6; color: #fff; border: none; border-radius: 14px; font-size: 18px; font-weight: 900; cursor: pointer; }
+        .auth-btn:active { transform: scale(0.97); }
+        .auth-error { color: #dc2626; font-size: 13px; font-weight: bold; margin-top: 10px; display: none; }
+        .admin-overlay { position: fixed; inset: 0; z-index: 99998; background: rgba(0,0,0,0.85); display: none; align-items: flex-start; justify-content: center; padding-top: 30px; overflow: auto; backdrop-filter: blur(8px); }
+        .admin-box { background: #fff; border-radius: 24px; width: min(94%, 480px); padding: 20px; margin-bottom: 30px; }
+        .admin-box h2 { font-size: 18px; font-weight: 900; margin: 0 0 12px; text-align: center; }
+        .admin-close { float: right; background: #ef4444; color: #fff; border: none; border-radius: 50%; width: 32px; height: 32px; font-weight: 900; font-size: 16px; cursor: pointer; }
+        .admin-code-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; font-weight: bold; }
+        .admin-code-item.used { color: #94a3b8; text-decoration: line-through; }
+        .admin-code-item .status-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #10b981; color: #fff; }
+        .admin-code-item.used .status-badge { background: #94a3b8; }
+        .admin-gen-btn { display: block; width: 100%; margin-top: 12px; padding: 12px; background: #8b5cf6; color: #fff; border: none; border-radius: 12px; font-weight: 900; font-size: 15px; cursor: pointer; }
+
+        #progressArea { background: #eef3fa; border-radius: 20px; padding: 16px 22px; margin: 6px 0 12px 0; display: none; flex-direction: column; gap: 6px; border: 1px solid #cbd7e6; }
+        #progressArea.active { display: flex; }
+        .progress-title { font-weight: 600; font-size: 15px; display: flex; justify-content: space-between; color: #1e293b; }
+        .progress-track { background: #d0dae8; height: 12px; border-radius: 40px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); border-radius: 40px; transition: width 0.15s ease; }
+        .progress-detail { font-size: 14px; color: #1f3a6b; display: flex; justify-content: space-between; }
+        .error-summary { background: #fff5f5; border-left: 4px solid #d32f2f; padding: 12px 18px; border-radius: 12px; margin: 6px 0 12px 0; font-size: 14px; display: none; }
+        .error-summary.active { display: block; }
+        .error-summary details { cursor: pointer; }
+        .error-summary summary { font-weight: 600; color: #b71c1c; }
+        .error-summary ul { max-height: 120px; overflow-y: auto; margin: 6px 0 0 18px; color: #5f2b2b; }
+        .stats { display: flex; gap: 18px; font-size: 14px; color: #1f3a6b; }
+        .stats span { background: white; padding: 4px 16px; border-radius: 30px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
     </style>
 </head>
 <body>
-    <h1>飞速打印</h1>
-    <p class="sub">Supeasy 专用 · 连接新闻超市系统<br>（与 hipos 商贸通互不影响）</p>
+    <div id="toast"></div>
+    <div id="colModal"><div class="modal-content p-5"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 class="text-xl font-bold">📋 列管理</h2><button onclick="closeColModal()" style="background:#1e293b;color:#fff;border:none;border-radius:999px;padding:8px 20px;font-weight:900;font-size:14px;cursor:pointer;">完成</button></div><p class="text-xs text-gray-500 text-center mb-3">💡 点击箭头上下排序</p><div id="colList" class="space-y-2 mb-4" style="max-height:55vh;overflow:auto;"></div><div class="flex gap-2 p-2 bg-gray-100 rounded-lg"><input type="text" id="newColName" placeholder="新列名..." class="flex-1 bg-white rounded-lg px-3 py-2 font-bold text-sm outline-none" /><button onclick="addColumn()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm">添加</button></div></div></div>
 
-    <label for="macIp">中心电脑 IP（Mac 局域网地址）</label>
-    <input type="text" id="macIp" inputmode="decimal" autocomplete="off" placeholder="例如 192.168.100.116">
-    <p class="hint">勿填手持机自己的 WiFi IP。hipos 商贸通请勿修改；仅本 Supeasy 壳使用此页。</p>
+    <div id="authOverlay" class="auth-overlay"><div class="auth-box"><h2>🔐 飞速盘点</h2><p>请输入授权码激活本系统</p><input type="text" id="authInput" class="auth-input" maxlength="12" placeholder="输入授权码" style="text-transform:uppercase;color:#000!important;" /><button onclick="verifyAuthCode()" class="auth-btn">激活</button><div id="authError" class="auth-error">❌ 授权码无效或已被使用</div></div></div>
+    <script>const AUTH_SKEY="FEISUPANDIAN_AUTH_V2";function getAuthData(){try{var s=localStorage.getItem(AUTH_SKEY);if(s)return JSON.parse(s)}catch(e){}return null}function saveAuthData(d){try{localStorage.setItem(AUTH_SKEY,JSON.stringify(d))}catch(e){}}function getDid(){var d=localStorage.getItem('_device_id');if(!d){d='DEV_'+Math.random().toString(36).substring(2,10).toUpperCase();localStorage.setItem('_device_id',d)}return d}(function(){var ad=getAuthData();var presetList=["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];var presetCodes=presetList.map(function(c){return {code:c,used:false,deviceId:''}});var active=ad&&ad.activated?true:false,adm=ad&&ad.admin?true:false;if(ad&&ad.codes&&ad.codes.length){var oldMap={};for(var oi=0;oi<ad.codes.length;oi++){var oc=ad.codes[oi];if(oc.used) oldMap[oc.code]=oc.deviceId;}for(var pi=0;pi<presetCodes.length;pi++){var pc=presetCodes[pi];if(oldMap[pc.code]){pc.used=true;pc.deviceId=oldMap[pc.code];}}}saveAuthData({codes:presetCodes,activated:active,admin:adm})})();function verifyAuthCode(){var i=document.getElementById('authInput'),e=document.getElementById('authError'),c=(i.value||'').trim().toUpperCase();if(!c){e.style.display='block';e.textContent='❌ 请输入授权码';return}if(c==='ADMIN0578'){var old=getAuthData()||{};saveAuthData({codes:old.codes||[],admin:true,activated:true});document.getElementById('authOverlay').style.display='none';try{typeof showToast==='function'&&showToast("✅ 管理员模式已激活",false)}catch(_){}return}var data=getAuthData(),codes=data&&data.codes?data.codes:[];if(!codes.length){e.style.display='block';e.textContent='❌ 系统初始化中，请稍后重试';return}var matched=null;for(var j=0;j<codes.length;j++){if(codes[j].code===c){matched=codes[j];break}}if(!matched){e.style.display='block';e.textContent='❌ 授权码不存在';return}if(matched.used&&matched.deviceId!==getDid()){e.style.display='block';e.textContent='❌ 该授权码已被其他设备使用';return}matched.used=true;matched.deviceId=getDid();data.activated=true;saveAuthData(data);document.getElementById('authOverlay').style.display='none';try{typeof showToast==='function'&&showToast("✅ 授权成功！欢迎使用飞速盘点",false)}catch(_){}try{typeof playBeep==='function'&&playBeep(true)}catch(_){}}var data=getAuthData();var authEl=document.getElementById('authOverlay');if(data&&data.activated){authEl.style.display='none';}else{authEl.style.display='flex';}</script>
 
-    <button type="button" class="btn btn-primary" id="btnEnter">进入超市系统</button>
+    <div id="adminPanel" class="admin-overlay"><div class="admin-box"><button onclick="closeAdminPanel()" class="admin-close">✕</button><h2>📋 授权码管理</h2><div id="adminCodeList" style="max-height:55vh;overflow:auto;"></div><button onclick="generateNewCodes()" class="admin-gen-btn">➕ 追加 10 个新授权码</button></div></div>
 
-    <p class="status" id="status"></p>
+    <div class="main-card">
+        <div class="header-fixed">
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white">
+                <div class="flex items-center justify-center gap-3">
+                    <span class="text-2xl">⚡</span>
+                    <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
+                    <div class="version-badge">sanfei v3.3.29</div>
+                </div>
+            </div>
+            <div style="padding: 16px 16px 0 16px;">
+                <input type="text" id="manualInput" placeholder="📱 输入条码/编码/名称..." />
+                <div class="btn-group-4">
+                    <button onclick="openColModal()" class="action-btn bg-gray-700 text-white shadow-md">📊 列管理</button>
+                    <label class="action-btn bg-emerald-600 text-white shadow-md cursor-pointer">📂 导入 <input type="file" id="fileInput" class="hidden" accept=".xlsx,.xls,.csv" /></label>
+                    <button onclick="exportExcel()" class="action-btn bg-emerald-600 text-white shadow-md">💾 导出</button>
+                    <button id="confirmBtn" class="action-btn bg-blue-600 text-white shadow-md">✅ 确认</button>
+                </div>
+            </div>
+        </div>
+        <div class="scrollable-area">
+            <div id="progressArea">
+                <div class="progress-title"><span id="progressLabel">⏳ 正在读取数据...</span><span id="progressPercent">0%</span></div>
+                <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
+                <div class="progress-detail"><span id="progressCount">0 / 0</span><span id="progressStatus">准备中</span></div>
+            </div>
+            <div id="errorSummary" class="error-summary"><details><summary id="errorSummaryTitle">⚠️ 导入完成，部分行失败</summary><ul id="errorList"></ul></details></div>
+            <div class="table-container">
+                <table id="mainTable">
+                    <thead id="tHead"></thead>
+                    <tbody id="tBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-fixed-btns">
+        <div class="bottom-btns">
+            <button id="scanBtn" class="bottom-btn bg-blue-600 text-white shadow-lg cam-btn-large">📷 扫码</button>
+            <button onclick="hardReset()" class="bottom-btn bg-red-600 text-white shadow-lg">🗑️ 重置</button>
+            <button id="showKeyboardBtn" class="bottom-btn bg-purple-600 text-white shadow-lg keyboard-btn">⌨️ 键盘</button>
+        </div>
+    </div>
+
+    <div id="scanUI" class="fixed inset-0 bg-black z-[999] hidden flex-col">
+        <div class="scan-header"><div class="scan-header-left"><span class="font-bold text-blue-400 text-lg">🔍 极速条码引擎</span><button id="scanEnhanceBtn" class="scan-enhance-btn">✨ 增强</button></div><button onclick="stopScanning(true)" class="close-scan-btn text-white font-bold">✕ 关闭扫描</button></div>
+        <div class="relative flex-1 bg-black"><video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video><div class="focus-guide">💡 点击画面辅助对焦 | 识别速度已优化 | 增强模式可提升劣质条码识别率</div><div class="scan-frame" id="scanFrame"><div class="scan-line"></div></div><div id="enhanceBadge" class="enhance-badge hidden">✨ 增强模式已激活</div><div class="absolute bottom-8 left-0 right-0 text-center"><div class="bg-black/70 backdrop-blur text-white px-4 py-2 rounded-full inline-block text-sm font-bold border-2 border-blue-500">📷 将条码对准扫描框</div><div class="mt-3"><button id="torchBtn" type="button" class="scan-tool-btn">🔦 补光</button></div></div></div>
+    </div>
 
     <script>
-        (function() {
-            var KEY = 'supeasy_server_ip';
-            var KEY_ALT = 'hh_feisu_ip';
-            var ipInput = document.getElementById('macIp');
-            var statusEl = document.getElementById('status');
-            var params = new URLSearchParams(location.search);
-            var queryIp = (params.get('ip') || '').trim();
-            var saved = queryIp || localStorage.getItem(KEY) || localStorage.getItem(KEY_ALT) || '';
+        var VERSION = "S3.3.29";
+        var STORAGE_KEY = "FEISUPANDIAN_DATA";
+        var db = [];
+        var columns = [];
+        var scanning = false;
+        var reader = null;
+        var lastCode = "";
+        var lastTime = 0;
+        var currentFocusInterval = null;
+        var pendingJump = null;
+        var currentInputElement = null;
+        var originalViewportHeight = window.innerHeight;
+        var cameraTrack = null;
+        var enhanceMode = false;
+        var consecutiveFailures = 0;
+        var AUTO_ENHANCE_THRESHOLD = 3;
+        var toastTimer = null;
+        var isProcessing = false;
 
-            function normIp(v) {
-                return String(v || '').trim().replace(/^https?:\/\//i, '').split(':')[0].split('/')[0];
+        var isAndroid = /Android/i.test(navigator.userAgent);
+        var isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
+        var isMobile = isAndroid || isIPad || /iPhone/i.test(navigator.userAgent);
+
+        window.onerror = function(msg, url, line, col, error) {
+            console.error('全局错误:', msg, error);
+            return false;
+        };
+
+        function showToast(msg, isError, persistent) {
+            if (isError === undefined) isError = false;
+            if (persistent === undefined) persistent = false;
+            var toast = document.getElementById('toast');
+            if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+            var errorId = 'toast-msg-' + Date.now();
+            if (isError) {
+                var escapedMsg = msg.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                toast.innerHTML = '<span id="' + errorId + '" style="word-break:break-all;">' + escapedMsg + '</span><button class="toast-copy" onclick="copyToastMessage(\'' + errorId + '\')">📋 复制</button><button class="toast-close" onclick="dismissToast()">✕</button>';
+                toast.style.background = '#dc2626';
+                toast.style.display = 'block';
+                toast.style.maxWidth = '92%';
+                toast.style.whiteSpace = 'normal';
+                toast.style.wordBreak = 'break-all';
+                toast.style.padding = '14px 20px';
+                toast.style.lineHeight = '1.8';
+                toast.style.borderRadius = '12px';
+                toast.style.textAlign = 'left';
+                var duration = persistent ? 60000 : 20000;
+                toastTimer = setTimeout(function() { toast.style.display = 'none'; toastTimer = null; }, duration);
+            } else {
+                toast.style.background = '#10b981';
+                toast.style.display = 'block';
+                toast.style.whiteSpace = 'nowrap';
+                toast.style.maxWidth = '80%';
+                toast.style.padding = '10px 20px';
+                toast.style.borderRadius = '40px';
+                toast.style.textAlign = 'center';
+                toast.textContent = msg;
+                toastTimer = setTimeout(function() { toast.style.display = 'none'; toastTimer = null; }, 2000);
+            }
+        }
+        function dismissToast() { var toast = document.getElementById('toast'); toast.style.display = 'none'; if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; } }
+        function copyToastMessage(elementId) { var el = document.getElementById(elementId); if (!el) return; var text = el.textContent || el.innerText; if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(function() { showToast('✅ 已复制', false); }).catch(function() { copyTextFallback(text); }); } else { copyTextFallback(text); } }
+        function copyTextFallback(text) { var textarea = document.createElement('textarea'); textarea.value = text; textarea.style.position = 'fixed'; textarea.style.opacity = '0'; textarea.style.left = '-9999px'; document.body.appendChild(textarea); textarea.select(); try { document.execCommand('copy'); showToast('✅ 已复制', false); } catch (e) { showToast('❌ 复制失败，请手动复制', true); } document.body.removeChild(textarea); }
+
+        function playBeep(success) { try { var audioCtx = new (window.AudioContext || window.webkitAudioContext)(); var oscillator = audioCtx.createOscillator(); var gainNode = audioCtx.createGain(); oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.frequency.value = success ? 1200 : 400; gainNode.gain.value = 0.6; oscillator.start(); gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2); oscillator.stop(audioCtx.currentTime + 0.2); audioCtx.resume(); } catch(e) {} }
+        function vibrate() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30); }
+
+        // ==================== 核心：提取数据（支持中英文） ====================
+        function extractProduct(row) {
+            // 尝试多种列名
+            var barcode = row['条码'] || row['barcode'] || row['Barcode'] || row['商品编码'] || row['编码'] || '';
+            var name = row['名称'] || row['商品名称'] || row['name'] || row['Name'] || '';
+            
+            // 数量：尝试多个字段名
+            var qty = 0;
+            if (row['库存数量'] !== undefined && row['库存数量'] !== '') {
+                qty = parseFloat(row['库存数量']) || 0;
+            } else if (row['数量'] !== undefined && row['数量'] !== '') {
+                qty = parseFloat(row['数量']) || 0;
+            } else if (row['库存'] !== undefined && row['库存'] !== '') {
+                qty = parseFloat(row['库存']) || 0;
+            } else if (row['qty'] !== undefined && row['qty'] !== '') {
+                qty = parseFloat(row['qty']) || 0;
+            }
+            
+            // 价格：尝试多个字段名
+            var price = 0;
+            if (row['零售价'] !== undefined && row['零售价'] !== '') {
+                price = parseFloat(row['零售价']) || 0;
+            } else if (row['售价'] !== undefined && row['售价'] !== '') {
+                price = parseFloat(row['售价']) || 0;
+            } else if (row['价格'] !== undefined && row['价格'] !== '') {
+                price = parseFloat(row['价格']) || 0;
+            } else if (row['price'] !== undefined && row['price'] !== '') {
+                price = parseFloat(row['price']) || 0;
             }
 
-            function targetUrl(ip) {
-                return 'http://' + ip + ':8080/';
-            }
-
-            function saveAndGo(ip) {
-                ip = normIp(ip);
-                if (!ip) {
-                    statusEl.textContent = '请输入 Mac 的 IP 地址';
-                    statusEl.className = 'status err';
-                    return;
+            // 如果条码还是没有，尝试从所有字段找数字
+            if (!barcode) {
+                for (var key in row) {
+                    var val = String(row[key] || '').trim();
+                    if (val && /^\d{8,14}$/.test(val.replace(/-/g, ''))) {
+                        barcode = val;
+                        break;
+                    }
                 }
-                localStorage.setItem(KEY, ip);
-                localStorage.setItem(KEY_ALT, ip);
-                statusEl.textContent = '正在打开 ' + targetUrl(ip) + ' …';
-                statusEl.className = 'status ok';
-                location.replace(targetUrl(ip));
+            }
+            
+            // 如果名称没有，用条码代替
+            if (!name && barcode) {
+                name = barcode;
             }
 
-            if (saved) ipInput.value = saved;
+            return {
+                barcode: String(barcode).trim(),
+                name: String(name).trim(),
+                quantity: qty,
+                price: price,
+                valid: (barcode && barcode !== '') || (name && name !== '')
+            };
+        }
 
-            if (params.get('auto') === '1' && saved) {
-                saveAndGo(saved);
+        // ==================== 存储函数 ====================
+        function loadData() {
+            try {
+                var saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    var data = JSON.parse(saved);
+                    db = data.db || [];
+                    columns = data.columns || [];
+                }
+                if (!columns.length) {
+                    columns = ['实际数量', '实际价格', '商品名称', '编码', '价格'];
+                    db = [];
+                }
+                if (!columns.includes('实际价格')) columns.push('实际价格');
+                normalizeSpecialColumns();
+                for (var i = 0; i < db.length; i++) {
+                    var row = db[i];
+                    if (row['实际数量'] === undefined) row['实际数量'] = '';
+                    if (row['实际价格'] === undefined) row['实际价格'] = '';
+                }
+            } catch(e) { console.error(e); columns = ['实际数量', '实际价格', '商品名称', '编码', '价格']; normalizeSpecialColumns(); db = []; }
+        }
+
+        function normalizeSpecialColumns() {
+            var qtyCol = '实际数量';
+            var priceCol = '实际价格';
+            if (!columns.includes(qtyCol)) columns.unshift(qtyCol);
+            if (!columns.includes(priceCol)) columns.push(priceCol);
+            var qtyIndex = columns.indexOf(qtyCol);
+            if (qtyIndex > 0) { columns.splice(qtyIndex, 1); columns.unshift(qtyCol); }
+            var priceIndex = columns.indexOf(priceCol);
+            if (priceIndex !== 1 && priceIndex > 0) { columns.splice(priceIndex, 1); columns.splice(1, 0, priceCol); }
+            else if (priceIndex === -1) columns.splice(1, 0, priceCol);
+        }
+
+        function saveData() {
+            try {
+                var jsonStr = JSON.stringify({ db: db, columns: columns, version: VERSION });
+                console.log('📊 数据大小:', Math.round(jsonStr.length / 1024), 'KB');
+                localStorage.setItem(STORAGE_KEY, jsonStr);
+            } catch(e) {
+                console.error('保存失败:', e);
+                showToast('❌ 保存失败: ' + e.message, true, true);
+            }
+        }
+
+        function showProgress(show) { var el = document.getElementById('progressArea'); if (show) el.classList.add('active'); else el.classList.remove('active'); }
+        function updateProgress(current, total, label, status) {
+            var pct = total > 0 ? Math.round((current / total) * 100) : 0;
+            document.getElementById('progressFill').style.width = Math.min(pct, 100) + '%';
+            document.getElementById('progressPercent').textContent = Math.min(pct, 100) + '%';
+            document.getElementById('progressCount').textContent = current + ' / ' + total;
+            if (label) document.getElementById('progressLabel').textContent = label;
+            if (status) document.getElementById('progressStatus').textContent = status;
+        }
+
+        function showErrors(errors) {
+            var el = document.getElementById('errorSummary');
+            var list = document.getElementById('errorList');
+            var title = document.getElementById('errorSummaryTitle');
+            if (!errors || errors.length === 0) { el.classList.remove('active'); return; }
+            el.classList.add('active');
+            title.textContent = '⚠️ 导入完成，' + errors.length + ' 行失败';
+            list.innerHTML = errors.map(function(e) { return '<li>行 ' + e.row + ': ' + (e.message || '数据异常') + '</li>'; }).join('');
+        }
+
+        // ==================== CSV导入 ====================
+        function importCSV(file) {
+            return new Promise(function(resolve, reject) {
+                var result = {
+                    rows: [],
+                    errors: [],
+                    total: 0,
+                    valid: 0
+                };
+
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    try {
+                        var csvText = ev.target.result;
+                        if (csvText.charCodeAt(0) === 0xFEFF) {
+                            csvText = csvText.slice(1);
+                        }
+
+                        var firstRowPrinted = false;
+
+                        Papa.parse(csvText, {
+                            header: true,
+                            comments: '#',
+                            skipEmptyLines: true,
+                            trimHeaders: true,
+                            transformHeader: function(h) {
+                                return h.trim();
+                            },
+                            worker: false,
+                            step: function(results) {
+                                var row = results.data;
+                                if (!row || Object.keys(row).length === 0) return;
+
+                                result.total++;
+
+                                if (!firstRowPrinted) {
+                                    firstRowPrinted = true;
+                                    console.log('📋 原始CSV列名:', Object.keys(row));
+                                }
+
+                                var product = extractProduct(row);
+
+                                if (product.valid) {
+                                    result.rows.push({
+                                        barcode: product.barcode,
+                                        name: product.name,
+                                        quantity: product.quantity,
+                                        price: product.price,
+                                        original: row
+                                    });
+                                    result.valid++;
+                                } else {
+                                    result.errors.push({
+                                        row: result.total,
+                                        data: row,
+                                        message: '缺少条码或名称'
+                                    });
+                                }
+
+                                if (result.total % 100 === 0) {
+                                    updateProgress(result.total, 0, '📄 正在解析 CSV...', result.total + ' 行');
+                                }
+                            },
+                            complete: function() {
+                                console.log('✅ CSV解析完成');
+                                console.log('📊 总行数:', result.total);
+                                console.log('✅ 有效数据:', result.valid);
+                                console.log('❌ 错误行数:', result.errors.length);
+
+                                updateProgress(result.valid, result.valid, '✅ 解析完成', result.valid + ' 条有效数据');
+                                resolve(result);
+                            },
+                            error: function(err) {
+                                console.error('PapaParse错误:', err);
+                                reject(err);
+                            }
+                        });
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = function() {
+                    reject(new Error('读取文件失败'));
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        // ==================== 文件导入入口 ====================
+        document.getElementById('fileInput').onchange = function(e) {
+            if (isProcessing) {
+                showToast('⏳ 正在处理中，请稍候...', false);
+                return;
+            }
+            var file = e.target.files[0];
+            if (!file) return;
+            e.target.value = '';
+            var ext = file.name.split('.').pop().toLowerCase();
+
+            if (ext === 'csv') {
+                isProcessing = true;
+                showProgress(true);
+                updateProgress(0, 1, '📄 正在解析 CSV...', '准备中');
+
+                importCSV(file).then(function(result) {
+                    console.log('📊 解析到 ' + result.rows.length + ' 条数据');
+
+                    if (result.rows.length === 0) {
+                        showToast('⚠️ 没有有效数据行', true, true);
+                        showProgress(false);
+                        isProcessing = false;
+                        return;
+                    }
+
+                    // 收集所有列名
+                    var allColumns = new Set();
+                    allColumns.add('实际数量');
+                    allColumns.add('实际价格');
+                    allColumns.add('条码');
+                    allColumns.add('名称');
+
+                    for (var i = 0; i < result.rows.length; i++) {
+                        var r = result.rows[i];
+                        if (r.original) {
+                            for (var key in r.original) {
+                                if (r.original.hasOwnProperty(key)) {
+                                    allColumns.add(key);
+                                }
+                            }
+                        }
+                    }
+
+                    var finalCols = Array.from(allColumns);
+                    var qtyCol = '实际数量';
+                    var priceCol = '实际价格';
+                    var qtyIdx = finalCols.indexOf(qtyCol);
+                    if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
+                    var priceIdx = finalCols.indexOf(priceCol);
+                    if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
+
+                    // 转换数据
+                    var loadedRows = [];
+                    for (var i = 0; i < result.rows.length; i++) {
+                        var r = result.rows[i];
+                        var newRow = {};
+
+                        if (r.original) {
+                            for (var key in r.original) {
+                                if (r.original.hasOwnProperty(key)) {
+                                    newRow[key] = r.original[key];
+                                }
+                            }
+                        }
+
+                        newRow['条码'] = r.barcode || '';
+                        newRow['名称'] = r.name || '';
+                        newRow['实际数量'] = r.quantity || 0;
+                        newRow['实际价格'] = r.price || 0;
+
+                        loadedRows.push(newRow);
+                    }
+
+                    columns = finalCols;
+                    db = loadedRows;
+
+                    console.log('✅ 最终数据条数:', db.length);
+                    console.log('📋 最终列数:', columns.length);
+                    if (db.length > 0) {
+                        console.log('📦 第一条数据:', db[0]);
+                    }
+
+                    saveData();
+                    render();
+                    showErrors(result.errors.slice(0, 100));
+                    showProgress(false);
+
+                    if (db.length > 0) {
+                        showToast('✅ 导入成功！共 ' + db.length + ' 条商品', false);
+                        if (result.errors.length > 0) {
+                            showToast('⚠️ 跳过 ' + result.errors.length + ' 行无效数据', true, true);
+                        }
+                    } else {
+                        showToast('⚠️ 导入完成，但无有效商品数据', true, true);
+                    }
+                    updateStats();
+                    isProcessing = false;
+
+                }).catch(function(err) {
+                    console.error('CSV导入失败:', err);
+                    showToast('❌ CSV导入失败: ' + (err.message || err.toString()), true, true);
+                    showProgress(false);
+                    isProcessing = false;
+                });
+
                 return;
             }
 
-            document.getElementById('btnEnter').onclick = function() {
-                saveAndGo(ipInput.value);
+            // Excel
+            isProcessing = true;
+            showToast("正在导入 Excel...", false);
+            var fileReader = new FileReader();
+            fileReader.onload = function(ev) {
+                try {
+                    var data = new Uint8Array(ev.target.result);
+                    var workbook = XLSX.read(data, { type: 'array' });
+                    var sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    var json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                    if (json.length > 0) {
+                        var resultRows = [];
+                        var errorList = [];
+                        var allColumns = new Set();
+                        allColumns.add('实际数量');
+                        allColumns.add('实际价格');
+                        allColumns.add('条码');
+                        allColumns.add('名称');
+
+                        for (var i = 0; i < json.length; i++) {
+                            var row = json[i];
+                            try {
+                                var product = extractProduct(row);
+                                var newRow = {};
+                                for (var key in row) {
+                                    if (row.hasOwnProperty(key)) {
+                                        newRow[key] = row[key];
+                                        allColumns.add(key);
+                                    }
+                                }
+                                newRow['条码'] = product.barcode || '';
+                                newRow['名称'] = product.name || '';
+                                newRow['实际数量'] = product.quantity || 0;
+                                newRow['实际价格'] = product.price || 0;
+                                resultRows.push(newRow);
+                            } catch (err) {
+                                errorList.push({ row: i + 1, message: err.message || '数据异常' });
+                            }
+                        }
+
+                        var finalCols = Array.from(allColumns);
+                        var qtyCol = '实际数量';
+                        var priceCol = '实际价格';
+                        var qtyIdx = finalCols.indexOf(qtyCol);
+                        if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
+                        var priceIdx = finalCols.indexOf(priceCol);
+                        if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
+
+                        columns = finalCols;
+                        db = resultRows;
+                        saveData();
+                        render();
+                        showErrors(errorList);
+                        showProgress(false);
+                        showToast('✅ Excel 导入成功！共 ' + db.length + ' 条', false);
+                        updateStats();
+                        isProcessing = false;
+                    } else {
+                        showToast("文件无数据", true, true);
+                        showProgress(false);
+                        isProcessing = false;
+                    }
+                } catch(err) {
+                    console.error(err);
+                    showToast("解析失败: " + (err.message || err.toString()), true, true);
+                    showProgress(false);
+                    isProcessing = false;
+                }
             };
+            fileReader.onerror = function() { showToast('读取Excel文件失败', true, true); showProgress(false); isProcessing = false; };
+            fileReader.readAsArrayBuffer(file);
+        };
 
-            ipInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') saveAndGo(ipInput.value);
-            });
-
-            if (typeof window.AndroidHardware !== 'undefined') {
-                statusEl.textContent = '已检测到内置打印接口（Supeasy/H60）';
-                statusEl.className = 'status ok';
+        function updateStats() {
+            var total = db.length;
+            var totalPrice = 0;
+            for (var i = 0; i < db.length; i++) {
+                var row = db[i];
+                var qty = parseFloat(row['实际数量']) || 0;
+                var price = parseFloat(row['实际价格']) || 0;
+                totalPrice += qty * price;
             }
-        })();
+            var statsDiv = document.querySelector('.stats');
+            if (statsDiv) {
+                statsDiv.innerHTML = '<span>📊 ' + total + ' 条</span><span>💰 ' + totalPrice.toFixed(2) + '</span>';
+            }
+        }
+
+        // ========== 匹配逻辑 ==========
+        function preprocessCode(code) {
+            if (!code) return code;
+            var cleaned = String(code).replace(/[^\w\d\-]/g, '');
+            if (cleaned.startsWith('*') && cleaned.endsWith('*')) cleaned = cleaned.slice(1, -1);
+            if (cleaned.length === 12 && /^\d+$/.test(cleaned)) cleaned = '0' + cleaned;
+            return cleaned;
+        }
+
+        function exactMatch(code, dbValue) {
+            if (!code || !dbValue) return false;
+            var codeStr = String(code).trim();
+            var dbStr = String(dbValue).trim();
+            if (codeStr === dbStr) return true;
+            var processedCode = preprocessCode(codeStr);
+            var processedDb = preprocessCode(dbStr);
+            if (processedCode === processedDb) return true;
+            if (codeStr.toLowerCase() === dbStr.toLowerCase()) return true;
+            if (/^\d+$/.test(codeStr) && /^\d+$/.test(dbStr)) {
+                var codeNum = codeStr.replace(/^0+/, '');
+                var dbNum = dbStr.replace(/^0+/, '');
+                if (codeNum === dbNum && codeNum.length > 0) return true;
+            }
+            return false;
+        }
+
+        function findBarcodeRow(code) {
+            if (!code || db.length === 0) return -1;
+            var codeStr = String(code).trim();
+            for (var i = 0; i < db.length; i++) {
+                var row = db[i];
+                for (var key in row) {
+                    var val = String(row[key] || '').trim();
+                    if (exactMatch(codeStr, val)) return i;
+                }
+            }
+            return -1;
+        }
+
+        function getSearchableRowText(row) {
+            var keys = Object.keys(row || {});
+            var texts = [];
+            for (var i = 0; i < keys.length; i++) {
+                texts.push(String(row[keys[i]] || '').trim());
+            }
+            return texts.join(' ').toLowerCase();
+        }
+
+        function findBestMatchRowIndex(query) {
+            if (!query || !db.length) return -1;
+            var token = String(query).trim();
+            if (!token) return -1;
+            var exact = findBarcodeRow(token);
+            if (exact !== -1) return exact;
+            var normalized = preprocessCode(token).toLowerCase();
+            for (var i = 0; i < db.length; i++) {
+                var row = db[i] || {};
+                var keys = Object.keys(row);
+                for (var j = 0; j < keys.length; j++) {
+                    var val = String(row[keys[j]] || '').trim();
+                    var v = val.toLowerCase();
+                    var pv = preprocessCode(val).toLowerCase();
+                    if ((normalized && (v.startsWith(normalized) || pv.startsWith(normalized))) || v.startsWith(token.toLowerCase())) {
+                        return i;
+                    }
+                }
+            }
+            for (var i = 0; i < db.length; i++) {
+                if (getSearchableRowText(db[i]).includes(token.toLowerCase())) return i;
+            }
+            return -1;
+        }
+
+        // ========== UI 渲染 ==========
+        function render() {
+            try {
+                var thead = document.getElementById('tHead');
+                var tbody = document.getElementById('tBody');
+                if (!columns.length || db.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="10" class="text-center p-6 text-gray-500">暂无数据，请导入Excel或CSV文件</td></tr>';
+                    return;
+                }
+                thead.innerHTML = '<tr>' + columns.map(function(col) { return '<th>' + col + '</th>'; }).join('') + '</tr>';
+                tbody.innerHTML = db.map(function(row, idx) {
+                    return '<tr id="row-' + idx + '">' +
+                        columns.map(function(col) {
+                            if (col === '实际数量') {
+                                return '<td><input id="qty-' + idx + '" type="number" value="' + (row[col] || '') + '" class="qty-input" onchange="updateQty(' + idx + ', this.value)" onfocus="this.select()" placeholder="0" inputmode="numeric" /></td>';
+                            } else if (col === '实际价格') {
+                                return '<td><input id="price-' + idx + '" type="number" step="0.01" value="' + (row[col] || '') + '" class="price-input" onchange="updatePrice(' + idx + ', this.value)" onfocus="this.select()" placeholder="0.00" inputmode="decimal" /></td>';
+                            } else {
+                                return '<td><input type="text" value="' + escapeHtml(String(row[col] || '')) + '" class="w-full p-2 text-sm outline-none bg-transparent" style="min-width:80px; width:100%;" onchange="updateCell(' + idx + ', \'' + col + '\', this.value)" /></td>';
+                            }
+                        }).join('') +
+                        '</tr>';
+                }).join('');
+                setTimeout(function() { autoAdjustColumns(); }, 50);
+                if (pendingJump !== null) setTimeout(function() { jumpToRowAndFocusQty(pendingJump); pendingJump = null; }, 100);
+                updateStats();
+            } catch(e) {
+                console.error('渲染错误:', e);
+                showToast('渲染错误: ' + e.message, true, true);
+            }
+        }
+
+        function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+        
+        function updateQty(rowIndex, value) { db[rowIndex]['实际数量'] = value; saveData(); showToast("数量已更新", false); hideKeyboard(); }
+        function updatePrice(rowIndex, value) { db[rowIndex]['实际价格'] = value; saveData(); showToast("价格已更新", false); hideKeyboard(); }
+        function updateCell(rowIndex, col, value) { db[rowIndex][col] = value; saveData(); }
+        
+        function autoAdjustColumns() {
+            var table = document.getElementById('mainTable');
+            if (!table) return;
+            var colCount = columns.length;
+            if (colCount === 0) return;
+            var headers = table.querySelectorAll('thead th');
+            var rows = table.querySelectorAll('tbody tr');
+            if (headers.length === 0) return;
+            var colMaxWidths = new Array(colCount).fill(0);
+            headers.forEach(function(th, idx) {
+                if (idx < colCount) {
+                    var headerWidth = (th.textContent || '').length * 14 + 40;
+                    colMaxWidths[idx] = Math.max(colMaxWidths[idx], Math.min(headerWidth, 200));
+                }
+            });
+            rows.forEach(function(row) {
+                var cells = row.querySelectorAll('td');
+                cells.forEach(function(cell, idx) {
+                    if (idx < colCount) {
+                        var input = cell.querySelector('input');
+                        var text = input ? (input.value || input.placeholder || '') : (cell.textContent || '');
+                        var textWidth = 0;
+                        for (var i = 0; i < text.length; i++) {
+                            var code = text.charCodeAt(i);
+                            if (code >= 0x4e00 && code <= 0x9fff) textWidth += 16;
+                            else if (code >= 0x30 && code <= 0x39) textWidth += 8;
+                            else textWidth += 10;
+                        }
+                        textWidth = Math.max(textWidth + 30, 80);
+                        textWidth = Math.min(textWidth, 250);
+                        if (textWidth > colMaxWidths[idx]) colMaxWidths[idx] = textWidth;
+                    }
+                });
+            });
+            headers.forEach(function(th, idx) {
+                if (idx < colCount && colMaxWidths[idx] > 0) {
+                    th.style.width = colMaxWidths[idx] + 'px';
+                    th.style.minWidth = colMaxWidths[idx] + 'px';
+                }
+            });
+        }
+
+        function jumpToRowAndFocusQty(foundIndex) {
+            var rowEl = document.getElementById('row-' + foundIndex);
+            if (rowEl) {
+                document.querySelectorAll('#mainTable tbody tr').forEach(function(tr) { tr.classList.remove('row-focus'); });
+                rowEl.classList.add('row-focus');
+                rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                var qtyInput = document.getElementById('qty-' + foundIndex);
+                if (qtyInput) {
+                    currentInputElement = qtyInput;
+                    setTimeout(function() {
+                        qtyInput.focus();
+                        qtyInput.select();
+                        qtyInput.style.transform = 'scale(1.02)';
+                        qtyInput.style.borderColor = '#10b981';
+                        qtyInput.style.backgroundColor = '#fef9c3';
+                        var handleInputComplete = function(e) {
+                            if (e.type === 'blur' || (e.type === 'keypress' && e.key === 'Enter')) {
+                                hideKeyboard();
+                                qtyInput.removeEventListener('blur', handleInputComplete);
+                                qtyInput.removeEventListener('keypress', handleInputComplete);
+                            }
+                        };
+                        qtyInput.addEventListener('blur', handleInputComplete);
+                        qtyInput.addEventListener('keypress', handleInputComplete);
+                        setTimeout(function() {
+                            if (qtyInput) {
+                                qtyInput.style.transform = '';
+                                qtyInput.style.borderColor = '';
+                                qtyInput.style.backgroundColor = '';
+                            }
+                        }, 500);
+                    }, 300);
+                }
+                return true;
+            }
+            return false;
+        }
+
+        function handleBarcode(code, fromCamera) {
+            if (!code) return false;
+            var now = Date.now();
+            var codeStr = String(code).trim();
+            if (codeStr === lastCode && (now - lastTime) < 200) return false;
+            lastCode = codeStr;
+            lastTime = now;
+            
+            var foundIndex = findBestMatchRowIndex(codeStr);
+            if (foundIndex === -1) {
+                playBeep(false);
+                showToast('❌ 条码不存在: ' + codeStr.substring(0, 20), true);
+                vibrate();
+                consecutiveFailures++;
+                setTimeout(function() {
+                    var manualInput = document.getElementById('manualInput');
+                    if (manualInput) { manualInput.focus(); manualInput.select(); currentInputElement = manualInput; }
+                }, 100);
+                return false;
+            }
+            consecutiveFailures = 0;
+            playBeep(true);
+            vibrate();
+            var productName = db[foundIndex]['名称'] || db[foundIndex]['商品名称'] || codeStr;
+            showToast('✅ ' + productName, false);
+            var scanFrame = document.getElementById('scanFrame');
+            if (scanFrame) { scanFrame.classList.add('scan-success'); setTimeout(function() { scanFrame.classList.remove('scan-success'); }, 200); }
+            if (fromCamera) stopScanningAndJump(foundIndex);
+            else jumpToRowAndFocusQty(foundIndex);
+            return true;
+        }
+
+        function stopScanningAndJump(foundIndex) {
+            pendingJump = foundIndex;
+            scanning = false;
+            if (currentFocusInterval) { clearInterval(currentFocusInterval); currentFocusInterval = null; }
+            if (reader) { try { reader.reset(); } catch(e) {} reader = null; }
+            var videoEl = document.getElementById('video');
+            if (videoEl && videoEl.srcObject) {
+                var tracks = videoEl.srcObject.getTracks();
+                tracks.forEach(function(track) { track.stop(); });
+                videoEl.srcObject = null;
+            }
+            document.getElementById('scanUI').style.display = 'none';
+            setTimeout(function() { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
+        }
+
+        // ========== 扫码相机 ==========
+        function setupCameraControls(track) {
+            cameraTrack = track || null;
+            var torchBtn = document.getElementById('torchBtn');
+            if (!torchBtn) return;
+            torchBtn.classList.remove('active');
+            torchBtn.textContent = '🔦 补光';
+            torchBtn.onclick = async function() {
+                if (!cameraTrack || !cameraTrack.getCapabilities) { showToast('当前相机不支持补光控制', true); return; }
+                var caps = cameraTrack.getCapabilities();
+                if (!caps.torch) { showToast('当前设备不支持手电筒', true); return; }
+                var turnOn = !torchBtn.classList.contains('active');
+                try {
+                    await cameraTrack.applyConstraints({ advanced: [{ torch: turnOn }] });
+                    torchBtn.classList.toggle('active', turnOn);
+                    torchBtn.textContent = turnOn ? '🔦 关补光' : '🔦 补光';
+                } catch (e) { showToast('补光切换失败', true); }
+            };
+            var videoContainer = document.querySelector('#scanUI .relative');
+            if (videoContainer) {
+                videoContainer.addEventListener('click', async function() {
+                    if (cameraTrack && cameraTrack.getCapabilities && cameraTrack.getCapabilities().focusMode) {
+                        try {
+                            var probe = [0.05, 0.08, 0.12, 0.18, 0.25, 0.35];
+                            for (var d of probe) {
+                                await cameraTrack.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: d }] });
+                                await new Promise(function(r) { setTimeout(r, 60); });
+                            }
+                            setTimeout(function() {
+                                if (cameraTrack) cameraTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function() {});
+                            }, 600);
+                            showToast("🎯 近距扫描完成", false);
+                        } catch(e) {}
+                    }
+                });
+            }
+        }
+
+        function applyCameraTuning(track) {
+            if (!track || !track.getCapabilities) return;
+            var caps = track.getCapabilities();
+            var advanced = [];
+            if (caps.focusMode && caps.focusMode.includes('continuous')) advanced.push({ focusMode: 'continuous' });
+            if (caps.exposureMode && caps.exposureMode.includes('continuous')) advanced.push({ exposureMode: 'continuous' });
+            if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('continuous')) advanced.push({ whiteBalanceMode: 'continuous' });
+            if (caps.exposureCompensation) {
+                var minExp = typeof caps.exposureCompensation.min === 'number' ? caps.exposureCompensation.min : -1;
+                var maxExp = typeof caps.exposureCompensation.max === 'number' ? caps.exposureCompensation.max : 1;
+                advanced.push({ exposureCompensation: Math.max(minExp, Math.min(maxExp, 0.2)) });
+            }
+            if (advanced.length) track.applyConstraints({ advanced: advanced }).catch(function() {});
+        }
+
+        async function startScanning() {
+            if (scanning) { showToast("扫描器已在运行", false); return; }
+            var isIPadDevice = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
+            var scanFrame = document.getElementById('scanFrame');
+            if (scanFrame) {
+                if (isIPadDevice) { scanFrame.style.top = '15%'; }
+                else { scanFrame.style.top = '25%'; }
+            }
+            var scanUI = document.getElementById('scanUI');
+            scanUI.style.display = 'flex';
+            scanning = true;
+            if (reader) { try { await reader.reset(); } catch(e) {} reader = null; }
+            var badge = document.getElementById('enhanceBadge');
+            if (enhanceMode) badge.classList.remove('hidden');
+            else badge.classList.add('hidden');
+            try {
+                var constraints = {
+                    video: {
+                        facingMode: { exact: "environment" },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        frameRate: { ideal: 30 }
+                    }
+                };
+                var hints = new Map();
+                hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+                hints.set(ZXing.DecodeHintType.CHARACTER_SET, "UTF-8");
+                hints.set(ZXing.DecodeHintType.ALLOWED_LENGTHS, null);
+                hints.set(ZXing.DecodeHintType.RETURN_CODABAR_START_END, true);
+                hints.set(ZXing.DecodeHintType.ALSO_INVERTED, true);
+                hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+                    ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A,
+                    ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
+                    ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR,
+                    ZXing.BarcodeFormat.DATA_MATRIX, ZXing.BarcodeFormat.PDF_417, ZXing.BarcodeFormat.QR_CODE
+                ]);
+                reader = new ZXing.BrowserMultiFormatReader(hints);
+                reader.timeBetweenDecodingAttempts = 20;
+                var videoEl = document.getElementById('video');
+                var frameEl = document.getElementById('scanFrame');
+                await reader.decodeFromConstraints(constraints, 'video', async function(result, err) {
+                    if (!scanning) return;
+                    if (result) {
+                        var code = result.getText();
+                        if (code) {
+                            handleBarcode(code, true);
+                            consecutiveFailures = 0;
+                            return;
+                        }
+                    }
+                    consecutiveFailures++;
+                    if (enhanceMode || consecutiveFailures >= AUTO_ENHANCE_THRESHOLD) {
+                        var enhancedCode = await tryEnhancedDecode(videoEl, frameEl);
+                        if (enhancedCode) {
+                            handleBarcode(enhancedCode, true);
+                            consecutiveFailures = 0;
+                            vibrate();
+                        }
+                    }
+                });
+                showToast("极速扫码引擎已启动" + (enhanceMode ? " (增强模式)" : ""), false);
+                setTimeout(function() {
+                    var track = videoEl?.srcObject?.getVideoTracks?.()[0];
+                    if (track) {
+                        setupCameraControls(track);
+                        applyCameraTuning(track);
+                    }
+                }, 300);
+                currentFocusInterval = setInterval(function() {
+                    if (!scanning) { clearInterval(currentFocusInterval); return; }
+                    if (videoEl && videoEl.srcObject) {
+                        var track = videoEl.srcObject.getVideoTracks()[0];
+                        if (track && track.getCapabilities) {
+                            var caps = track.getCapabilities();
+                            var step = Math.floor(Date.now() / 200) % 10;
+                            if (step < 4 && caps.focusMode && caps.focusMode.includes('manual')) {
+                                var dist = [0.05, 0.08, 0.12, 0.18][step];
+                                track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: dist }] }).catch(function() {});
+                            } else {
+                                if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                                    track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function() {});
+                                }
+                                if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
+                                    track.applyConstraints({ advanced: [{ exposureMode: 'continuous' }] }).catch(function() {});
+                                }
+                            }
+                        }
+                    }
+                }, 200);
+            } catch(err) {
+                console.error("相机错误:", err);
+                showToast("无法启动摄像头，请检查权限", true);
+                stopScanning(true);
+            }
+        }
+
+        function stopScanning(manual) {
+            scanning = false;
+            if (currentFocusInterval) { clearInterval(currentFocusInterval); currentFocusInterval = null; }
+            if (reader) { try { reader.reset(); } catch(e) {} reader = null; }
+            var videoEl = document.getElementById('video');
+            if (videoEl && videoEl.srcObject) {
+                var tracks = videoEl.srcObject.getTracks();
+                tracks.forEach(function(track) { track.stop(); });
+                videoEl.srcObject = null;
+            }
+            document.getElementById('scanUI').style.display = 'none';
+            cameraTrack = null;
+            consecutiveFailures = 0;
+        }
+
+        function toggleEnhanceMode() {
+            enhanceMode = !enhanceMode;
+            var topBtn = document.getElementById('scanEnhanceBtn');
+            var badge = document.getElementById('enhanceBadge');
+            if (enhanceMode) {
+                topBtn.classList.add('active');
+                topBtn.innerHTML = "✨ 增强开";
+                if (badge) badge.classList.remove('hidden');
+                showToast("增强模式已开启，将提高劣质条码识别率", false);
+            } else {
+                topBtn.classList.remove('active');
+                topBtn.innerHTML = "✨ 增强";
+                if (badge) badge.classList.add('hidden');
+                showToast("增强模式已关闭", false);
+            }
+            if (scanning) {
+                stopScanning(true);
+                setTimeout(function() { startScanning(); }, 200);
+            }
+        }
+
+        function getFrameROI(videoEl, frameEl) {
+            var vw = videoEl.videoWidth, vh = videoEl.videoHeight;
+            if (!vw || !vh) return null;
+            var vr = videoEl.getBoundingClientRect();
+            var fr = frameEl.getBoundingClientRect();
+            var videoAspect = vw / vh;
+            var boxAspect = vr.width / vr.height;
+            var renderW, renderH, offsetX = 0, offsetY = 0;
+            if (videoAspect > boxAspect) {
+                renderH = vr.height;
+                renderW = renderH * videoAspect;
+                offsetX = (renderW - vr.width) / 2;
+            } else {
+                renderW = vr.width;
+                renderH = renderW / videoAspect;
+                offsetY = (renderH - vr.height) / 2;
+            }
+            var xInBox = fr.left - vr.left + offsetX;
+            var yInBox = fr.top - vr.top + offsetY;
+            var sx = vw / renderW, sy = vh / renderH;
+            var roiX = Math.max(0, Math.floor(xInBox * sx));
+            var roiY = Math.max(0, Math.floor(yInBox * sy));
+            var roiW = Math.min(vw - roiX, Math.floor(fr.width * sx));
+            var roiH = Math.min(vh - roiY, Math.floor(fr.height * sy));
+            if (roiW <= 0 || roiH <= 0) return null;
+            var lowerY = roiY + Math.floor(roiH * 0.55);
+            var lowerH = roiH - Math.floor(roiH * 0.55);
+            if (lowerH < 10) return { x: roiX, y: roiY, w: roiW, h: roiH };
+            return { x: roiX, y: lowerY, w: roiW, h: lowerH };
+        }
+
+        function preprocessImageForBarcode(videoEl, roi) {
+            var canvas = document.createElement('canvas');
+            canvas.width = roi.w;
+            canvas.height = roi.h;
+            var ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(videoEl, roi.x, roi.y, roi.w, roi.h, 0, 0, roi.w, roi.h);
+            var imgData = ctx.getImageData(0, 0, roi.w, roi.h);
+            var data = imgData.data;
+            var min = 255, max = 0;
+            for (var i = 0; i < data.length; i += 4) {
+                var gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+                data[i] = data[i+1] = data[i+2] = gray;
+                if (gray < min) min = gray;
+                if (gray > max) max = gray;
+            }
+            var range = max - min;
+            var threshold = min + range * 0.55;
+            for (var i = 0; i < data.length; i += 4) {
+                var val = data[i] > threshold ? 255 : 0;
+                data[i] = data[i+1] = data[i+2] = val;
+            }
+            ctx.putImageData(imgData, 0, 0);
+            return canvas;
+        }
+
+        async function tryEnhancedDecode(videoEl, frameEl) {
+            if (!videoEl || videoEl.readyState < 2) return null;
+            var roi = getFrameROI(videoEl, frameEl);
+            if (!roi) return null;
+            var processedCanvas = preprocessImageForBarcode(videoEl, roi);
+            if (!processedCanvas) return null;
+            if ('BarcodeDetector' in window) {
+                try {
+                    var detector = new window.BarcodeDetector({
+                        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_39', 'code_93', 'code_128', 'itf', 'codabar']
+                    });
+                    var codes = await detector.detect(processedCanvas);
+                    if (codes && codes.length > 0) {
+                        return codes[0].rawValue;
+                    }
+                } catch(e) { /* fallback */ }
+            }
+            return null;
+        }
+
+        // ========== 列管理 ==========
+        function renderColList() {
+            var container = document.getElementById('colList');
+            container.innerHTML = columns.map(function(col, idx) {
+                return '<div class="col-item p-3" draggable="true" data-index="' + idx + '" data-col="' + col + '"><div class="flex items-center justify-between"><div class="flex items-center gap-2 flex-1"><span class="drag-handle text-xl cursor-move">☰</span><span class="font-bold text-sm">' + (idx + 1) + '. ' + col + '</span></div><div class="flex gap-1"><button onclick="moveColumnUp(' + idx + ')" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">⬆️</button><button onclick="moveColumnDown(' + idx + ')" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">⬇️</button><button onclick="deleteColumn(\'' + col + '\')" class="bg-red-500 text-white px-2 py-1 rounded text-xs">删</button></div></div></div>';
+            }).join('');
+            setupDragAndDrop();
+        }
+
+        function setupDragAndDrop() {
+            var items = document.querySelectorAll('.col-item');
+            var isTouch = 'ontouchend' in document;
+            var draggedItem = null;
+            items.forEach(function(item) {
+                if (isTouch) { item.setAttribute('draggable', 'false'); return; }
+                item.setAttribute('draggable', 'true');
+                item.addEventListener('dragstart', function(e) { draggedItem = item; item.style.opacity = '0.5'; e.dataTransfer.effectAllowed = 'move'; });
+                item.addEventListener('dragend', function(e) { item.style.opacity = ''; draggedItem = null; });
+                item.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+                item.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    if (!draggedItem || draggedItem === item) return;
+                    var fromIndex = parseInt(draggedItem.getAttribute('data-index'));
+                    var toIndex = parseInt(item.getAttribute('data-index'));
+                    if (!isNaN(fromIndex) && !isNaN(toIndex)) {
+                        var temp = columns[fromIndex];
+                        columns[fromIndex] = columns[toIndex];
+                        columns[toIndex] = temp;
+                        renderColList(); render(); saveData(); showToast("列顺序已更新", false);
+                    }
+                });
+            });
+        }
+
+        function moveColumnUp(index) { if (index > 0) { var temp = columns[index]; columns[index] = columns[index-1]; columns[index-1] = temp; renderColList(); render(); saveData(); showToast("列顺序已更新", false); } }
+        function moveColumnDown(index) { if (index < columns.length-1) { var temp = columns[index]; columns[index] = columns[index+1]; columns[index+1] = temp; renderColList(); render(); saveData(); showToast("列顺序已更新", false); } }
+        function openColModal() { renderColList(); document.getElementById('colModal').style.display = 'flex'; }
+        function closeColModal() { document.getElementById('colModal').style.display = 'none'; render(); }
+        function addColumn() { var newCol = document.getElementById('newColName').value.trim(); if (newCol && !columns.includes(newCol)) { columns.push(newCol); for (var i = 0; i < db.length; i++) { db[i][newCol] = ''; } renderColList(); render(); saveData(); showToast('已添加列: ' + newCol, false); document.getElementById('newColName').value = ''; } else if (columns.includes(newCol)) showToast("列名已存在", true); }
+        function deleteColumn(colName) { 
+            if (colName === '实际数量' || colName === '实际价格') {
+                showToast("⚠️ 核心列不能删除", true);
+                return;
+            }
+            if (confirm('确定删除列 "' + colName + '" 吗？数据将丢失！')) { 
+                var index = columns.indexOf(colName); 
+                if (index !== -1) { columns.splice(index, 1); for (var i = 0; i < db.length; i++) { delete db[i][colName]; } renderColList(); render(); saveData(); showToast('已删除列: ' + colName, false); } 
+            } 
+        }
+
+        function exportExcel() {
+            if (!db.length) { showToast("暂无数据可导出", true); return; }
+            var defaultName = '飞速盘点_' + new Date().toLocaleDateString();
+            var name = prompt("请输入导出文件名：", defaultName);
+            if (!name || !name.trim()) name = defaultName;
+            var ws = XLSX.utils.json_to_sheet(db, { header: columns });
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "库存数据");
+            XLSX.writeFile(wb, name.trim() + ".xlsx");
+            showToast("✅ 导出成功", false);
+        }
+
+        function hardReset() { if (confirm("⚠️ 确定清空所有数据吗？此操作不可恢复！")) { localStorage.removeItem(STORAGE_KEY); db = []; columns = ['实际数量', '实际价格', '商品名称', '编码', '价格']; normalizeSpecialColumns(); saveData(); render(); showToast("已清空所有数据", false); } }
+
+        function setupKeyboardListener() {
+            if (!isMobile) return;
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', function() {
+                    var currentHeight = window.visualViewport.height;
+                    var keyboardHeight = originalViewportHeight - currentHeight;
+                    if (keyboardHeight > 150) {
+                        document.body.classList.add('keyboard-open');
+                    } else {
+                        document.body.classList.remove('keyboard-open');
+                        setTimeout(function() {
+                            if (pendingJump !== null) {
+                                var rowEl = document.getElementById('row-' + pendingJump);
+                                if (rowEl) rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                        }, 100);
+                    }
+                });
+            }
+            window.addEventListener('resize', function() {
+                var currentHeight = window.innerHeight;
+                var keyboardHeight = originalViewportHeight - currentHeight;
+                if (keyboardHeight > 150) document.body.classList.add('keyboard-open');
+                else document.body.classList.remove('keyboard-open');
+            });
+        }
+
+        function showKeyboard() {
+            if (currentInputElement && document.activeElement !== currentInputElement) {
+                currentInputElement.focus();
+                currentInputElement.select();
+            } else {
+                var manualInput = document.getElementById('manualInput');
+                if (manualInput) { manualInput.focus(); manualInput.select(); currentInputElement = manualInput; }
+            }
+        }
+
+        function hideKeyboard() {
+            if (currentInputElement) { currentInputElement.blur(); currentInputElement = null; }
+            if (document.activeElement) document.activeElement.blur();
+            document.body.classList.remove('keyboard-open');
+        }
+
+        function initAuthSystem() {
+            var presetList = ["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];
+            var presetCodes = presetList.map(function(c) { return { code: c, used: false, deviceId: '' }; });
+            var AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
+            try {
+                var saved = localStorage.getItem(AUTH_SKEY);
+                if (saved) {
+                    var oldData = JSON.parse(saved);
+                    var oldCodes = oldData.codes || [];
+                    var oldUsedMap = {};
+                    for (var oc of oldCodes) { if (oc.used) oldUsedMap[oc.code] = oc.deviceId; }
+                    for (var pc of presetCodes) { if (oldUsedMap[pc.code]) { pc.used = true; pc.deviceId = oldUsedMap[pc.code]; } }
+                    authCodes = presetCodes;
+                    isActivated = oldData.activated || false;
+                    adminMode = oldData.admin || false;
+                    localStorage.setItem(AUTH_SKEY, JSON.stringify({ codes: presetCodes, activated: isActivated, admin: adminMode }));
+                } else {
+                    authCodes = presetCodes;
+                    localStorage.setItem(AUTH_SKEY, JSON.stringify({ codes: authCodes, activated: false, admin: false }));
+                }
+            } catch(e) { authCodes = presetCodes; }
+        }
+
+        function saveAuthState() {
+            var AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
+            try { localStorage.setItem(AUTH_SKEY, JSON.stringify({ codes: authCodes, activated: isActivated, admin: adminMode })); } catch(e) {}
+        }
+
+        function getDeviceId() {
+            var id = localStorage.getItem('_device_id');
+            if (!id) { id = 'DEV_' + Math.random().toString(36).substring(2, 10).toUpperCase(); localStorage.setItem('_device_id', id); }
+            return id;
+        }
+        
+        function openAdminPanel() {
+            var AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
+            var isAdmin = false;
+            try { var d = JSON.parse(localStorage.getItem(AUTH_SKEY)); if (d && d.admin) isAdmin = true; } catch(e) {}
+            if (!isAdmin) { showToast("⚠️ 你不是管理员", true); return; }
+            adminMode = true;
+            renderAdminCodeList();
+            document.getElementById('adminPanel').style.display = 'flex';
+        }
+
+        function closeAdminPanel() { document.getElementById('adminPanel').style.display = 'none'; }
+
+        function renderAdminCodeList() {
+            var container = document.getElementById('adminCodeList');
+            if (!container) return;
+            var total = authCodes.length;
+            var usedCount = authCodes.filter(function(a) { return a.used; }).length;
+            var unused = authCodes.filter(function(a) { return !a.used; });
+            container.innerHTML = '<div style="text-align:center;font-size:14px;color:#334155;margin-bottom:12px;font-weight:bold;">已用 ' + usedCount + ' / 总计 ' + total + '</div>' +
+                (unused.length ? unused.map(function(a) {
+                    return '<div class="admin-code-item"><span style="font-size:16px;letter-spacing:2px;">' + a.code + '</span><span class="status-badge">未使用</span></div>';
+                }).join('') : '<div style="text-align:center;color:#94a3b8;padding:20px;font-size:14px;">⚠️ 所有授权码已用完，请追加</div>');
+        }
+
+        function generateNewCodes() {
+            var fallbackCodes = ["000WENXI","11W1ENXI","22WE2NXI","33WEN3XI","44WENX4I","55WENXI5","6W66ENXI","7W7E7NXI","8W8EN8XI","9W9ENX9I","0W0ENXI0","1WE11NXI","2WE2N2XI","3WE3NX3I","4WE4NXI4","5WEN55XI","6WEN6X6I","7WEN7XI7","8WENX88I","9WENX9I9","0WENXI00","W111ENXI","W22E2NXI","W33EN3XI","W44ENX4I","W55ENXI5","W6E66NXI","W7E7N7XI","W8E8NX8I","W9E9NXI9","W0EN00XI","W1EN1X1I","W2EN2XI2","W3ENX33I","W4ENX4I4","W5ENXI55","WE666NXI","WE77N7XI","WE88NX8I","WE99NXI9","WE0N00XI","WE1N1X1I","WE2N2XI2","WE3NX33I","WE4NX4I4","WE5NXI55","WEN666XI","WEN77X7I","WEN88XI8","WEN9X99I"];
+            var added = 0;
+            var existingSet = new Set(authCodes.map(function(a) { return a.code; }));
+            for (var code of fallbackCodes) {
+                if (added >= 10) break;
+                if (!existingSet.has(code)) {
+                    existingSet.add(code);
+                    authCodes.push({ code: code, used: false, deviceId: '' });
+                    added++;
+                }
+            }
+            saveAuthState();
+            renderAdminCodeList();
+            showToast('✅ 已追加 ' + added + ' 个新授权码', false);
+        }
+
+        // ========== 初始化 ==========
+        window.addEventListener('resize', function() { setTimeout(function() { autoAdjustColumns(); }, 100); });
+        window.addEventListener('beforeunload', function() { if (scanning) stopScanning(true); });
+        document.addEventListener('touchstart', function(e) { if (currentInputElement && !e.target.closest('.qty-input') && !e.target.closest('.price-input') && !e.target.closest('#manualInput')) hideKeyboard(); });
+        
+        loadData(); render(); setupKeyboardListener();
+        initAuthSystem();
+        
+        var authInput = document.getElementById('authInput');
+        if (authInput) authInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') verifyAuthCode(); });
+        
+        document.getElementById('confirmBtn').onclick = function() { 
+            var input = document.getElementById('manualInput'); 
+            var val = input.value.trim(); 
+            if (val === '授权码') { openAdminPanel(); input.value = ''; return; } 
+            if (val) { handleBarcode(val, false); input.value = ''; } 
+            hideKeyboard(); 
+        };
+        document.getElementById('manualInput').onkeypress = function(e) { 
+            if (e.key === 'Enter') { 
+                var input = e.target; 
+                var val = input.value.trim(); 
+                if (val === '授权码') { openAdminPanel(); input.value = ''; return; } 
+                if (val) { handleBarcode(val, false); input.value = ''; } 
+                hideKeyboard(); 
+            } 
+        };
+        document.getElementById('scanBtn').onclick = function() { if (scanning) stopScanning(true); else startScanning(); hideKeyboard(); };
+        document.getElementById('showKeyboardBtn').onclick = function() { showKeyboard(); };
+        
+        var topEnhanceBtn = document.getElementById('scanEnhanceBtn');
+        if (topEnhanceBtn) topEnhanceBtn.onclick = function() { toggleEnhanceMode(); };
+        
+        console.log('⚡ 飞速盘点 ' + VERSION + ' - 基于v3.3.24，完整显示所有数据');
+        console.log('📌 支持列名: 条码/名称/库存数量/零售价');
     </script>
 </body>
 </html>
