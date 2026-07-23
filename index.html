@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.20</title>
+    <title>飞速盘点 · Sanfei v3.3.21</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -163,103 +163,18 @@
         .error-summary details { cursor: pointer; }
         .error-summary summary { font-weight: 600; color: #b71c1c; }
         .error-summary ul { max-height: 120px; overflow-y: auto; margin: 6px 0 0 18px; color: #5f2b2b; }
+        .stats { display: flex; gap: 18px; font-size: 14px; color: #1f3a6b; }
+        .stats span { background: white; padding: 4px 16px; border-radius: 30px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
     </style>
 </head>
 <body>
     <div id="toast"></div>
+    <div id="colModal"><div class="modal-content p-5"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 class="text-xl font-bold">📋 列管理</h2><button onclick="closeColModal()" style="background:#1e293b;color:#fff;border:none;border-radius:999px;padding:8px 20px;font-weight:900;font-size:14px;cursor:pointer;">完成</button></div><p class="text-xs text-gray-500 text-center mb-3">💡 点击箭头上下排序</p><div id="colList" class="space-y-2 mb-4" style="max-height:55vh;overflow:auto;"></div><div class="flex gap-2 p-2 bg-gray-100 rounded-lg"><input type="text" id="newColName" placeholder="新列名..." class="flex-1 bg-white rounded-lg px-3 py-2 font-bold text-sm outline-none" /><button onclick="addColumn()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm">添加</button></div></div></div>
 
-    <div id="colModal">
-        <div class="modal-content p-5">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                <h2 class="text-xl font-bold">📋 列管理</h2>
-                <button onclick="closeColModal()" style="background:#1e293b;color:#fff;border:none;border-radius:999px;padding:8px 20px;font-weight:900;font-size:14px;cursor:pointer;">完成</button>
-            </div>
-            <p class="text-xs text-gray-500 text-center mb-3">💡 点击箭头上下排序</p>
-            <div id="colList" class="space-y-2 mb-4" style="max-height:55vh;overflow:auto;"></div>
-            <div class="flex gap-2 p-2 bg-gray-100 rounded-lg">
-                <input type="text" id="newColName" placeholder="新列名..." class="flex-1 bg-white rounded-lg px-3 py-2 font-bold text-sm outline-none" />
-                <button onclick="addColumn()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm">添加</button>
-            </div>
-        </div>
-    </div>
+    <div id="authOverlay" class="auth-overlay"><div class="auth-box"><h2>🔐 飞速盘点</h2><p>请输入授权码激活本系统</p><input type="text" id="authInput" class="auth-input" maxlength="12" placeholder="输入授权码" style="text-transform:uppercase;color:#000!important;" /><button onclick="verifyAuthCode()" class="auth-btn">激活</button><div id="authError" class="auth-error">❌ 授权码无效或已被使用</div></div></div>
+    <script>const AUTH_SKEY="FEISUPANDIAN_AUTH_V2";function getAuthData(){try{var s=localStorage.getItem(AUTH_SKEY);if(s)return JSON.parse(s)}catch(e){}return null}function saveAuthData(d){try{localStorage.setItem(AUTH_SKEY,JSON.stringify(d))}catch(e){}}function getDid(){var d=localStorage.getItem('_device_id');if(!d){d='DEV_'+Math.random().toString(36).substring(2,10).toUpperCase();localStorage.setItem('_device_id',d)}return d}(function(){var ad=getAuthData();var presetList=["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];var presetCodes=presetList.map(function(c){return {code:c,used:false,deviceId:''}});var active=ad&&ad.activated?true:false,adm=ad&&ad.admin?true:false;if(ad&&ad.codes&&ad.codes.length){var oldMap={};for(var oi=0;oi<ad.codes.length;oi++){var oc=ad.codes[oi];if(oc.used) oldMap[oc.code]=oc.deviceId;}for(var pi=0;pi<presetCodes.length;pi++){var pc=presetCodes[pi];if(oldMap[pc.code]){pc.used=true;pc.deviceId=oldMap[pc.code];}}}saveAuthData({codes:presetCodes,activated:active,admin:adm})})();function verifyAuthCode(){var i=document.getElementById('authInput'),e=document.getElementById('authError'),c=(i.value||'').trim().toUpperCase();if(!c){e.style.display='block';e.textContent='❌ 请输入授权码';return}if(c==='ADMIN0578'){var old=getAuthData()||{};saveAuthData({codes:old.codes||[],admin:true,activated:true});document.getElementById('authOverlay').style.display='none';try{typeof showToast==='function'&&showToast("✅ 管理员模式已激活",false)}catch(_){}return}var data=getAuthData(),codes=data&&data.codes?data.codes:[];if(!codes.length){e.style.display='block';e.textContent='❌ 系统初始化中，请稍后重试';return}var matched=null;for(var j=0;j<codes.length;j++){if(codes[j].code===c){matched=codes[j];break}}if(!matched){e.style.display='block';e.textContent='❌ 授权码不存在';return}if(matched.used&&matched.deviceId!==getDid()){e.style.display='block';e.textContent='❌ 该授权码已被其他设备使用';return}matched.used=true;matched.deviceId=getDid();data.activated=true;saveAuthData(data);document.getElementById('authOverlay').style.display='none';try{typeof showToast==='function'&&showToast("✅ 授权成功！欢迎使用飞速盘点",false)}catch(_){}try{typeof playBeep==='function'&&playBeep(true)}catch(_){}}var data=getAuthData();var authEl=document.getElementById('authOverlay');if(data&&data.activated){authEl.style.display='none';}else{authEl.style.display='flex';}</script>
 
-    <!-- 授权弹窗 -->
-    <div id="authOverlay" class="auth-overlay">
-        <div class="auth-box">
-            <h2>🔐 飞速盘点</h2>
-            <p>请输入授权码激活本系统</p>
-            <input type="text" id="authInput" class="auth-input" maxlength="12" placeholder="输入授权码" style="text-transform:uppercase;color:#000!important;" />
-            <button onclick="verifyAuthCode()" class="auth-btn">激活</button>
-            <div id="authError" class="auth-error">❌ 授权码无效或已被使用</div>
-        </div>
-    </div>
-    <script>
-    const AUTH_SKEY = "FEISUPANDIAN_AUTH_V2";
-    function getAuthData(){try{var s=localStorage.getItem(AUTH_SKEY);if(s)return JSON.parse(s)}catch(e){}return null}
-    function saveAuthData(d){try{localStorage.setItem(AUTH_SKEY,JSON.stringify(d))}catch(e){}}
-    function getDid(){var d=localStorage.getItem('_device_id');if(!d){d='DEV_'+Math.random().toString(36).substring(2,10).toUpperCase();localStorage.setItem('_device_id',d)}return d}
-    (function(){
-        var ad=getAuthData();
-        var presetList=["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];
-        var presetCodes=presetList.map(function(c){return {code:c,used:false,deviceId:''}});
-        var active=ad&&ad.activated?true:false,adm=ad&&ad.admin?true:false;
-        if(ad&&ad.codes&&ad.codes.length){
-            var oldMap={};
-            for(var oi=0;oi<ad.codes.length;oi++){
-                var oc=ad.codes[oi];
-                if(oc.used) oldMap[oc.code]=oc.deviceId;
-            }
-            for(var pi=0;pi<presetCodes.length;pi++){
-                var pc=presetCodes[pi];
-                if(oldMap[pc.code]){
-                    pc.used=true;
-                    pc.deviceId=oldMap[pc.code];
-                }
-            }
-        }
-        saveAuthData({codes:presetCodes,activated:active,admin:adm})
-    })();
-    function verifyAuthCode(){
-        var i=document.getElementById('authInput'),e=document.getElementById('authError'),c=(i.value||'').trim().toUpperCase();
-        if(!c){e.style.display='block';e.textContent='❌ 请输入授权码';return}
-        if(c==='ADMIN0578'){
-            var old=getAuthData()||{};
-            saveAuthData({codes:old.codes||[],admin:true,activated:true});
-            document.getElementById('authOverlay').style.display='none';
-            try{typeof showToast==='function'&&showToast("✅ 管理员模式已激活",false)}catch(_){}
-            return
-        }
-        var data=getAuthData(),codes=data&&data.codes?data.codes:[];
-        if(!codes.length){
-            e.style.display='block';e.textContent='❌ 系统初始化中，请稍后重试';return
-        }
-        var matched=null;
-        for(var j=0;j<codes.length;j++){if(codes[j].code===c){matched=codes[j];break}}
-        if(!matched){e.style.display='block';e.textContent='❌ 授权码不存在';return}
-        if(matched.used&&matched.deviceId!==getDid()){e.style.display='block';e.textContent='❌ 该授权码已被其他设备使用';return}
-        matched.used=true;matched.deviceId=getDid();
-        data.activated=true;saveAuthData(data);
-        document.getElementById('authOverlay').style.display='none';
-        try{typeof showToast==='function'&&showToast("✅ 授权成功！欢迎使用飞速盘点",false)}catch(_){}
-        try{typeof playBeep==='function'&&playBeep(true)}catch(_){}
-    }
-    var data=getAuthData();
-    var authEl=document.getElementById('authOverlay');
-    if(data&&data.activated){
-        authEl.style.display='none';
-    } else {
-        authEl.style.display='flex';
-    }
-    </script>
-
-    <div id="adminPanel" class="admin-overlay">
-        <div class="admin-box">
-            <button onclick="closeAdminPanel()" class="admin-close">✕</button>
-            <h2>📋 授权码管理</h2>
-            <div id="adminCodeList" style="max-height:55vh;overflow:auto;"></div>
-            <button onclick="generateNewCodes()" class="admin-gen-btn">➕ 追加 10 个新授权码</button>
-        </div>
-    </div>
+    <div id="adminPanel" class="admin-overlay"><div class="admin-box"><button onclick="closeAdminPanel()" class="admin-close">✕</button><h2>📋 授权码管理</h2><div id="adminCodeList" style="max-height:55vh;overflow:auto;"></div><button onclick="generateNewCodes()" class="admin-gen-btn">➕ 追加 10 个新授权码</button></div></div>
 
     <div class="main-card">
         <div class="header-fixed">
@@ -267,45 +182,26 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.20</div>
+                    <div class="version-badge">sanfei v3.3.21</div>
                 </div>
             </div>
-            
             <div style="padding: 16px 16px 0 16px;">
                 <input type="text" id="manualInput" placeholder="📱 输入条码/编码/名称..." />
-                
                 <div class="btn-group-4">
                     <button onclick="openColModal()" class="action-btn bg-gray-700 text-white shadow-md">📊 列管理</button>
-                    <label class="action-btn bg-emerald-600 text-white shadow-md cursor-pointer">
-                        📂 导入 <input type="file" id="fileInput" class="hidden" accept=".xlsx,.xls,.csv" />
-                    </label>
+                    <label class="action-btn bg-emerald-600 text-white shadow-md cursor-pointer">📂 导入 <input type="file" id="fileInput" class="hidden" accept=".xlsx,.xls,.csv" /></label>
                     <button onclick="exportExcel()" class="action-btn bg-emerald-600 text-white shadow-md">💾 导出</button>
                     <button id="confirmBtn" class="action-btn bg-blue-600 text-white shadow-md">✅ 确认</button>
                 </div>
             </div>
         </div>
-
         <div class="scrollable-area">
             <div id="progressArea">
-                <div class="progress-title">
-                    <span id="progressLabel">⏳ 正在读取数据...</span>
-                    <span id="progressPercent">0%</span>
-                </div>
-                <div class="progress-track">
-                    <div class="progress-fill" id="progressFill" style="width:0%;"></div>
-                </div>
-                <div class="progress-detail">
-                    <span id="progressCount">0 / 0</span>
-                    <span id="progressStatus">准备中</span>
-                </div>
+                <div class="progress-title"><span id="progressLabel">⏳ 正在读取数据...</span><span id="progressPercent">0%</span></div>
+                <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
+                <div class="progress-detail"><span id="progressCount">0 / 0</span><span id="progressStatus">准备中</span></div>
             </div>
-            <div id="errorSummary" class="error-summary">
-                <details>
-                    <summary id="errorSummaryTitle">⚠️ 导入完成，部分行失败</summary>
-                    <ul id="errorList"></ul>
-                </details>
-            </div>
-
+            <div id="errorSummary" class="error-summary"><details><summary id="errorSummaryTitle">⚠️ 导入完成，部分行失败</summary><ul id="errorList"></ul></details></div>
             <div class="table-container">
                 <table id="mainTable">
                     <thead id="tHead"></thead>
@@ -324,32 +220,12 @@
     </div>
 
     <div id="scanUI" class="fixed inset-0 bg-black z-[999] hidden flex-col">
-        <div class="scan-header">
-            <div class="scan-header-left">
-                <span class="font-bold text-blue-400 text-lg">🔍 极速条码引擎</span>
-                <button id="scanEnhanceBtn" class="scan-enhance-btn">✨ 增强</button>
-            </div>
-            <button onclick="stopScanning(true)" class="close-scan-btn text-white font-bold">✕ 关闭扫描</button>
-        </div>
-        <div class="relative flex-1 bg-black">
-            <video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video>
-            <div class="focus-guide">💡 点击画面辅助对焦 | 识别速度已优化 | 增强模式可提升劣质条码识别率</div>
-            <div class="scan-frame" id="scanFrame">
-                <div class="scan-line"></div>
-            </div>
-            <div id="enhanceBadge" class="enhance-badge hidden">✨ 增强模式已激活</div>
-            <div class="absolute bottom-8 left-0 right-0 text-center">
-                <div class="bg-black/70 backdrop-blur text-white px-4 py-2 rounded-full inline-block text-sm font-bold border-2 border-blue-500">📷 将条码对准扫描框</div>
-                <div class="mt-3">
-                    <button id="torchBtn" type="button" class="scan-tool-btn">🔦 补光</button>
-                </div>
-            </div>
-        </div>
+        <div class="scan-header"><div class="scan-header-left"><span class="font-bold text-blue-400 text-lg">🔍 极速条码引擎</span><button id="scanEnhanceBtn" class="scan-enhance-btn">✨ 增强</button></div><button onclick="stopScanning(true)" class="close-scan-btn text-white font-bold">✕ 关闭扫描</button></div>
+        <div class="relative flex-1 bg-black"><video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video><div class="focus-guide">💡 点击画面辅助对焦 | 识别速度已优化 | 增强模式可提升劣质条码识别率</div><div class="scan-frame" id="scanFrame"><div class="scan-line"></div></div><div id="enhanceBadge" class="enhance-badge hidden">✨ 增强模式已激活</div><div class="absolute bottom-8 left-0 right-0 text-center"><div class="bg-black/70 backdrop-blur text-white px-4 py-2 rounded-full inline-block text-sm font-bold border-2 border-blue-500">📷 将条码对准扫描框</div><div class="mt-3"><button id="torchBtn" type="button" class="scan-tool-btn">🔦 补光</button></div></div></div>
     </div>
 
     <script>
-        // ========== 核心版本 ==========
-        const VERSION = "S3.3.20";
+        const VERSION = "S3.3.21";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         let db = [];
         let columns = [];
@@ -365,32 +241,20 @@
         let enhanceMode = false;
         let consecutiveFailures = 0;
         const AUTO_ENHANCE_THRESHOLD = 3;
-        let lastDecodeSucceeded = true;
-        let preprocessCanvas = null;
         let toastTimer = null;
         let isProcessing = false;
-
-        const AUTH_STORAGE_KEY = "FEISUPANDIAN_AUTH_V2";
-        let authCodes = [];
-        let isActivated = false;
-        let adminMode = false;
 
         const isAndroid = /Android/i.test(navigator.userAgent);
         const isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
         const isMobile = isAndroid || isIPad || /iPhone/i.test(navigator.userAgent);
 
-        // ========== Toast ==========
         function showToast(msg, isError = false, persistent = false) {
             const toast = document.getElementById('toast');
             if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
             const errorId = 'toast-msg-' + Date.now();
             if (isError) {
                 const escapedMsg = msg.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                toast.innerHTML = `
-                    <span id="${errorId}" style="word-break:break-all;">${escapedMsg}</span>
-                    <button class="toast-copy" onclick="copyToastMessage('${errorId}')">📋 复制</button>
-                    <button class="toast-close" onclick="dismissToast()">✕</button>
-                `;
+                toast.innerHTML = `<span id="${errorId}" style="word-break:break-all;">${escapedMsg}</span><button class="toast-copy" onclick="copyToastMessage('${errorId}')">📋 复制</button><button class="toast-close" onclick="dismissToast()">✕</button>`;
                 toast.style.background = '#dc2626';
                 toast.style.display = 'block';
                 toast.style.maxWidth = '92%';
@@ -418,24 +282,9 @@
         function copyToastMessage(elementId) { const el = document.getElementById(elementId); if (!el) return; const text = el.textContent || el.innerText; if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(() => { showToast('✅ 已复制', false); }).catch(() => { copyTextFallback(text); }); } else { copyTextFallback(text); } }
         function copyTextFallback(text) { const textarea = document.createElement('textarea'); textarea.value = text; textarea.style.position = 'fixed'; textarea.style.opacity = '0'; textarea.style.left = '-9999px'; document.body.appendChild(textarea); textarea.select(); try { document.execCommand('copy'); showToast('✅ 已复制', false); } catch (e) { showToast('❌ 复制失败，请手动复制', true); } document.body.removeChild(textarea); }
 
-        function playBeep(success) {
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                oscillator.frequency.value = success ? 1200 : 400;
-                gainNode.gain.value = 0.6;
-                oscillator.start();
-                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2);
-                oscillator.stop(audioCtx.currentTime + 0.2);
-                audioCtx.resume();
-            } catch(e) {}
-        }
+        function playBeep(success) { try { const audioCtx = new (window.AudioContext || window.webkitAudioContext)(); const oscillator = audioCtx.createOscillator(); const gainNode = audioCtx.createGain(); oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.frequency.value = success ? 1200 : 400; gainNode.gain.value = 0.6; oscillator.start(); gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2); oscillator.stop(audioCtx.currentTime + 0.2); audioCtx.resume(); } catch(e) {} }
         function vibrate() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30); }
 
-        // ========== 数据存储 ==========
         function loadData() {
             try {
                 const saved = localStorage.getItem(STORAGE_KEY);
@@ -454,16 +303,10 @@
                     if (row['实际数量'] === undefined) row['实际数量'] = '';
                     if (row['实际价格'] === undefined) row['实际价格'] = '';
                 });
-            } catch(e) {
-                console.error(e);
-                columns = ['实际数量', '实际价格', '商品名称', '编码', '价格'];
-                normalizeSpecialColumns();
-                db = [];
-            }
+            } catch(e) { console.error(e); columns = ['实际数量', '实际价格', '商品名称', '编码', '价格']; normalizeSpecialColumns(); db = []; }
         }
         function normalizeSpecialColumns() {
-            const qtyCol = '实际数量';
-            const priceCol = '实际价格';
+            const qtyCol = '实际数量'; const priceCol = '实际价格';
             if (!columns.includes(qtyCol)) columns.unshift(qtyCol);
             if (!columns.includes(priceCol)) columns.push(priceCol);
             const qtyIndex = columns.indexOf(qtyCol);
@@ -472,16 +315,9 @@
             if (priceIndex !== 1 && priceIndex > 0) { columns.splice(priceIndex, 1); columns.splice(1, 0, priceCol); }
             else if (priceIndex === -1) columns.splice(1, 0, priceCol);
         }
-        function saveData() {
-            try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ db, columns, version: VERSION })); } catch(e) { showToast("存储空间不足", true); }
-        }
+        function saveData() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ db, columns, version: VERSION })); } catch(e) { showToast("存储空间不足", true); } }
 
-        // ========== 进度 ==========
-        function showProgress(show) {
-            const el = document.getElementById('progressArea');
-            if (show) el.classList.add('active');
-            else el.classList.remove('active');
-        }
+        function showProgress(show) { const el = document.getElementById('progressArea'); if (show) el.classList.add('active'); else el.classList.remove('active'); }
         function updateProgress(current, total, label, status) {
             const pct = total > 0 ? Math.round((current / total) * 100) : 0;
             document.getElementById('progressFill').style.width = Math.min(pct, 100) + '%';
@@ -500,7 +336,6 @@
             list.innerHTML = errors.map(e => `<li>行 ${e.row}: ${e.message || '数据异常'}</li>`).join('');
         }
 
-        // ========== 列识别 ==========
         function autoMapColumns(headers) {
             const map = {};
             const lowerMap = {
@@ -529,114 +364,9 @@
             return map;
         }
 
-        function extractProduct(row, colMap) {
-            const barcodeKey = colMap.barcode || '条码';
-            const nameKey = colMap.name || '名称';
-            const qtyKey = colMap.quantity || '库存数量';
-            const priceKey = colMap.price || '零售价';
-            return {
-                barcode: row[barcodeKey] || '',
-                name: row[nameKey] || '',
-                quantity: parseFloat(row[qtyKey]) || 0,
-                price: parseFloat(row[priceKey]) || 0
-            };
-        }
-
-        // ========== 流式分批加载 - 每批100条 ==========
-        function loadDataInBatches(rawRows, isCSV = false) {
+        // ========== 核心修复：直接解析并立即渲染 ==========
+        function parseCSVAndLoad(file) {
             return new Promise((resolve, reject) => {
-                const total = rawRows.length;
-                if (total === 0) { resolve({ rows: [], errors: [] }); return; }
-
-                const sample = rawRows[0] || {};
-                const headers = Object.keys(sample);
-                const colMap = autoMapColumns(headers);
-
-                const finalCols = new Set();
-                for (let h of headers) finalCols.add(h);
-                finalCols.add('实际数量');
-                finalCols.add('实际价格');
-                finalCols.add('条码');
-                finalCols.add('名称');
-                
-                const columnArray = Array.from(finalCols);
-                const qtyCol = '实际数量';
-                const priceCol = '实际价格';
-                const qtyIdx = columnArray.indexOf(qtyCol);
-                if (qtyIdx > 0) { columnArray.splice(qtyIdx, 1); columnArray.unshift(qtyCol); }
-                const priceIdx = columnArray.indexOf(priceCol);
-                if (priceIdx > 1 && priceIdx !== -1) { columnArray.splice(priceIdx, 1); columnArray.splice(1, 0, priceCol); }
-
-                const BATCH_SIZE = 100;
-                let loaded = 0;
-                const resultRows = [];
-                const errorList = [];
-                let isCompleted = false;
-
-                function processNextBatch() {
-                    if (isCompleted) return;
-                    const start = loaded;
-                    const end = Math.min(start + BATCH_SIZE, total);
-                    const batch = rawRows.slice(start, end);
-
-                    for (let i = 0; i < batch.length; i++) {
-                        const idx = start + i;
-                        const row = batch[i];
-                        try {
-                            const product = extractProduct(row, colMap);
-                            const newRow = { ...row };
-                            const barcodeKey = colMap.barcode || '条码';
-                            const nameKey = colMap.name || '名称';
-                            newRow['条码'] = (row[barcodeKey] || product.barcode || '').toString().trim();
-                            newRow['名称'] = (row[nameKey] || product.name || '').toString().trim();
-                            newRow['实际数量'] = product.quantity;
-                            newRow['实际价格'] = product.price;
-                            for (let col of columnArray) {
-                                if (newRow[col] === undefined) newRow[col] = '';
-                            }
-                            resultRows.push(newRow);
-                        } catch (e) {
-                            errorList.push({ row: idx + 1, message: e.message || '数据异常' });
-                        }
-                    }
-
-                    loaded = end;
-                    updateProgress(loaded, total, isCSV ? '📄 正在解析 CSV...' : '📊 正在加载数据...', `${Math.round((loaded/total)*100)}%`);
-
-                    if (loaded < total) {
-                        requestAnimationFrame(() => {
-                            processNextBatch();
-                        });
-                    } else {
-                        isCompleted = true;
-                        resolve({ rows: resultRows, errors: errorList, columns: columnArray });
-                    }
-                }
-
-                updateProgress(0, total, isCSV ? '📄 正在解析 CSV...' : '📊 正在加载数据...', '0%');
-                showProgress(true);
-                requestAnimationFrame(() => {
-                    processNextBatch();
-                });
-            });
-        }
-
-        // ========== CSV导入 ==========
-        document.getElementById('fileInput').onchange = function(e) {
-            if (isProcessing) {
-                showToast('⏳ 正在处理中，请稍候...', false);
-                return;
-            }
-            const file = e.target.files[0];
-            if (!file) return;
-            e.target.value = '';
-            const ext = file.name.split('.').pop().toLowerCase();
-
-            if (ext === 'csv') {
-                isProcessing = true;
-                showProgress(true);
-                updateProgress(0, 1, '📄 正在读取 CSV 文件...', '准备中');
-                
                 const reader = new FileReader();
                 reader.onload = function(ev) {
                     try {
@@ -648,6 +378,7 @@
                         let foundDelimiter = false;
                         const cleanLines = [];
                         
+                        // 清理注释行和空行
                         for (let i = 0; i < allLines.length; i++) {
                             const line = allLines[i];
                             const trimmed = line.trim();
@@ -656,29 +387,19 @@
                             if (!foundDelimiter) {
                                 const commaCount = (trimmed.match(/,/g) || []).length;
                                 const tabCount = (trimmed.match(/\t/g) || []).length;
-                                if (commaCount >= tabCount && commaCount >= 1) {
-                                    delimiter = ',';
-                                    foundDelimiter = true;
-                                } else if (tabCount >= 1) {
-                                    delimiter = '\t';
-                                    foundDelimiter = true;
-                                } else {
-                                    continue;
-                                }
+                                if (commaCount >= tabCount && commaCount >= 1) { delimiter = ','; foundDelimiter = true; }
+                                else if (tabCount >= 1) { delimiter = '\t'; foundDelimiter = true; }
+                                else { continue; }
                             }
                             
                             const commaCount = (trimmed.match(/,/g) || []).length;
                             const tabCount = (trimmed.match(/\t/g) || []).length;
                             const sepCount = delimiter === ',' ? commaCount : tabCount;
-                            if (sepCount >= 1) {
-                                cleanLines.push(trimmed);
-                            }
+                            if (sepCount >= 1) { cleanLines.push(trimmed); }
                         }
                         
                         if (cleanLines.length < 2) {
-                            showToast('CSV 文件无有效数据', true, true);
-                            showProgress(false);
-                            isProcessing = false;
+                            reject(new Error('CSV 文件无有效数据（至少需要表头+1行数据）'));
                             return;
                         }
                         
@@ -693,10 +414,6 @@
                             skipInvalidLines: true
                         });
                         
-                        if (parseResult.errors && parseResult.errors.length > 0) {
-                            console.warn('CSV解析警告:', parseResult.errors.length, '个问题');
-                        }
-                        
                         let rows = parseResult.data || [];
                         rows = rows.filter(row => {
                             const values = Object.values(row).filter(v => v && v.toString().trim());
@@ -704,64 +421,137 @@
                         });
                         
                         if (rows.length === 0) {
-                            showToast('CSV 无有效数据行', true, true);
-                            showProgress(false);
-                            isProcessing = false;
+                            reject(new Error('CSV 无有效数据行'));
                             return;
                         }
                         
-                        // ⭐ 调试：显示第一行数据
-                        console.log('📋 CSV第一行数据:', rows[0]);
-                        console.log('📋 CSV列名:', Object.keys(rows[0]));
+                        resolve({ rows: rows, totalLines: allLines.length, cleanLines: cleanLines.length });
                         
-                        loadDataInBatches(rows, true).then(({ rows: loadedRows, errors, columns: finalCols }) => {
-                            // ⭐ 确保数据被正确赋值
-                            columns = finalCols;
-                            db = loadedRows;
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = function() { reject(new Error('读取文件失败')); };
+                reader.readAsText(file);
+            });
+        }
+
+        // ========== 文件导入 ==========
+        document.getElementById('fileInput').onchange = function(e) {
+            if (isProcessing) {
+                showToast('⏳ 正在处理中，请稍候...', false);
+                return;
+            }
+            const file = e.target.files[0];
+            if (!file) return;
+            e.target.value = '';
+            const ext = file.name.split('.').pop().toLowerCase();
+
+            if (ext === 'csv') {
+                isProcessing = true;
+                showProgress(true);
+                updateProgress(0, 1, '📄 正在解析 CSV...', '准备中');
+                
+                parseCSVAndLoad(file).then(({ rows, totalLines, cleanLines }) => {
+                    const total = rows.length;
+                    updateProgress(0, total, '📄 正在导入数据...', '0%');
+                    
+                    // ⭐ 准备列名
+                    const headers = Object.keys(rows[0]);
+                    const colMap = autoMapColumns(headers);
+                    
+                    const finalCols = new Set();
+                    for (let h of headers) finalCols.add(h);
+                    finalCols.add('实际数量');
+                    finalCols.add('实际价格');
+                    finalCols.add('条码');
+                    finalCols.add('名称');
+                    
+                    const columnArray = Array.from(finalCols);
+                    const qtyCol = '实际数量';
+                    const priceCol = '实际价格';
+                    const qtyIdx = columnArray.indexOf(qtyCol);
+                    if (qtyIdx > 0) { columnArray.splice(qtyIdx, 1); columnArray.unshift(qtyCol); }
+                    const priceIdx = columnArray.indexOf(priceCol);
+                    if (priceIdx > 1 && priceIdx !== -1) { columnArray.splice(priceIdx, 1); columnArray.splice(1, 0, priceCol); }
+                    
+                    // ⭐ 逐行转换数据
+                    const resultRows = [];
+                    const errorList = [];
+                    const BATCH_SIZE = 200;
+                    let loaded = 0;
+                    
+                    function processBatch() {
+                        const start = loaded;
+                        const end = Math.min(start + BATCH_SIZE, total);
+                        
+                        for (let i = start; i < end; i++) {
+                            const row = rows[i];
+                            try {
+                                const barcodeKey = colMap.barcode || '条码';
+                                const nameKey = colMap.name || '名称';
+                                const qtyKey = colMap.quantity || '库存数量';
+                                const priceKey = colMap.price || '零售价';
+                                
+                                const newRow = { ...row };
+                                newRow['条码'] = (row[barcodeKey] || '').toString().trim();
+                                newRow['名称'] = (row[nameKey] || '').toString().trim();
+                                newRow['实际数量'] = parseFloat(row[qtyKey]) || 0;
+                                newRow['实际价格'] = parseFloat(row[priceKey]) || 0;
+                                
+                                for (let col of columnArray) {
+                                    if (newRow[col] === undefined) newRow[col] = '';
+                                }
+                                resultRows.push(newRow);
+                            } catch (err) {
+                                errorList.push({ row: i + 1, message: err.message || '数据异常' });
+                            }
+                        }
+                        
+                        loaded = end;
+                        updateProgress(loaded, total, '📄 正在导入数据...', `${Math.round((loaded/total)*100)}%`);
+                        
+                        if (loaded < total) {
+                            setTimeout(processBatch, 10);
+                        } else {
+                            // ⭐ 全部完成，赋值并渲染
+                            columns = columnArray;
+                            db = resultRows;
                             
-                            // ⭐ 调试日志
-                            console.log('✅ 加载完成，db长度:', db.length);
-                            console.log('✅ 列名:', columns);
+                            console.log('✅ 导入完成！');
+                            console.log('📊 数据条数:', db.length);
+                            console.log('📋 列名:', columns);
                             if (db.length > 0) {
-                                console.log('✅ 第一条数据:', db[0]);
+                                console.log('📦 第一条数据:', db[0]);
                             }
                             
                             saveData();
                             render();
-                            showErrors(errors);
+                            showErrors(errorList);
                             showProgress(false);
                             
-                            const skipped = allLines.length - cleanLines.length;
+                            const skipped = totalLines - cleanLines + (rows.length - resultRows.length);
                             if (db.length > 0) {
                                 showToast(`✅ 导入成功！共 ${db.length} 条商品`, false);
-                                if (errors.length > 0 || skipped > 0) {
-                                    showToast(`⚠️ 跳过 ${skipped + errors.length} 行无效数据`, true, true);
+                                if (errorList.length > 0 || skipped > 0) {
+                                    showToast(`⚠️ 跳过 ${skipped + errorList.length} 行无效数据`, true, true);
                                 }
                             } else {
                                 showToast('⚠️ 导入完成，但无有效商品数据', true, true);
                             }
                             updateStats();
                             isProcessing = false;
-                        }).catch(err => {
-                            console.error('加载失败:', err);
-                            showToast('加载失败: ' + (err.message || err.toString()), true, true);
-                            showProgress(false);
-                            isProcessing = false;
-                        });
-                        
-                    } catch (err) {
-                        console.error('CSV处理错误:', err);
-                        showToast('CSV处理失败: ' + (err.message || err.toString()), true, true);
-                        showProgress(false);
-                        isProcessing = false;
+                        }
                     }
-                };
-                reader.onerror = function() { 
-                    showToast('读取文件失败', true, true); 
+                    
+                    processBatch();
+                    
+                }).catch(err => {
+                    console.error('CSV导入失败:', err);
+                    showToast('CSV导入失败: ' + (err.message || err.toString()), true, true);
                     showProgress(false);
                     isProcessing = false;
-                };
-                reader.readAsText(file);
+                });
                 return;
             }
 
@@ -776,21 +566,53 @@
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
                     if (json.length > 0) {
-                        loadDataInBatches(json, false).then(({ rows: loadedRows, errors, columns: finalCols }) => {
-                            columns = finalCols;
-                            db = loadedRows;
-                            saveData();
-                            render();
-                            showErrors(errors);
-                            showProgress(false);
-                            showToast(`✅ Excel 导入成功！共 ${db.length} 条`, false);
-                            updateStats();
-                            isProcessing = false;
-                        }).catch(err => {
-                            showToast('Excel加载失败: ' + (err.message || err.toString()), true, true);
-                            showProgress(false);
-                            isProcessing = false;
-                        });
+                        const headers = Object.keys(json[0]);
+                        const colMap = autoMapColumns(headers);
+                        const finalCols = new Set();
+                        for (let h of headers) finalCols.add(h);
+                        finalCols.add('实际数量');
+                        finalCols.add('实际价格');
+                        finalCols.add('条码');
+                        finalCols.add('名称');
+                        const columnArray = Array.from(finalCols);
+                        const qtyCol = '实际数量';
+                        const priceCol = '实际价格';
+                        const qtyIdx = columnArray.indexOf(qtyCol);
+                        if (qtyIdx > 0) { columnArray.splice(qtyIdx, 1); columnArray.unshift(qtyCol); }
+                        const priceIdx = columnArray.indexOf(priceCol);
+                        if (priceIdx > 1 && priceIdx !== -1) { columnArray.splice(priceIdx, 1); columnArray.splice(1, 0, priceCol); }
+                        
+                        const resultRows = [];
+                        const errorList = [];
+                        for (let i = 0; i < json.length; i++) {
+                            const row = json[i];
+                            try {
+                                const barcodeKey = colMap.barcode || '条码';
+                                const nameKey = colMap.name || '名称';
+                                const qtyKey = colMap.quantity || '库存数量';
+                                const priceKey = colMap.price || '零售价';
+                                const newRow = { ...row };
+                                newRow['条码'] = (row[barcodeKey] || '').toString().trim();
+                                newRow['名称'] = (row[nameKey] || '').toString().trim();
+                                newRow['实际数量'] = parseFloat(row[qtyKey]) || 0;
+                                newRow['实际价格'] = parseFloat(row[priceKey]) || 0;
+                                for (let col of columnArray) {
+                                    if (newRow[col] === undefined) newRow[col] = '';
+                                }
+                                resultRows.push(newRow);
+                            } catch (err) {
+                                errorList.push({ row: i + 1, message: err.message || '数据异常' });
+                            }
+                        }
+                        columns = columnArray;
+                        db = resultRows;
+                        saveData();
+                        render();
+                        showErrors(errorList);
+                        showProgress(false);
+                        showToast(`✅ Excel 导入成功！共 ${db.length} 条`, false);
+                        updateStats();
+                        isProcessing = false;
                     } else {
                         showToast("文件无数据", true, true);
                         showProgress(false);
@@ -803,15 +625,10 @@
                     isProcessing = false;
                 }
             };
-            fileReader.onerror = function() { 
-                showToast('读取Excel文件失败', true, true); 
-                showProgress(false);
-                isProcessing = false;
-            };
+            fileReader.onerror = function() { showToast('读取Excel文件失败', true, true); showProgress(false); isProcessing = false; };
             fileReader.readAsArrayBuffer(file);
         };
 
-        // ========== 更新统计 ==========
         function updateStats() {
             const total = db.length;
             let totalPrice = 0;
@@ -1391,7 +1208,6 @@
             } 
         }
 
-        // ========== 导出 ==========
         function exportExcel() {
             if (!db.length) { showToast("暂无数据可导出", true); return; }
             const defaultName = `飞速盘点_${new Date().toLocaleDateString()}`;
@@ -1406,7 +1222,6 @@
 
         function hardReset() { if (confirm("⚠️ 确定清空所有数据吗？此操作不可恢复！")) { localStorage.removeItem(STORAGE_KEY); db = []; columns = ['实际数量', '实际价格', '商品名称', '编码', '价格']; normalizeSpecialColumns(); saveData(); render(); showToast("已清空所有数据", false); } }
 
-        // ========== 键盘处理 ==========
         function setupKeyboardListener() {
             if (!isMobile) return;
             if (window.visualViewport) {
@@ -1450,7 +1265,6 @@
             document.body.classList.remove('keyboard-open');
         }
 
-        // ========== 授权管理 ==========
         function initAuthSystem() {
             const presetList = ["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];
             const presetCodes = presetList.map(c => ({ code: c, used: false, deviceId: '' }));
@@ -1564,8 +1378,7 @@
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
         
-        console.log(`⚡ 飞速盘点 ${VERSION} - 修复数据写入 | 调试日志`);
-        console.log('📌 请打开浏览器控制台(F12)查看导入日志');
+        console.log(`⚡ 飞速盘点 ${VERSION} - 重写导入逻辑，确保数据完整显示`);
     </script>
 </body>
 </html>
