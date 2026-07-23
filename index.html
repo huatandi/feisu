@@ -3,444 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · CSV测试 v3.3.30</title>
+    <title>飞速盘点 · Sanfei v3.3.31</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        * { box-sizing: border-box; }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         body { 
-            background: #f0f4f8; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0; padding: 20px;
+            margin: 0; padding: 0;
             min-height: 100vh;
+            overflow: hidden;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; height: 100%;
         }
-        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        h1 { font-size: 24px; font-weight: 700; margin: 0 0 6px; display: flex; align-items: center; gap: 12px; }
-        .sub { color: #4a6a8a; font-size: 14px; margin-bottom: 16px; }
-        .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; padding: 12px 16px; background: #f8faff; border-radius: 12px; }
-        .file-label { background: #1a5fb4; color: white; padding: 8px 20px; border-radius: 40px; font-weight: 500; font-size: 14px; cursor: pointer; transition: 0.15s; }
-        .file-label:hover { background: #0d4a8e; }
-        .file-label input { display: none; }
-        .stats { display: flex; gap: 20px; font-size: 14px; color: #1f3a6b; margin-left: auto; }
-        .stats span { background: white; padding: 4px 16px; border-radius: 30px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
-        #progressArea { background: #eef3fa; border-radius: 12px; padding: 12px 18px; margin: 8px 0 12px 0; display: none; }
-        #progressArea.active { display: block; }
-        .progress-track { background: #d0dae8; height: 10px; border-radius: 40px; overflow: hidden; margin-top: 4px; }
-        .progress-fill { height: 100%; width: 0%; background: #1a5fb4; border-radius: 40px; transition: width 0.15s ease; }
-        .progress-info { display: flex; justify-content: space-between; font-size: 13px; color: #1f3a6b; }
-        .table-wrap { border: 1px solid #e2e8f0; border-radius: 12px; overflow: auto; max-height: 70vh; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { position: sticky; top: 0; background: #1e293b; color: white; padding: 10px 12px; text-align: left; font-weight: 600; white-space: nowrap; z-index: 10; }
-        td { padding: 6px 10px; border-bottom: 1px solid #edf2f7; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-        tr:hover td { background: #f8fbff; }
-        .empty { text-align: center; padding: 40px; color: #94a3b8; }
-        .error-box { background: #fff5f5; border-left: 4px solid #dc2626; padding: 10px 16px; border-radius: 8px; margin: 8px 0; font-size: 13px; display: none; }
-        .error-box.active { display: block; }
-        .error-box details { cursor: pointer; }
-        .error-box summary { font-weight: 600; color: #b71c1c; }
-        .error-box ul { max-height: 100px; overflow-y: auto; margin: 4px 0 0 16px; color: #5f2b2b; font-size: 12px; }
-        .toast { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 10px 24px; border-radius: 40px; z-index: 999; display: none; font-weight: bold; font-size: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); pointer-events: none; }
-        .toast.show { display: block; }
-        .qty-input { width: 70px; padding: 4px 6px; border: 2px solid #3b82f6; border-radius: 6px; text-align: center; font-weight: 700; }
-        .price-input { width: 80px; padding: 4px 6px; border: 2px solid #10b981; border-radius: 6px; text-align: center; font-weight: 700; }
+        .main-card {
+            background: white;
+            width: 100%; height: 100vh;
+            display: flex; flex-direction: column;
+            overflow: hidden; position: relative;
+        }
+        .header-fixed { flex-shrink: 0; background: white; z-index: 20; }
+        .bottom-fixed-btns {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: white; padding: 12px 16px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+            z-index: 100; border-top: 1px solid #e2e8f0;
+            transition: bottom 0.3s ease-out;
+        }
+        .keyboard-open .bottom-fixed-btns { bottom: 400px; }
+        @media (max-width: 640px) { .keyboard-open .bottom-fixed-btns { bottom: 350px; } }
+        .scrollable-area {
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding: 0 16px 16px 16px;
+        }
+        .table-container { 
+            background: white; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 12px; 
+            overflow-x: auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            position: relative;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+        table { border-collapse: collapse; width: 100%; min-width: 100%; table-layout: auto; }
+        th { 
+            position: sticky; top: 0; z-index: 50; 
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white; border: 1px solid #334155; padding: 12px; 
+            font-size: 13px; text-align: left; font-weight: 600; white-space: nowrap;
+        }
+        td { border: 1px solid #e2e8f0; padding: 8px; white-space: nowrap; }
+        .qty-input { 
+            width: 100%; min-width: 80px; max-width: 120px; height: 50px; 
+            border: 3px solid #3b82f6 !important; text-align: center; 
+            font-size: 1.3rem; font-weight: 900; color: #1e40af; 
+            border-radius: 10px; background: #f0f9ff; transition: all 0.2s;
+        }
+        .qty-input:focus { background: #fef9c3; transform: scale(1.02); border-color: #ef4444 !important; outline: none; }
+        .price-input {
+            width: 100%; min-width: 80px; max-width: 120px; height: 50px;
+            border: 3px solid #10b981 !important; text-align: center;
+            font-size: 1.3rem; font-weight: 900; color: #065f46;
+            border-radius: 10px; background: #ecfdf5; transition: all 0.2s;
+        }
+        .price-input:focus { background: #fef9c3; transform: scale(1.02); border-color: #f59e0b !important; outline: none; }
+        .row-focus { background: linear-gradient(90deg, #fef08a 0%, #fde047 100%) !important; }
+        #toast { 
+            position: fixed; top: 20%; left: 50%; transform: translateX(-50%); 
+            background: #1f2937; color: white; padding: 14px 20px; 
+            border-radius: 16px; z-index: 10000; display: none; 
+            font-weight: bold; text-align: center; 
+            box-shadow: 0 5px 30px rgba(0,0,0,0.5);
+            pointer-events: auto; font-size: 14px; backdrop-filter: blur(10px);
+            max-width: 92%; min-width: 200px;
+            line-height: 1.6;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        #toast .toast-close { background: rgba(255,255,255,0.15); border: none; border-radius: 6px; color: white; padding: 2px 12px; margin-left: 12px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.1s; }
+        #toast .toast-close:hover { background: rgba(255,255,255,0.3); }
+        #toast .toast-copy { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: white; padding: 2px 12px; margin-left: 8px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.1s; }
+        #toast .toast-copy:hover { background: rgba(255,255,255,0.3); }
+        #colModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(8px); }
+        .modal-content { background: white; border-radius: 24px; max-width: 90%; width: 350px; max-height: 70vh; overflow: auto; }
+        .scan-frame { position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%); width: 80%; height: 220px; border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.75); z-index: 10; pointer-events: none; background: rgba(0,0,0,0.1); }
+        .scan-line { position: absolute; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent); top: 0; animation: scanLineMove 1.2s infinite ease-in-out; box-shadow: 0 0 20px #3b82f6; }
+        @keyframes scanLineMove { 0%, 100% { top: 5%; } 50% { top: 95%; } }
+        .col-item { background: white; margin-bottom: 8px; border-radius: 12px; border: 1px solid #e2e8f0; transition: all 0.2s; cursor: move; touch-action: none; }
+        .col-item.dragging { opacity: 0.4; transform: scale(0.98); background: #dbeafe; }
+        .version-badge { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 16px; font-size: 10px; font-weight: bold; }
+        .btn-group-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0; }
+        .action-btn { padding: 12px 4px; border-radius: 12px; font-weight: bold; font-size: 13px; text-align: center; transition: all 0.1s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+        .bottom-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 600px; margin: 0 auto; }
+        .bottom-btn { padding: 14px 4px; border-radius: 14px; font-weight: bold; font-size: 16px; text-align: center; transition: all 0.1s; cursor: pointer; }
+        .cam-btn-large { background: #3b82f6; color: white; font-size: 28px; }
+        .keyboard-btn { background: #8b5cf6; color: white; font-size: 28px; }
+        .close-scan-btn { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.5); font-size: 18px; font-weight: 900; padding: 12px 24px; border-radius: 50px; border: 2px solid white; cursor: pointer; }
+        .close-scan-btn:active, .action-btn:active, .bottom-btn:active { transform: scale(0.97); }
+        .scan-header { background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); border-bottom: 3px solid #3b82f6; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; }
+        .scan-header-left { display: flex; gap: 12px; align-items: center; }
+        .scan-enhance-btn { background: #10b981; color: white; border: 2px solid white; border-radius: 50px; padding: 12px 24px; font-size: 18px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.5); transition: 0.1s; }
+        .scan-enhance-btn.active { background: #f59e0b; }
+        .scan-success { animation: flash 0.2s ease; }
+        @keyframes flash { 0%, 100% { border-color: #3b82f6; } 50% { border-color: #10b981; box-shadow: 0 0 0 2000px rgba(16,185,129,0.3); } }
+        #manualInput { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 16px; font-weight: bold; outline: none; }
+        #manualInput:focus { border-color: #3b82f6; }
+        @media (max-width: 640px) {
+            .action-btn { font-size: 10px; padding: 10px 2px; }
+            .bottom-btn { font-size: 14px; padding: 12px 4px; }
+            .qty-input { height: 45px; font-size: 1.1rem; min-width: 70px; }
+            .price-input { height: 45px; font-size: 1.1rem; min-width: 70px; }
+            .cam-btn-large { font-size: 24px; }
+            .keyboard-btn { font-size: 24px; }
+            .bottom-fixed-btns { padding: 8px 12px; }
+            .scrollable-area { padding: 0 12px 16px 12px; }
+            .scan-enhance-btn { padding: 12px 24px; font-size: 18px; }
+        }
+        .keyboard-open .scrollable-area { padding-bottom: 120px; }
+        .prefix-hit { background: #fef08a !important; box-shadow: inset 0 0 0 2px #f59e0b; }
+        .scan-tool-btn { background: #1e3a8a; color: #fff; border: 1px solid #60a5fa; border-radius: 9999px; padding: 8px 12px; font-size: 12px; font-weight: 700; }
+        .scan-tool-btn.active { background: #f59e0b; border-color: #fcd34d; color: #111827; }
+        .focus-guide { position: absolute; top: 10px; left: 0; right: 0; text-align: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); padding: 6px 12px; border-radius: 20px; width: fit-content; margin: 0 auto; font-size: 11px; color: #fff; z-index: 20; pointer-events: none; }
+        .enhance-badge { position: absolute; bottom: 80px; right: 10px; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: 20px; font-size: 10px; color: #fbbf24; font-weight: bold; pointer-events: none; z-index: 15; }
+        .auth-overlay { position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,0.88); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(12px); }
+        .auth-box { background: #fff; border-radius: 28px; width: min(92%, 400px); padding: 32px 24px 24px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        .auth-box h2 { font-size: 22px; font-weight: 900; margin: 0 0 6px; }
+        .auth-box p { font-size: 13px; color: #64748b; margin: 0 0 20px; }
+        .auth-input { width: 100%; padding: 14px; font-size: 22px; font-weight: 900; text-align: center; letter-spacing: 4px; border: 3px solid #3b82f6; border-radius: 14px; outline: none; background: #f0f9ff; }
+        .auth-btn { width: 100%; padding: 14px; margin-top: 14px; background: #3b82f6; color: #fff; border: none; border-radius: 14px; font-size: 18px; font-weight: 900; cursor: pointer; }
+        .auth-btn:active { transform: scale(0.97); }
+        .auth-error { color: #dc2626; font-size: 13px; font-weight: bold; margin-top: 10px; display: none; }
+        .admin-overlay { position: fixed; inset: 0; z-index: 99998; background: rgba(0,0,0,0.85); display: none; align-items: flex-start; justify-content: center; padding-top: 30px; overflow: auto; backdrop-filter: blur(8px); }
+        .admin-box { background: #fff; border-radius: 24px; width: min(94%, 480px); padding: 20px; margin-bottom: 30px; }
+        .admin-box h2 { font-size: 18px; font-weight: 900; margin: 0 0 12px; text-align: center; }
+        .admin-close { float: right; background: #ef4444; color: #fff; border: none; border-radius: 50%; width: 32px; height: 32px; font-weight: 900; font-size: 16px; cursor: pointer; }
+        .admin-code-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; font-weight: bold; }
+        .admin-code-item.used { color: #94a3b8; text-decoration: line-through; }
+        .admin-code-item .status-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #10b981; color: #fff; }
+        .admin-code-item.used .status-badge { background: #94a3b8; }
+        .admin-gen-btn { display: block; width: 100%; margin-top: 12px; padding: 12px; background: #8b5cf6; color: #fff; border: none; border-radius: 12px; font-weight: 900; font-size: 15px; cursor: pointer; }
+
+        #progressArea {
+            background: #eef3fa; border-radius: 20px; padding: 16px 22px;
+            margin: 6px 0 12px 0; display: none; flex-direction: column; gap: 6px;
+            border: 1px solid #cbd7e6;
+        }
+        #progressArea.active { display: flex; }
+        .progress-title { font-weight: 600; font-size: 15px; display: flex; justify-content: space-between; color: #1e293b; }
+        .progress-track { background: #d0dae8; height: 12px; border-radius: 40px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); border-radius: 40px; transition: width 0.15s ease; }
+        .progress-detail { font-size: 14px; color: #1f3a6b; display: flex; justify-content: space-between; }
+        .error-summary { background: #fff5f5; border-left: 4px solid #d32f2f; padding: 12px 18px; border-radius: 12px; margin: 6px 0 12px 0; font-size: 14px; display: none; }
+        .error-summary.active { display: block; }
+        .error-summary details { cursor: pointer; }
+        .error-summary summary { font-weight: 600; color: #b71c1c; }
+        .error-summary ul { max-height: 120px; overflow-y: auto; margin: 6px 0 0 18px; color: #5f2b2b; }
+        .stats { display: flex; gap: 18px; font-size: 14px; color: #1f3a6b; }
+        .stats span { background: white; padding: 4px 16px; border-radius: 30px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
-            <div>
-                <h1>⚡ 飞速盘点 · CSV测试版</h1>
-                <div class="sub">v3.3.30 · 不保存localStorage · 测试导入</div>
-            </div>
-            <div style="font-size:12px;color:#94a3b8;">如果导入失败，请按F12查看控制台错误</div>
-        </div>
+    <div id="toast"></div>
+    <div id="colModal"><div class="modal-content p-5"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 class="text-xl font-bold">📋 列管理</h2><button onclick="closeColModal()" style="background:#1e293b;color:#fff;border:none;border-radius:999px;padding:8px 20px;font-weight:900;font-size:14px;cursor:pointer;">完成</button></div><p class="text-xs text-gray-500 text-center mb-3">💡 点击箭头上下排序</p><div id="colList" class="space-y-2 mb-4" style="max-height:55vh;overflow:auto;"></div><div class="flex gap-2 p-2 bg-gray-100 rounded-lg"><input type="text" id="newColName" placeholder="新列名..." class="flex-1 bg-white rounded-lg px-3 py-2 font-bold text-sm outline-none" /><button onclick="addColumn()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm">添加</button></div></div></div>
 
-        <div class="toolbar">
-            <label class="file-label">
-                📂 选择CSV文件
-                <input type="file" id="fileInput" accept=".csv" />
-            </label>
-            <button onclick="resetData()" style="background:#ef4444;color:white;border:none;border-radius:40px;padding:8px 20px;font-weight:500;cursor:pointer;">🗑️ 清空</button>
-            <div class="stats">
-                <span id="countDisplay">📊 0 条</span>
-                <span id="priceDisplay">💰 0.00</span>
-            </div>
-        </div>
+    <div id="authOverlay" class="auth-overlay"><div class="auth-box"><h2>🔐 飞速盘点</h2><p>请输入授权码激活本系统</p><input type="text" id="authInput" class="auth-input" maxlength="12" placeholder="输入授权码" style="text-transform:uppercase;color:#000!important;" /><button onclick="verifyAuthCode()" class="auth-btn">激活</button><div id="authError" class="auth-error">❌ 授权码无效或已被使用</div></div></div>
+    <script>const AUTH_SKEY="FEISUPANDIAN_AUTH_V2";function getAuthData(){try{var s=localStorage.getItem(AUTH_SKEY);if(s)return JSON.parse(s)}catch(e){}return null}function saveAuthData(d){try{localStorage.setItem(AUTH_SKEY,JSON.stringify(d))}catch(e){}}function getDid(){var d=localStorage.getItem('_device_id');if(!d){d='DEV_'+Math.random().toString(36).substring(2,10).toUpperCase();localStorage.setItem('_device_id',d)}return d}(function(){var ad=getAuthData();var presetList=["2WEN3X1I","WEN21XI8","W2E1NXI3","8WEN7X0I","4WEN4XI4","997WENXI","WEN33X2I","WE05N1XI","W095ENXI","7WE1NXI5","W3ENX4I7","W0ENX01I","W55EN1XI","WE2NX6I9","WEN49XI3","WENX5I85","W456ENXI","0WE73NXI","4WE2NXI4","W9E0NX4I","4WE1NX8I","3WE2N3XI","W29EN1XI","WEN1X32I","W75ENXI5","W344ENXI","7W40ENXI","W89E9NXI","W1EN8X8I","WE6N8XI1","WENXI130","W1EN72XI","W4E9NX5I","WEN4X4I0","W6EN3X3I","W6E5NX0I","8WEN20XI","WEN5XI06","WE388NXI","7WE2NXI6","8WEN38XI","WE80NXI0","WE565NXI","8WEN9X4I","9WEN4XI3","WE3NX0I9","WENX81I4","4W77ENXI","W6EN4X8I","W62ENX3I","63WEN1XI","WE900NXI","WE5NX0I7","30W2ENXI","77WEN0XI","WEN79X2I","WE6N24XI","W6EN34XI","WE7N8X4I","4W79ENXI","WEN09X5I","W4E1NX1I","WE6NX7I3","WEN276XI","W38ENX9I","W25ENXI7","WE0NX23I","WEN7X26I","3WE8NX5I","WE73NXI4","87W3ENXI","26W9ENXI","WEN09X2I","W0E5NX5I","W9E7NXI7","W09E2NXI","WEN8XI17","W90ENXI9","WENX92I3","87WE1NXI","W37ENXI3","39WE4NXI","W5ENX63I","WE6NX4I8","W7E0NXI8","W0E3NXI7","WE2NXI58","WEN06X8I","W1EN64XI","WENX21I7","WE48N7XI","W8EN1XI3","W26E1NXI","7WE8NX1I","1WE0NX2I","04WENXI3","WE1N1X9I","WE6NX47I","W5EN2X4I","8WEN65XI","WE2NX5I8","7W3EN6XI","WENXI847","W06ENX4I","WE8N5XI8","9WE4N6XI","2WE8N8XI","27WEN0XI","WE5N74XI","9WEN5X9I","WE3NX9I0","W9EN6X3I","1WEN0XI0","W8ENX0I0","WE2N4XI8","WENX1I43","060WENXI","5WENX30I","W94EN4XI","1W0E6NXI","WE43N2XI","84WE6NXI","WEN24X8I","6W6ENXI4","75WEN3XI","W0E7N0XI","W53E5NXI","W44EN8XI","W0E3NXI5","W6ENXI48","WE2N6X9I","3W9ENX5I","W8EN31XI","9WE1NX6I","WE0N04XI","WE91N9XI","W08ENXI9","5WENX03I","W3ENX6I6","WEN8X0I8","079WENXI","WE61NXI2","09W3ENXI","1WENXI61","WE1N0XI4","2WE21NXI","W4E0N2XI","839WENXI","W74EN1XI","58WENX0I","020WENXI","22WENXI6","0WE2N0XI","28WEN5XI","WE3NX5I1","WEN237XI","1WEN57XI","W3ENX6I0","W4E3NX6I","04WENX2I","WE0N4XI6","W1ENX69I","W1ENX07I","4WENX85I","WEN699XI","9WE05NXI","2W5ENXI0","W281ENXI","W245ENXI","34WENX0I","9WE5NX7I","W75E4NXI","WENX930I","WEN29XI5","W2EN0X0I","1W28ENXI","0WE7NXI4","2WEN19XI","2WEN4XI9","W24EN6XI","WEN1XI72","WE6NX2I1","23W3ENXI","2W68ENXI","09WE5NXI","W4ENXI92","1WE22NXI","WENXI979","9W1ENXI3","W74ENX8I","WEN009XI","WE5NX6I9","WE52NX7I","4WE7N3XI","WE6NX8I6","W65EN7XI","W2EN6XI5","WE5N9XI2","W7E4NX8I","6WE9NXI5"];var presetCodes=presetList.map(function(c){return {code:c,used:false,deviceId:''}});var active=ad&&ad.activated?true:false,adm=ad&&ad.admin?true:false;if(ad&&ad.codes&&ad.codes.length){var oldMap={};for(var oi=0;oi<ad.codes.length;oi++){var oc=ad.codes[oi];if(oc.used) oldMap[oc.code]=oc.deviceId;}for(var pi=0;pi<presetCodes.length;pi++){var pc=presetCodes[pi];if(oldMap[pc.code]){pc.used=true;pc.deviceId=oldMap[pc.code];}}}saveAuthData({codes:presetCodes,activated:active,admin:adm})})();function verifyAuthCode(){var i=document.getElementById('authInput'),e=document.getElementById('authError'),c=(i.value||'').trim().toUpperCase();if(!c){e.style.display='block';e.textContent='❌ 请输入授权码';return}if(c==='ADMIN0578'){var old=getAuthData()||{};saveAuthData({codes:old.codes||[],admin:true,activated:true});document.getElementById('authOverlay').style.display='none';try{typeof showToast==='function'&&showToast("✅ 管理员模式已激活",false)}catch(_){}return}var data=getAuthData(),codes=data&&data.codes?data.codes:[];if(!codes.length){e.style.display='block';e.textContent='❌ 系统初始化中，请稍后重试';return}var matched=null;for(var j=0;j<codes.length;j++){if(codes[j].code===c){matched=codes[j];break}}if(!matched){e.style.display='block';e.textContent='❌ 授权码不存在';return}if(matched.used&&matched.deviceId!==getDid()){e.style.display='block';e.textContent='❌ 该授权码已被其他设备使用';return}matched.used=true;matched.deviceId=getDid();data.activated=true;saveAuthData(data);document.getElementById('authOverlay').style.display='none';try{typeof showToast==='function'&&showToast("✅ 授权成功！欢迎使用飞速盘点",false)}catch(_){}try{typeof playBeep==='function'&&playBeep(true)}catch(_){}}var data=getAuthData();var authEl=document.getElementById('authOverlay');if(data&&data.activated){authEl.style.display='none';}else{authEl.style.display='flex';}</script>
 
-        <div id="progressArea">
-            <div class="progress-info">
-                <span id="progressLabel">⏳ 正在读取...</span>
-                <span id="progressPercent">0%</span>
+    <div id="adminPanel" class="admin-overlay"><div class="admin-box"><button onclick="closeAdminPanel()" class="admin-close">✕</button><h2>📋 授权码管理</h2><div id="adminCodeList" style="max-height:55vh;overflow:auto;"></div><button onclick="generateNewCodes()" class="admin-gen-btn">➕ 追加 10 个新授权码</button></div></div>
+
+    <div class="main-card">
+        <div class="header-fixed">
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white">
+                <div class="flex items-center justify-center gap-3">
+                    <span class="text-2xl">⚡</span>
+                    <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
+                    <div class="version-badge">sanfei v3.3.31</div>
+                </div>
             </div>
-            <div class="progress-track">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <div class="progress-info" style="margin-top:2px;">
-                <span id="progressCount">0 / 0</span>
-                <span id="progressStatus">准备中</span>
+            <div style="padding: 16px 16px 0 16px;">
+                <input type="text" id="manualInput" placeholder="📱 输入条码/编码/名称..." />
+                <div class="btn-group-4">
+                    <button onclick="openColModal()" class="action-btn bg-gray-700 text-white shadow-md">📊 列管理</button>
+                    <label class="action-btn bg-emerald-600 text-white shadow-md cursor-pointer">📂 导入 <input type="file" id="fileInput" class="hidden" accept=".xlsx,.xls,.csv" /></label>
+                    <button onclick="exportExcel()" class="action-btn bg-emerald-600 text-white shadow-md">💾 导出</button>
+                    <button id="confirmBtn" class="action-btn bg-blue-600 text-white shadow-md">✅ 确认</button>
+                </div>
             </div>
         </div>
-
-        <div class="error-box" id="errorBox">
-            <details>
-                <summary id="errorTitle">⚠️ 导入完成，部分行失败</summary>
-                <ul id="errorList"></ul>
-            </details>
-        </div>
-
-        <div class="table-wrap">
-            <table>
-                <thead id="tHead"></thead>
-                <tbody id="tBody"><tr><td class="empty">请选择CSV文件导入</td></tr></tbody>
-            </table>
+        <div class="scrollable-area">
+            <div id="progressArea">
+                <div class="progress-title"><span id="progressLabel">⏳ 正在读取数据...</span><span id="progressPercent">0%</span></div>
+                <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
+                <div class="progress-detail"><span id="progressCount">0 / 0</span><span id="progressStatus">准备中</span></div>
+            </div>
+            <div id="errorSummary" class="error-summary"><details><summary id="errorSummaryTitle">⚠️ 导入完成，部分行失败</summary><ul id="errorList"></ul></details></div>
+            <div class="table-container">
+                <table id="mainTable">
+                    <thead id="tHead"></thead>
+                    <tbody id="tBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <div class="toast" id="toast"></div>
+    <div class="bottom-fixed-btns">
+        <div class="bottom-btns">
+            <button id="scanBtn" class="bottom-btn bg-blue-600 text-white shadow-lg cam-btn-large">📷 扫码</button>
+            <button onclick="hardReset()" class="bottom-btn bg-red-600 text-white shadow-lg">🗑️ 重置</button>
+            <button id="showKeyboardBtn" class="bottom-btn bg-purple-600 text-white shadow-lg keyboard-btn">⌨️ 键盘</button>
+        </div>
+    </div>
 
-    <script>
-        var db = [];
-        var columns = [];
-        var isProcessing = false;
-        var toastTimer = null;
-
-        function showToast(msg, isError) {
-            var toast = document.getElementById('toast');
-            if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
-            toast.textContent = msg;
-            toast.style.background = isError ? '#dc2626' : '#10b981';
-            toast.className = 'toast show';
-            toastTimer = setTimeout(function() { toast.className = 'toast'; toastTimer = null; }, 3000);
-        }
-
-        function showProgress(show) {
-            var el = document.getElementById('progressArea');
-            if (show) el.className = 'active';
-            else el.className = '';
-        }
-
-        function updateProgress(current, total, label, status) {
-            var pct = total > 0 ? Math.round((current / total) * 100) : 0;
-            document.getElementById('progressFill').style.width = Math.min(pct, 100) + '%';
-            document.getElementById('progressPercent').textContent = Math.min(pct, 100) + '%';
-            document.getElementById('progressCount').textContent = current + ' / ' + total;
-            if (label) document.getElementById('progressLabel').textContent = label;
-            if (status) document.getElementById('progressStatus').textContent = status;
-        }
-
-        function showErrors(errors) {
-            var el = document.getElementById('errorBox');
-            var list = document.getElementById('errorList');
-            var title = document.getElementById('errorTitle');
-            if (!errors || errors.length === 0) { el.className = 'error-box'; return; }
-            el.className = 'error-box active';
-            title.textContent = '⚠️ 导入完成，' + errors.length + ' 行失败';
-            list.innerHTML = errors.map(function(e) { return '<li>行 ' + e.row + ': ' + (e.message || '数据异常') + '</li>'; }).join('');
-        }
-
-        function updateStats() {
-            var total = db.length;
-            var totalPrice = 0;
-            for (var i = 0; i < db.length; i++) {
-                var row = db[i];
-                var qty = parseFloat(row['实际数量']) || 0;
-                var price = parseFloat(row['实际价格']) || 0;
-                totalPrice += qty * price;
-            }
-            document.getElementById('countDisplay').textContent = '📊 ' + total + ' 条';
-            document.getElementById('priceDisplay').textContent = '💰 ' + totalPrice.toFixed(2);
-        }
-
-        // ==================== 提取数据 ====================
-        function extractProduct(row) {
-            var barcode = row['条码'] || row['barcode'] || row['Barcode'] || row['商品编码'] || row['编码'] || '';
-            var name = row['名称'] || row['商品名称'] || row['name'] || row['Name'] || '';
-            
-            var qty = 0;
-            if (row['库存数量'] !== undefined && row['库存数量'] !== '') qty = parseFloat(row['库存数量']) || 0;
-            else if (row['数量'] !== undefined && row['数量'] !== '') qty = parseFloat(row['数量']) || 0;
-            else if (row['库存'] !== undefined && row['库存'] !== '') qty = parseFloat(row['库存']) || 0;
-            
-            var price = 0;
-            if (row['零售价'] !== undefined && row['零售价'] !== '') price = parseFloat(row['零售价']) || 0;
-            else if (row['售价'] !== undefined && row['售价'] !== '') price = parseFloat(row['售价']) || 0;
-            else if (row['价格'] !== undefined && row['价格'] !== '') price = parseFloat(row['价格']) || 0;
-
-            if (!barcode) {
-                for (var key in row) {
-                    var val = String(row[key] || '').trim();
-                    if (val && /^\d{8,14}$/.test(val.replace(/-/g, ''))) {
-                        barcode = val;
-                        break;
-                    }
-                }
-            }
-            if (!name && barcode) { name = barcode; }
-
-            return {
-                barcode: String(barcode).trim(),
-                name: String(name).trim(),
-                quantity: qty,
-                price: price,
-                valid: (barcode && barcode !== '') || (name && name !== '')
-            };
-        }
-
-        // ==================== 渲染表格 ====================
-        function render() {
-            try {
-                var thead = document.getElementById('tHead');
-                var tbody = document.getElementById('tBody');
-                
-                if (!columns.length || db.length === 0) {
-                    thead.innerHTML = '';
-                    tbody.innerHTML = '<tr><td class="empty">暂无数据，请导入CSV文件</td></tr>';
-                    return;
-                }
-
-                thead.innerHTML = '<tr>' + columns.map(function(col) {
-                    return '<th>' + col + '</th>';
-                }).join('') + '</tr>';
-
-                tbody.innerHTML = db.map(function(row, idx) {
-                    return '<tr>' + columns.map(function(col) {
-                        if (col === '实际数量') {
-                            return '<td><input class="qty-input" type="number" value="' + (row[col] || '') + '" onchange="updateQty(' + idx + ', this.value)" /></td>';
-                        } else if (col === '实际价格') {
-                            return '<td><input class="price-input" type="number" step="0.01" value="' + (row[col] || '') + '" onchange="updatePrice(' + idx + ', this.value)" /></td>';
-                        } else {
-                            var val = String(row[col] || '');
-                            if (val.length > 50) val = val.substring(0, 50) + '...';
-                            return '<td title="' + String(row[col] || '') + '">' + val + '</td>';
-                        }
-                    }).join('') + '</tr>';
-                }).join('');
-
-                updateStats();
-            } catch(e) {
-                console.error('渲染错误:', e);
-            }
-        }
-
-        function updateQty(idx, val) { 
-            if (db[idx]) { db[idx]['实际数量'] = val; updateStats(); } 
-        }
-        function updatePrice(idx, val) { 
-            if (db[idx]) { db[idx]['实际价格'] = val; updateStats(); } 
-        }
-
-        // ==================== CSV导入 ====================
-        function importCSV(file) {
-            return new Promise(function(resolve, reject) {
-                var result = {
-                    rows: [],
-                    errors: [],
-                    total: 0,
-                    valid: 0
-                };
-
-                var reader = new FileReader();
-                reader.onload = function(ev) {
-                    try {
-                        var csvText = ev.target.result;
-                        if (csvText.charCodeAt(0) === 0xFEFF) {
-                            csvText = csvText.slice(1);
-                        }
-
-                        var firstRowPrinted = false;
-
-                        Papa.parse(csvText, {
-                            header: true,
-                            comments: '#',
-                            skipEmptyLines: true,
-                            trimHeaders: true,
-                            transformHeader: function(h) {
-                                return h.trim();
-                            },
-                            worker: false,
-                            step: function(results) {
-                                var row = results.data;
-                                if (!row || Object.keys(row).length === 0) return;
-
-                                result.total++;
-
-                                if (!firstRowPrinted) {
-                                    firstRowPrinted = true;
-                                    console.log('📋 列名:', Object.keys(row));
-                                    console.log('📋 第一行:', row);
-                                }
-
-                                var product = extractProduct(row);
-
-                                if (product.valid) {
-                                    result.rows.push({
-                                        barcode: product.barcode,
-                                        name: product.name,
-                                        quantity: product.quantity,
-                                        price: product.price,
-                                        original: row
-                                    });
-                                    result.valid++;
-                                } else {
-                                    result.errors.push({
-                                        row: result.total,
-                                        data: row,
-                                        message: '缺少条码或名称'
-                                    });
-                                }
-
-                                if (result.total % 100 === 0) {
-                                    updateProgress(result.total, 0, '📄 解析中...', result.total + ' 行');
-                                }
-                            },
-                            complete: function() {
-                                console.log('✅ 解析完成');
-                                console.log('📊 总行数:', result.total);
-                                console.log('✅ 有效:', result.valid);
-                                console.log('❌ 错误:', result.errors.length);
-                                resolve(result);
-                            },
-                            error: function(err) {
-                                console.error('PapaParse错误:', err);
-                                reject(err);
-                            }
-                        });
-                    } catch (err) {
-                        reject(err);
-                    }
-                };
-                reader.onerror = function() {
-                    reject(new Error('读取文件失败'));
-                };
-                reader.readAsText(file);
-            });
-        }
-
-        // ==================== 文件导入入口 ====================
-        document.getElementById('fileInput').onchange = function(e) {
-            if (isProcessing) {
-                showToast('⏳ 正在处理中...', false);
-                return;
-            }
-            var file = e.target.files[0];
-            if (!file) return;
-            e.target.value = '';
-
-            isProcessing = true;
-            showProgress(true);
-            updateProgress(0, 1, '📄 正在读取...', '准备中');
-
-            importCSV(file).then(function(result) {
-                console.log('📊 解析到 ' + result.rows.length + ' 条数据');
-
-                if (result.rows.length === 0) {
-                    showToast('⚠️ 没有有效数据行', true);
-                    showProgress(false);
-                    isProcessing = false;
-                    return;
-                }
-
-                // 收集所有列名
-                var allColumns = new Set();
-                allColumns.add('实际数量');
-                allColumns.add('实际价格');
-                allColumns.add('条码');
-                allColumns.add('名称');
-
-                for (var i = 0; i < result.rows.length; i++) {
-                    var r = result.rows[i];
-                    if (r.original) {
-                        for (var key in r.original) {
-                            if (r.original.hasOwnProperty(key)) {
-                                allColumns.add(key);
-                            }
-                        }
-                    }
-                }
-
-                var finalCols = Array.from(allColumns);
-                // 把实际数量和实际价格移到前面
-                var qtyCol = '实际数量';
-                var priceCol = '实际价格';
-                var qtyIdx = finalCols.indexOf(qtyCol);
-                if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
-                var priceIdx = finalCols.indexOf(priceCol);
-                if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
-
-                // 转换数据
-                var loadedRows = [];
-                for (var i = 0; i < result.rows.length; i++) {
-                    var r = result.rows[i];
-                    var newRow = {};
-
-                    if (r.original) {
-                        for (var key in r.original) {
-                            if (r.original.hasOwnProperty(key)) {
-                                newRow[key] = r.original[key];
-                            }
-                        }
-                    }
-
-                    newRow['条码'] = r.barcode || '';
-                    newRow['名称'] = r.name || '';
-                    newRow['实际数量'] = r.quantity || 0;
-                    newRow['实际价格'] = r.price || 0;
-
-                    loadedRows.push(newRow);
-                }
-
-                columns = finalCols;
-                db = loadedRows;
-
-                console.log('✅ 最终数据条数:', db.length);
-                console.log('📋 列名:', columns);
-                if (db.length > 0) {
-                    console.log('📦 第一条:', db[0]);
-                }
-
-                render();
-                showErrors(result.errors.slice(0, 100));
-                showProgress(false);
-
-                if (db.length > 0) {
-                    showToast('✅ 导入成功！共 ' + db.length + ' 条商品', false);
-                    if (result.errors.length > 0) {
-                        showToast('⚠️ 跳过 ' + result.errors.length + ' 行无效数据', true);
-                    }
-                } else {
-                    showToast('⚠️ 无有效商品数据', true);
-                }
-                isProcessing = false;
-
-            }).catch(function(err) {
-                console.error('导入失败:', err);
-                showToast('❌ 导入失败: ' + (err.message || err.toString()), true);
-                showProgress(false);
-                isProcessing = false;
-            });
-        };
-
-        function resetData() {
-            db = [];
-            columns = [];
-            render();
-            showToast('已清空', false);
-            document.getElementById('errorBox').className = 'error-box';
-        }
-
-        // 全局错误捕获
-        window.onerror = function(msg, url, line, col, error) {
-            console.error('全局错误:', msg, error);
-            showToast('❌ 错误: ' + msg, true);
-            showProgress(false);
-            isProcessing = false;
-            return false;
-        };
-
-        // 初始化
-        render();
-        console.log('⚡ 飞速盘点 v3.3.30 - CSV测试版');
-        console.log('📌 请选择CSV文件导入，查看控制台日志');
-    </script>
-</body>
-</html>
+    <div id="scanUI" class="fixed inset-0 bg-black z-[999] hidden flex-col">
+        <div class="scan-header"><div class="scan-header-left"><span class="font-bold text-blue-400 text-lg">🔍 极速条码引擎</span><button id="scanEnhanceBtn" class="scan-enhance-btn">✨ 增强</button></div><button onclick="stopScanning(true)" class="close-scan-btn text-white font-bold">✕ 关闭扫描</button></div>
+        <div class="relative flex-1 bg-black"><video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video><div class="focus-guide">💡 点击画面辅助对焦 | 识别速度已优化 | 增强
