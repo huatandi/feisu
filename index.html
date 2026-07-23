@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.24</title>
+    <title>飞速盘点 · Sanfei v3.3.25</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -182,7 +182,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.24</div>
+                    <div class="version-badge">sanfei v3.3.25</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
@@ -225,43 +225,44 @@
     </div>
 
     <script>
-        const VERSION = "S3.3.24";
-        const STORAGE_KEY = "FEISUPANDIAN_DATA";
-        let db = [];
-        let columns = [];
-        let scanning = false;
-        let reader = null;
-        let lastCode = "";
-        let lastTime = 0;
-        let currentFocusInterval = null;
-        let pendingJump = null;
-        let currentInputElement = null;
-        let originalViewportHeight = window.innerHeight;
-        let cameraTrack = null;
-        let enhanceMode = false;
-        let consecutiveFailures = 0;
-        const AUTO_ENHANCE_THRESHOLD = 3;
-        let toastTimer = null;
-        let isProcessing = false;
+        var VERSION = "S3.3.25";
+        var STORAGE_KEY = "FEISUPANDIAN_DATA";
+        var db = [];
+        var columns = [];
+        var scanning = false;
+        var reader = null;
+        var lastCode = "";
+        var lastTime = 0;
+        var currentFocusInterval = null;
+        var pendingJump = null;
+        var currentInputElement = null;
+        var originalViewportHeight = window.innerHeight;
+        var cameraTrack = null;
+        var enhanceMode = false;
+        var consecutiveFailures = 0;
+        var AUTO_ENHANCE_THRESHOLD = 3;
+        var toastTimer = null;
+        var isProcessing = false;
 
-        const isAndroid = /Android/i.test(navigator.userAgent);
-        const isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
-        const isMobile = isAndroid || isIPad || /iPhone/i.test(navigator.userAgent);
+        var isAndroid = /Android/i.test(navigator.userAgent);
+        var isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
+        var isMobile = isAndroid || isIPad || /iPhone/i.test(navigator.userAgent);
 
-        // 全局错误捕获 - 防止页面白屏
         window.onerror = function(msg, url, line, col, error) {
             console.error('全局错误:', msg, error);
             showToast('❌ 错误: ' + msg + ' (行 ' + line + ')', true, true);
             return false;
         };
 
-        function showToast(msg, isError = false, persistent = false) {
-            const toast = document.getElementById('toast');
+        function showToast(msg, isError, persistent) {
+            if (isError === undefined) isError = false;
+            if (persistent === undefined) persistent = false;
+            var toast = document.getElementById('toast');
             if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
-            const errorId = 'toast-msg-' + Date.now();
+            var errorId = 'toast-msg-' + Date.now();
             if (isError) {
-                const escapedMsg = msg.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                toast.innerHTML = `<span id="${errorId}" style="word-break:break-all;">${escapedMsg}</span><button class="toast-copy" onclick="copyToastMessage('${errorId}')">📋 复制</button><button class="toast-close" onclick="dismissToast()">✕</button>`;
+                var escapedMsg = msg.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                toast.innerHTML = '<span id="' + errorId + '" style="word-break:break-all;">' + escapedMsg + '</span><button class="toast-copy" onclick="copyToastMessage(\'' + errorId + '\')">📋 复制</button><button class="toast-close" onclick="dismissToast()">✕</button>';
                 toast.style.background = '#dc2626';
                 toast.style.display = 'block';
                 toast.style.maxWidth = '92%';
@@ -271,8 +272,8 @@
                 toast.style.lineHeight = '1.8';
                 toast.style.borderRadius = '12px';
                 toast.style.textAlign = 'left';
-                const duration = persistent ? 60000 : 20000;
-                toastTimer = setTimeout(() => { toast.style.display = 'none'; toastTimer = null; }, duration);
+                var duration = persistent ? 60000 : 20000;
+                toastTimer = setTimeout(function() { toast.style.display = 'none'; toastTimer = null; }, duration);
             } else {
                 toast.style.background = '#10b981';
                 toast.style.display = 'block';
@@ -282,17 +283,17 @@
                 toast.style.borderRadius = '40px';
                 toast.style.textAlign = 'center';
                 toast.textContent = msg;
-                toastTimer = setTimeout(() => { toast.style.display = 'none'; toastTimer = null; }, 2000);
+                toastTimer = setTimeout(function() { toast.style.display = 'none'; toastTimer = null; }, 2000);
             }
         }
-        function dismissToast() { const toast = document.getElementById('toast'); toast.style.display = 'none'; if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; } }
-        function copyToastMessage(elementId) { const el = document.getElementById(elementId); if (!el) return; const text = el.textContent || el.innerText; if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(() => { showToast('✅ 已复制', false); }).catch(() => { copyTextFallback(text); }); } else { copyTextFallback(text); } }
-        function copyTextFallback(text) { const textarea = document.createElement('textarea'); textarea.value = text; textarea.style.position = 'fixed'; textarea.style.opacity = '0'; textarea.style.left = '-9999px'; document.body.appendChild(textarea); textarea.select(); try { document.execCommand('copy'); showToast('✅ 已复制', false); } catch (e) { showToast('❌ 复制失败，请手动复制', true); } document.body.removeChild(textarea); }
+        function dismissToast() { var toast = document.getElementById('toast'); toast.style.display = 'none'; if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; } }
+        function copyToastMessage(elementId) { var el = document.getElementById(elementId); if (!el) return; var text = el.textContent || el.innerText; if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(function() { showToast('✅ 已复制', false); }).catch(function() { copyTextFallback(text); }); } else { copyTextFallback(text); } }
+        function copyTextFallback(text) { var textarea = document.createElement('textarea'); textarea.value = text; textarea.style.position = 'fixed'; textarea.style.opacity = '0'; textarea.style.left = '-9999px'; document.body.appendChild(textarea); textarea.select(); try { document.execCommand('copy'); showToast('✅ 已复制', false); } catch (e) { showToast('❌ 复制失败，请手动复制', true); } document.body.removeChild(textarea); }
 
-        function playBeep(success) { try { const audioCtx = new (window.AudioContext || window.webkitAudioContext)(); const oscillator = audioCtx.createOscillator(); const gainNode = audioCtx.createGain(); oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.frequency.value = success ? 1200 : 400; gainNode.gain.value = 0.6; oscillator.start(); gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2); oscillator.stop(audioCtx.currentTime + 0.2); audioCtx.resume(); } catch(e) {} }
+        function playBeep(success) { try { var audioCtx = new (window.AudioContext || window.webkitAudioContext)(); var oscillator = audioCtx.createOscillator(); var gainNode = audioCtx.createGain(); oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.frequency.value = success ? 1200 : 400; gainNode.gain.value = 0.6; oscillator.start(); gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2); oscillator.stop(audioCtx.currentTime + 0.2); audioCtx.resume(); } catch(e) {} }
         function vibrate() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30); }
 
-        // ==================== 核心：字段映射函数 ====================
+        // ==================== 核心：字段映射函数（修复数量和价格） ====================
         function getField(row, names) {
             for (var i = 0; i < names.length; i++) {
                 var name = names[i];
@@ -303,27 +304,50 @@
             return '';
         }
 
+        // ⭐ 获取原始行中的所有字段名
+        function getAllFieldNames(row) {
+            var keys = [];
+            for (var key in row) {
+                if (row.hasOwnProperty(key)) {
+                    keys.push(key);
+                }
+            }
+            return keys;
+        }
+
         function extractProduct(row) {
+            // ⭐ 调试：打印第一行的所有字段名
+            if (window._debugFirstRow === undefined) {
+                window._debugFirstRow = true;
+                console.log('📋 原始CSV列名:', getAllFieldNames(row));
+            }
+
+            // 条码 - 多种可能的列名
             var barcode = getField(row, [
                 '条码', 'barcode', 'Barcode', 'BARCODE',
                 '商品编码', '编码', 'code', 'Code', 'CODE',
                 'sku', 'SKU'
             ]);
 
+            // 名称
             var name = getField(row, [
                 '名称', '商品名称', 'name', 'Name', 'NAME',
                 '品名', '产品名称', '货品名称'
             ]);
 
-            var qty = parseFloat(getField(row, [
+            // ⭐ 数量 - 支持"库存数量"和"数量"
+            var qtyStr = getField(row, [
                 '库存数量', '数量', '库存', 'qty', 'Qty', 'QTY',
                 'quantity', 'Quantity', '库存量'
-            ])) || 0;
+            ]);
+            var qty = parseFloat(qtyStr) || 0;
 
-            var price = parseFloat(getField(row, [
+            // ⭐ 价格 - 支持"零售价"和"价格"
+            var priceStr = getField(row, [
                 '零售价', '售价', '价格', 'price', 'Price', 'PRICE',
                 '单价', '销售价', '卖价'
-            ])) || 0;
+            ]);
+            var price = parseFloat(priceStr) || 0;
 
             // 如果没有条码，尝试从所有字段中找数字
             if (!barcode) {
@@ -340,6 +364,22 @@
                 name = barcode;
             }
 
+            // 调试前3行
+            if (window._debugLineCount === undefined) {
+                window._debugLineCount = 0;
+            }
+            window._debugLineCount++;
+            if (window._debugLineCount <= 3) {
+                console.log('📦 第' + window._debugLineCount + '行提取结果:', {
+                    barcode: barcode,
+                    name: name,
+                    quantity: qty,
+                    price: price,
+                    qtyStr: qtyStr,
+                    priceStr: priceStr
+                });
+            }
+
             return {
                 barcode: String(barcode).trim(),
                 name: String(name).trim(),
@@ -352,9 +392,9 @@
         // ==================== 存储函数 ====================
         function loadData() {
             try {
-                const saved = localStorage.getItem(STORAGE_KEY);
+                var saved = localStorage.getItem(STORAGE_KEY);
                 if (saved) {
-                    const data = JSON.parse(saved);
+                    var data = JSON.parse(saved);
                     db = data.db || [];
                     columns = data.columns || [];
                 }
@@ -364,27 +404,29 @@
                 }
                 if (!columns.includes('实际价格')) columns.push('实际价格');
                 normalizeSpecialColumns();
-                db.forEach(row => {
+                for (var i = 0; i < db.length; i++) {
+                    var row = db[i];
                     if (row['实际数量'] === undefined) row['实际数量'] = '';
                     if (row['实际价格'] === undefined) row['实际价格'] = '';
-                });
+                }
             } catch(e) { console.error(e); columns = ['实际数量', '实际价格', '商品名称', '编码', '价格']; normalizeSpecialColumns(); db = []; }
         }
 
         function normalizeSpecialColumns() {
-            const qtyCol = '实际数量'; const priceCol = '实际价格';
+            var qtyCol = '实际数量';
+            var priceCol = '实际价格';
             if (!columns.includes(qtyCol)) columns.unshift(qtyCol);
             if (!columns.includes(priceCol)) columns.push(priceCol);
-            const qtyIndex = columns.indexOf(qtyCol);
+            var qtyIndex = columns.indexOf(qtyCol);
             if (qtyIndex > 0) { columns.splice(qtyIndex, 1); columns.unshift(qtyCol); }
-            const priceIndex = columns.indexOf(priceCol);
+            var priceIndex = columns.indexOf(priceCol);
             if (priceIndex !== 1 && priceIndex > 0) { columns.splice(priceIndex, 1); columns.splice(1, 0, priceCol); }
             else if (priceIndex === -1) columns.splice(1, 0, priceCol);
         }
 
         function saveData() {
             try {
-                const jsonStr = JSON.stringify({ db, columns, version: VERSION });
+                var jsonStr = JSON.stringify({ db: db, columns: columns, version: VERSION });
                 console.log('📊 数据大小:', Math.round(jsonStr.length / 1024), 'KB');
                 if (jsonStr.length > 4.5 * 1024 * 1024) {
                     showToast('⚠️ 数据超过4.5MB，建议导出备份后重置', true, true);
@@ -396,9 +438,9 @@
             }
         }
 
-        function showProgress(show) { const el = document.getElementById('progressArea'); if (show) el.classList.add('active'); else el.classList.remove('active'); }
+        function showProgress(show) { var el = document.getElementById('progressArea'); if (show) el.classList.add('active'); else el.classList.remove('active'); }
         function updateProgress(current, total, label, status) {
-            const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+            var pct = total > 0 ? Math.round((current / total) * 100) : 0;
             document.getElementById('progressFill').style.width = Math.min(pct, 100) + '%';
             document.getElementById('progressPercent').textContent = Math.min(pct, 100) + '%';
             document.getElementById('progressCount').textContent = current + ' / ' + total;
@@ -407,16 +449,16 @@
         }
 
         function showErrors(errors) {
-            const el = document.getElementById('errorSummary');
-            const list = document.getElementById('errorList');
-            const title = document.getElementById('errorSummaryTitle');
+            var el = document.getElementById('errorSummary');
+            var list = document.getElementById('errorList');
+            var title = document.getElementById('errorSummaryTitle');
             if (!errors || errors.length === 0) { el.classList.remove('active'); return; }
             el.classList.add('active');
             title.textContent = '⚠️ 导入完成，' + errors.length + ' 行失败';
             list.innerHTML = errors.map(function(e) { return '<li>行 ' + e.row + ': ' + (e.message || '数据异常') + '</li>'; }).join('');
         }
 
-        // ==================== CSV导入 - 读取为文本后解析（修复克隆错误） ====================
+        // ==================== CSV导入 ====================
         function importCSV(file) {
             return new Promise(function(resolve, reject) {
                 var result = {
@@ -430,12 +472,14 @@
                 reader.onload = function(ev) {
                     try {
                         var csvText = ev.target.result;
-                        // 移除BOM
                         if (csvText.charCodeAt(0) === 0xFEFF) {
                             csvText = csvText.slice(1);
                         }
 
-                        // ⭐ 使用 PapaParse 解析文本（不是File对象）
+                        // ⭐ 重置调试计数器
+                        window._debugFirstRow = undefined;
+                        window._debugLineCount = 0;
+
                         Papa.parse(csvText, {
                             header: true,
                             comments: '#',
@@ -444,7 +488,6 @@
                             transformHeader: function(h) {
                                 return h.trim();
                             },
-                            // ⭐ 不使用 worker，避免克隆错误
                             worker: false,
                             step: function(results) {
                                 var row = results.data;
@@ -454,18 +497,13 @@
 
                                 var product = extractProduct(row);
 
-                                // 调试前3行
-                                if (result.total <= 3) {
-                                    console.log('📦 第' + result.total + '行原始数据:', row);
-                                    console.log('📦 第' + result.total + '行提取结果:', product);
-                                }
-
                                 if (product.valid) {
                                     result.rows.push({
                                         barcode: product.barcode,
                                         name: product.name,
                                         quantity: product.quantity,
-                                        price: product.price
+                                        price: product.price,
+                                        original: row  // ⭐ 保留原始数据，用于显示所有列
                                     });
                                     result.valid++;
                                 } else {
@@ -476,7 +514,6 @@
                                     });
                                 }
 
-                                // 每100行更新进度
                                 if (result.total % 100 === 0) {
                                     updateProgress(result.total, 0, '📄 正在解析 CSV...', result.total + ' 行');
                                 }
@@ -537,18 +574,60 @@
                         return;
                     }
 
-                    // 构建最终列名
-                    var finalCols = ['实际数量', '实际价格', '条码', '名称'];
+                    // ⭐ 收集所有列名（从原始数据中获取）
+                    var allColumns = new Set();
+                    allColumns.add('实际数量');
+                    allColumns.add('实际价格');
+                    allColumns.add('条码');
+                    allColumns.add('名称');
 
-                    // 转换数据格式
+                    // 从原始数据中收集所有列名
+                    for (var i = 0; i < result.rows.length; i++) {
+                        var r = result.rows[i];
+                        if (r.original) {
+                            for (var key in r.original) {
+                                if (r.original.hasOwnProperty(key)) {
+                                    allColumns.add(key);
+                                }
+                            }
+                        }
+                    }
+
+                    var finalCols = Array.from(allColumns);
+                    // 确保实际数量和实际价格在前两位
+                    var qtyCol = '实际数量';
+                    var priceCol = '实际价格';
+                    var qtyIdx = finalCols.indexOf(qtyCol);
+                    if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
+                    var priceIdx = finalCols.indexOf(priceCol);
+                    if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
+                    // 条码和名称放在后面
+                    var barcodeIdx = finalCols.indexOf('条码');
+                    if (barcodeIdx > 0 && barcodeIdx !== 2) { finalCols.splice(barcodeIdx, 1); finalCols.splice(2, 0, '条码'); }
+                    var nameIdx = finalCols.indexOf('名称');
+                    if (nameIdx > 0 && nameIdx !== 3) { finalCols.splice(nameIdx, 1); finalCols.splice(3, 0, '名称'); }
+
+                    // ⭐ 转换数据格式 - 保留所有原始列
                     var loadedRows = [];
                     for (var i = 0; i < result.rows.length; i++) {
                         var r = result.rows[i];
                         var newRow = {};
+
+                        // 先复制所有原始数据
+                        if (r.original) {
+                            for (var key in r.original) {
+                                if (r.original.hasOwnProperty(key)) {
+                                    newRow[key] = r.original[key];
+                                }
+                            }
+                        }
+
+                        // 覆盖/添加标准字段
                         newRow['条码'] = r.barcode || '';
                         newRow['名称'] = r.name || '';
                         newRow['实际数量'] = r.quantity || 0;
                         newRow['实际价格'] = r.price || 0;
+
                         loadedRows.push(newRow);
                     }
 
@@ -600,14 +679,23 @@
                     if (json.length > 0) {
                         var resultRows = [];
                         var errorList = [];
-                        var finalCols = ['实际数量', '实际价格', '条码', '名称'];
+                        var allColumns = new Set();
+                        allColumns.add('实际数量');
+                        allColumns.add('实际价格');
+                        allColumns.add('条码');
+                        allColumns.add('名称');
 
                         for (var i = 0; i < json.length; i++) {
                             var row = json[i];
                             try {
                                 var product = extractProduct(row);
                                 var newRow = {};
-                                for (var key in row) { newRow[key] = row[key]; }
+                                for (var key in row) {
+                                    if (row.hasOwnProperty(key)) {
+                                        newRow[key] = row[key];
+                                        allColumns.add(key);
+                                    }
+                                }
                                 newRow['条码'] = product.barcode || '';
                                 newRow['名称'] = product.name || '';
                                 newRow['实际数量'] = product.quantity || 0;
@@ -617,6 +705,14 @@
                                 errorList.push({ row: i + 1, message: err.message || '数据异常' });
                             }
                         }
+
+                        var finalCols = Array.from(allColumns);
+                        var qtyCol = '实际数量';
+                        var priceCol = '实际价格';
+                        var qtyIdx = finalCols.indexOf(qtyCol);
+                        if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
+                        var priceIdx = finalCols.indexOf(priceCol);
+                        if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
 
                         columns = finalCols;
                         db = resultRows;
@@ -658,7 +754,7 @@
             }
         }
 
-        // ========== 匹配逻辑 ==========
+        // ========== 匹配逻辑（保持不变） ==========
         function preprocessCode(code) {
             if (!code) return code;
             var cleaned = String(code).replace(/[^\w\d\-]/g, '');
@@ -863,7 +959,6 @@
                 showToast('❌ 条码不存在: ' + codeStr.substring(0, 20), true);
                 vibrate();
                 consecutiveFailures++;
-                lastDecodeSucceeded = false;
                 setTimeout(function() {
                     var manualInput = document.getElementById('manualInput');
                     if (manualInput) { manualInput.focus(); manualInput.select(); currentInputElement = manualInput; }
@@ -871,7 +966,6 @@
                 return false;
             }
             consecutiveFailures = 0;
-            lastDecodeSucceeded = true;
             playBeep(true);
             vibrate();
             var productName = db[foundIndex]['名称'] || db[foundIndex]['商品名称'] || codeStr;
@@ -898,7 +992,7 @@
             setTimeout(function() { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
-        // ========== 扫码相机 ==========
+        // ========== 扫码相机（精简，保留功能） ==========
         function setupCameraControls(track) {
             cameraTrack = track || null;
             var torchBtn = document.getElementById('torchBtn');
@@ -998,12 +1092,10 @@
                         if (code) {
                             handleBarcode(code, true);
                             consecutiveFailures = 0;
-                            lastDecodeSucceeded = true;
                             return;
                         }
                     }
                     consecutiveFailures++;
-                    lastDecodeSucceeded = false;
                     if (enhanceMode || consecutiveFailures >= AUTO_ENHANCE_THRESHOLD) {
                         var enhancedCode = await tryEnhancedDecode(videoEl, frameEl);
                         if (enhancedCode) {
@@ -1199,7 +1291,7 @@
         function moveColumnDown(index) { if (index < columns.length-1) { var temp = columns[index]; columns[index] = columns[index+1]; columns[index+1] = temp; renderColList(); render(); saveData(); showToast("列顺序已更新", false); } }
         function openColModal() { renderColList(); document.getElementById('colModal').style.display = 'flex'; }
         function closeColModal() { document.getElementById('colModal').style.display = 'none'; render(); }
-        function addColumn() { var newCol = document.getElementById('newColName').value.trim(); if (newCol && !columns.includes(newCol)) { columns.push(newCol); db.forEach(function(row) { row[newCol] = ''; }); renderColList(); render(); saveData(); showToast('已添加列: ' + newCol, false); document.getElementById('newColName').value = ''; } else if (columns.includes(newCol)) showToast("列名已存在", true); }
+        function addColumn() { var newCol = document.getElementById('newColName').value.trim(); if (newCol && !columns.includes(newCol)) { columns.push(newCol); for (var i = 0; i < db.length; i++) { db[i][newCol] = ''; } renderColList(); render(); saveData(); showToast('已添加列: ' + newCol, false); document.getElementById('newColName').value = ''; } else if (columns.includes(newCol)) showToast("列名已存在", true); }
         function deleteColumn(colName) { 
             if (colName === '实际数量' || colName === '实际价格') {
                 showToast("⚠️ 核心列不能删除", true);
@@ -1207,7 +1299,7 @@
             }
             if (confirm('确定删除列 "' + colName + '" 吗？数据将丢失！')) { 
                 var index = columns.indexOf(colName); 
-                if (index !== -1) { columns.splice(index, 1); db.forEach(function(row) { delete row[colName]; }); renderColList(); render(); saveData(); showToast('已删除列: ' + colName, false); } 
+                if (index !== -1) { columns.splice(index, 1); for (var i = 0; i < db.length; i++) { delete db[i][colName]; } renderColList(); render(); saveData(); showToast('已删除列: ' + colName, false); } 
             } 
         }
 
@@ -1376,7 +1468,7 @@
         var topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = function() { toggleEnhanceMode(); };
         
-        console.log('⚡ 飞速盘点 ' + VERSION + ' - 修复克隆错误 | 使用文本解析');
+        console.log('⚡ 飞速盘点 ' + VERSION + ' - 修复数量和价格映射');
         console.log('📌 请打开浏览器控制台(F12)查看导入日志');
     </script>
 </body>
