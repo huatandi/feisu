@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.21</title>
+    <title>飞速盘点 · Sanfei v3.3.23</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -165,6 +165,7 @@
         .error-summary ul { max-height: 120px; overflow-y: auto; margin: 6px 0 0 18px; color: #5f2b2b; }
         .stats { display: flex; gap: 18px; font-size: 14px; color: #1f3a6b; }
         .stats span { background: white; padding: 4px 16px; border-radius: 30px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+        .error-textarea { width: 100%; min-height: 200px; font-size: 12px; font-family: monospace; padding: 10px; border: 1px solid #ccc; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -182,7 +183,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.21</div>
+                    <div class="version-badge">sanfei v3.3.23</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
@@ -225,7 +226,7 @@
     </div>
 
     <script>
-        const VERSION = "S3.3.21";
+        const VERSION = "S3.3.23";
         const STORAGE_KEY = "FEISUPANDIAN_DATA";
         let db = [];
         let columns = [];
@@ -247,6 +248,13 @@
         const isAndroid = /Android/i.test(navigator.userAgent);
         const isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
         const isMobile = isAndroid || isIPad || /iPhone/i.test(navigator.userAgent);
+
+        // 全局错误捕获 - 防止页面白屏
+        window.onerror = function(msg, url, line, col, error) {
+            console.error('全局错误:', msg, error);
+            showToast('❌ 错误: ' + msg + ' (行 ' + line + ')', true, true);
+            return false;
+        };
 
         function showToast(msg, isError = false, persistent = false) {
             const toast = document.getElementById('toast');
@@ -285,6 +293,66 @@
         function playBeep(success) { try { const audioCtx = new (window.AudioContext || window.webkitAudioContext)(); const oscillator = audioCtx.createOscillator(); const gainNode = audioCtx.createGain(); oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.frequency.value = success ? 1200 : 400; gainNode.gain.value = 0.6; oscillator.start(); gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2); oscillator.stop(audioCtx.currentTime + 0.2); audioCtx.resume(); } catch(e) {} }
         function vibrate() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30); }
 
+        // ==================== 核心修复：字段映射函数 ====================
+        function getField(row, names) {
+            for (var i = 0; i < names.length; i++) {
+                var name = names[i];
+                if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
+                    return row[name];
+                }
+            }
+            return '';
+        }
+
+        function extractProduct(row) {
+            // ⭐ 支持中文和英文字段名 - 完全兼容MAESTRO导出格式
+            var barcode = getField(row, [
+                '条码', 'barcode', 'Barcode', 'BARCODE',
+                '商品编码', '编码', 'code', 'Code', 'CODE',
+                'sku', 'SKU'
+            ]);
+
+            var name = getField(row, [
+                '名称', '商品名称', 'name', 'Name', 'NAME',
+                '品名', '产品名称', '货品名称'
+            ]);
+
+            var qty = parseFloat(getField(row, [
+                '库存数量', '数量', '库存', 'qty', 'Qty', 'QTY',
+                'quantity', 'Quantity', '库存量'
+            ])) || 0;
+
+            var price = parseFloat(getField(row, [
+                '零售价', '售价', '价格', 'price', 'Price', 'PRICE',
+                '单价', '销售价', '卖价'
+            ])) || 0;
+
+            // 如果没有条码或名称，尝试从所有字段中找
+            if (!barcode) {
+                for (var key in row) {
+                    var val = String(row[key] || '').trim();
+                    if (val && /^\d{8,14}$/.test(val.replace(/-/g, ''))) {
+                        barcode = val;
+                        break;
+                    }
+                }
+            }
+
+            if (!name && barcode) {
+                // 用条码作为名称
+                name = barcode;
+            }
+
+            return {
+                barcode: String(barcode).trim(),
+                name: String(name).trim(),
+                quantity: qty,
+                price: price,
+                valid: (barcode && barcode !== '') || (name && name !== '')
+            };
+        }
+
+        // ==================== 存储函数 ====================
         function loadData() {
             try {
                 const saved = localStorage.getItem(STORAGE_KEY);
@@ -305,6 +373,7 @@
                 });
             } catch(e) { console.error(e); columns = ['实际数量', '实际价格', '商品名称', '编码', '价格']; normalizeSpecialColumns(); db = []; }
         }
+
         function normalizeSpecialColumns() {
             const qtyCol = '实际数量'; const priceCol = '实际价格';
             if (!columns.includes(qtyCol)) columns.unshift(qtyCol);
@@ -315,7 +384,21 @@
             if (priceIndex !== 1 && priceIndex > 0) { columns.splice(priceIndex, 1); columns.splice(1, 0, priceCol); }
             else if (priceIndex === -1) columns.splice(1, 0, priceCol);
         }
-        function saveData() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ db, columns, version: VERSION })); } catch(e) { showToast("存储空间不足", true); } }
+
+        function saveData() {
+            try {
+                // ⭐ 检查数据大小
+                const jsonStr = JSON.stringify({ db, columns, version: VERSION });
+                console.log('📊 数据大小:', Math.round(jsonStr.length / 1024), 'KB');
+                if (jsonStr.length > 4.5 * 1024 * 1024) {
+                    showToast('⚠️ 数据超过4.5MB，建议导出备份后重置', true, true);
+                }
+                localStorage.setItem(STORAGE_KEY, jsonStr);
+            } catch(e) {
+                console.error('保存失败:', e);
+                showToast('❌ 保存失败: ' + e.message, true, true);
+            }
+        }
 
         function showProgress(show) { const el = document.getElementById('progressArea'); if (show) el.classList.add('active'); else el.classList.remove('active'); }
         function updateProgress(current, total, label, status) {
@@ -326,6 +409,7 @@
             if (label) document.getElementById('progressLabel').textContent = label;
             if (status) document.getElementById('progressStatus').textContent = status;
         }
+
         function showErrors(errors) {
             const el = document.getElementById('errorSummary');
             const list = document.getElementById('errorList');
@@ -336,107 +420,106 @@
             list.innerHTML = errors.map(e => `<li>行 ${e.row}: ${e.message || '数据异常'}</li>`).join('');
         }
 
-        function autoMapColumns(headers) {
-            const map = {};
-            const lowerMap = {
-                '条码': 'barcode', 'barcode': 'barcode', 'code': 'barcode', '编码': 'barcode', 'sku': 'barcode',
-                '商品编码': 'barcode', '货号': 'barcode',
-                '名称': 'name', 'name': 'name', '商品名称': 'name', '商品名': 'name', 'product': 'name', '品名': 'name',
-                '库存数量': 'quantity', '数量': 'quantity', 'qty': 'quantity', 'quantity': 'quantity',
-                '库存': 'quantity', '库存量': 'quantity',
-                '零售价': 'price', '售价': 'price', 'price': 'price', '价格': 'price', '单价': 'price',
-                '销售价': 'price', '卖价': 'price'
-            };
-            for (let h of headers) {
-                const hTrim = h.trim();
-                const lower = hTrim.toLowerCase();
-                for (let key in lowerMap) {
-                    if (lower === key || lower.includes(key) || key.includes(lower)) {
-                        map[lowerMap[key]] = hTrim;
-                        break;
-                    }
-                }
-            }
-            const defaults = { barcode: '条码', name: '名称', quantity: '库存数量', price: '零售价' };
-            for (let k in defaults) {
-                if (!map[k]) map[k] = defaults[k];
-            }
-            return map;
-        }
-
-        // ========== 核心修复：直接解析并立即渲染 ==========
-        function parseCSVAndLoad(file) {
+        // ==================== CSV导入 - 使用PapaParse step模式 ====================
+        function importCSV(file) {
             return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = function(ev) {
-                    try {
-                        let csvText = ev.target.result;
-                        if (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);
-                        
-                        const allLines = csvText.split(/\r?\n/);
-                        let delimiter = ',';
-                        let foundDelimiter = false;
-                        const cleanLines = [];
-                        
-                        // 清理注释行和空行
-                        for (let i = 0; i < allLines.length; i++) {
-                            const line = allLines[i];
-                            const trimmed = line.trim();
-                            if (!trimmed || trimmed.startsWith('#')) continue;
-                            
-                            if (!foundDelimiter) {
-                                const commaCount = (trimmed.match(/,/g) || []).length;
-                                const tabCount = (trimmed.match(/\t/g) || []).length;
-                                if (commaCount >= tabCount && commaCount >= 1) { delimiter = ','; foundDelimiter = true; }
-                                else if (tabCount >= 1) { delimiter = '\t'; foundDelimiter = true; }
-                                else { continue; }
-                            }
-                            
-                            const commaCount = (trimmed.match(/,/g) || []).length;
-                            const tabCount = (trimmed.match(/\t/g) || []).length;
-                            const sepCount = delimiter === ',' ? commaCount : tabCount;
-                            if (sepCount >= 1) { cleanLines.push(trimmed); }
+                const result = {
+                    rows: [],
+                    errors: [],
+                    total: 0,
+                    valid: 0
+                };
+
+                let headerRow = null;
+                let headers = [];
+                let rowCount = 0;
+                let isFirstRow = true;
+
+                Papa.parse(file, {
+                    header: true,
+                    comments: '#',           // ⭐ 自动跳过以#开头的注释行
+                    skipEmptyLines: true,
+                    trimHeaders: true,
+                    transformHeader: function(h) {
+                        return h.trim();
+                    },
+                    worker: true,            // ⭐ 多线程解析
+                    step: function(results) {
+                        const row = results.data;
+                        rowCount++;
+
+                        // 跳过空行
+                        if (!row || Object.keys(row).length === 0) return;
+
+                        // 记录表头
+                        if (isFirstRow) {
+                            headers = Object.keys(row);
+                            isFirstRow = false;
+                            console.log('📋 检测到列名:', headers);
+                            // 检查是否有关键字段
+                            const hasBarcode = headers.some(h => /条码|barcode|code|编码|sku/i.test(h));
+                            const hasName = headers.some(h => /名称|name|品名|商品名/i.test(h));
+                            console.log('🔍 包含条码列?', hasBarcode);
+                            console.log('🔍 包含名称列?', hasName);
                         }
-                        
-                        if (cleanLines.length < 2) {
-                            reject(new Error('CSV 文件无有效数据（至少需要表头+1行数据）'));
-                            return;
+
+                        // ⭐ 使用 extractProduct 提取数据
+                        const product = extractProduct(row);
+
+                        // 调试前几行
+                        if (rowCount <= 3) {
+                            console.log('📦 第' + rowCount + '行原始数据:', row);
+                            console.log('📦 第' + rowCount + '行提取结果:', product);
                         }
-                        
-                        const filteredCSV = cleanLines.join('\n');
-                        const parseResult = Papa.parse(filteredCSV, {
-                            header: true,
-                            skipEmptyLines: true,
-                            trimHeaders: true,
-                            dynamicTyping: false,
-                            transformHeader: h => h.trim(),
-                            delimiter: delimiter,
-                            skipInvalidLines: true
-                        });
-                        
-                        let rows = parseResult.data || [];
-                        rows = rows.filter(row => {
-                            const values = Object.values(row).filter(v => v && v.toString().trim());
-                            return values.length >= 2;
-                        });
-                        
-                        if (rows.length === 0) {
-                            reject(new Error('CSV 无有效数据行'));
-                            return;
+
+                        if (product.valid) {
+                            result.rows.push({
+                                barcode: product.barcode,
+                                name: product.name,
+                                quantity: product.quantity,
+                                price: product.price
+                            });
+                            result.valid++;
+                        } else {
+                            result.errors.push({
+                                row: rowCount,
+                                data: row,
+                                message: '缺少条码或名称'
+                            });
                         }
-                        
-                        resolve({ rows: rows, totalLines: allLines.length, cleanLines: cleanLines.length });
-                        
-                    } catch (err) {
+
+                        result.total = rowCount;
+
+                        // 每100行更新进度
+                        if (rowCount % 100 === 0) {
+                            updateProgress(rowCount, 0, '📄 正在解析 CSV...', rowCount + ' 行');
+                        }
+                    },
+                    complete: function(results) {
+                        console.log('✅ CSV解析完成');
+                        console.log('📊 总行数:', rowCount);
+                        console.log('✅ 有效数据:', result.valid);
+                        console.log('❌ 错误行数:', result.errors.length);
+
+                        // 显示进度100%
+                        updateProgress(result.valid, result.valid, '✅ 解析完成', result.valid + ' 条有效数据');
+
+                        // 如果有错误，显示前几个
+                        if (result.errors.length > 0) {
+                            console.warn('⚠️ 错误示例:', result.errors.slice(0, 3));
+                        }
+
+                        resolve(result);
+                    },
+                    error: function(err) {
+                        console.error('PapaParse错误:', err);
                         reject(err);
                     }
-                };
-                reader.onerror = function() { reject(new Error('读取文件失败')); };
-                reader.readAsText(file);
+                });
             });
         }
 
-        // ========== 文件导入 ==========
+        // ==================== 文件导入入口 ====================
         document.getElementById('fileInput').onchange = function(e) {
             if (isProcessing) {
                 showToast('⏳ 正在处理中，请稍候...', false);
@@ -451,111 +534,88 @@
                 isProcessing = true;
                 showProgress(true);
                 updateProgress(0, 1, '📄 正在解析 CSV...', '准备中');
-                
-                parseCSVAndLoad(file).then(({ rows, totalLines, cleanLines }) => {
-                    const total = rows.length;
-                    updateProgress(0, total, '📄 正在导入数据...', '0%');
-                    
-                    // ⭐ 准备列名
-                    const headers = Object.keys(rows[0]);
-                    const colMap = autoMapColumns(headers);
-                    
-                    const finalCols = new Set();
-                    for (let h of headers) finalCols.add(h);
-                    finalCols.add('实际数量');
-                    finalCols.add('实际价格');
-                    finalCols.add('条码');
-                    finalCols.add('名称');
-                    
-                    const columnArray = Array.from(finalCols);
-                    const qtyCol = '实际数量';
-                    const priceCol = '实际价格';
-                    const qtyIdx = columnArray.indexOf(qtyCol);
-                    if (qtyIdx > 0) { columnArray.splice(qtyIdx, 1); columnArray.unshift(qtyCol); }
-                    const priceIdx = columnArray.indexOf(priceCol);
-                    if (priceIdx > 1 && priceIdx !== -1) { columnArray.splice(priceIdx, 1); columnArray.splice(1, 0, priceCol); }
-                    
-                    // ⭐ 逐行转换数据
-                    const resultRows = [];
-                    const errorList = [];
-                    const BATCH_SIZE = 200;
-                    let loaded = 0;
-                    
-                    function processBatch() {
-                        const start = loaded;
-                        const end = Math.min(start + BATCH_SIZE, total);
-                        
-                        for (let i = start; i < end; i++) {
-                            const row = rows[i];
-                            try {
-                                const barcodeKey = colMap.barcode || '条码';
-                                const nameKey = colMap.name || '名称';
-                                const qtyKey = colMap.quantity || '库存数量';
-                                const priceKey = colMap.price || '零售价';
-                                
-                                const newRow = { ...row };
-                                newRow['条码'] = (row[barcodeKey] || '').toString().trim();
-                                newRow['名称'] = (row[nameKey] || '').toString().trim();
-                                newRow['实际数量'] = parseFloat(row[qtyKey]) || 0;
-                                newRow['实际价格'] = parseFloat(row[priceKey]) || 0;
-                                
-                                for (let col of columnArray) {
-                                    if (newRow[col] === undefined) newRow[col] = '';
-                                }
-                                resultRows.push(newRow);
-                            } catch (err) {
-                                errorList.push({ row: i + 1, message: err.message || '数据异常' });
-                            }
-                        }
-                        
-                        loaded = end;
-                        updateProgress(loaded, total, '📄 正在导入数据...', `${Math.round((loaded/total)*100)}%`);
-                        
-                        if (loaded < total) {
-                            setTimeout(processBatch, 10);
-                        } else {
-                            // ⭐ 全部完成，赋值并渲染
-                            columns = columnArray;
-                            db = resultRows;
-                            
-                            console.log('✅ 导入完成！');
-                            console.log('📊 数据条数:', db.length);
-                            console.log('📋 列名:', columns);
-                            if (db.length > 0) {
-                                console.log('📦 第一条数据:', db[0]);
-                            }
-                            
-                            saveData();
-                            render();
-                            showErrors(errorList);
-                            showProgress(false);
-                            
-                            const skipped = totalLines - cleanLines + (rows.length - resultRows.length);
-                            if (db.length > 0) {
-                                showToast(`✅ 导入成功！共 ${db.length} 条商品`, false);
-                                if (errorList.length > 0 || skipped > 0) {
-                                    showToast(`⚠️ 跳过 ${skipped + errorList.length} 行无效数据`, true, true);
-                                }
-                            } else {
-                                showToast('⚠️ 导入完成，但无有效商品数据', true, true);
-                            }
-                            updateStats();
-                            isProcessing = false;
+
+                importCSV(file).then(function(result) {
+                    console.log('📊 解析到 ' + result.rows.length + ' 条数据');
+
+                    if (result.rows.length === 0) {
+                        showToast('⚠️ 没有有效数据行', true, true);
+                        showProgress(false);
+                        isProcessing = false;
+                        return;
+                    }
+
+                    // ⭐ 构建最终列名
+                    var finalCols = ['实际数量', '实际价格', '条码', '名称'];
+                    // 添加原始列名
+                    var sampleRow = result.rows[0];
+                    for (var key in sampleRow) {
+                        if (['barcode', 'name', 'quantity', 'price'].indexOf(key) === -1) {
+                            finalCols.push(key);
                         }
                     }
-                    
-                    processBatch();
-                    
-                }).catch(err => {
+
+                    // 把实际数量和实际价格移到前面
+                    var qtyCol = '实际数量';
+                    var priceCol = '实际价格';
+                    var qtyIdx = finalCols.indexOf(qtyCol);
+                    if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
+                    var priceIdx = finalCols.indexOf(priceCol);
+                    if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
+
+                    // ⭐ 转换数据格式
+                    var loadedRows = [];
+                    for (var i = 0; i < result.rows.length; i++) {
+                        var r = result.rows[i];
+                        var newRow = {};
+                        // 复制所有字段
+                        for (var key in r) {
+                            newRow[key] = r[key];
+                        }
+                        // 确保关键字段存在
+                        newRow['条码'] = r.barcode || '';
+                        newRow['名称'] = r.name || '';
+                        newRow['实际数量'] = r.quantity || 0;
+                        newRow['实际价格'] = r.price || 0;
+                        loadedRows.push(newRow);
+                    }
+
+                    columns = finalCols;
+                    db = loadedRows;
+
+                    console.log('✅ 最终数据条数:', db.length);
+                    console.log('📋 最终列名:', columns);
+                    if (db.length > 0) {
+                        console.log('📦 第一条数据:', db[0]);
+                    }
+
+                    saveData();
+                    render();
+                    showErrors(result.errors.slice(0, 100)); // 最多显示100个错误
+                    showProgress(false);
+
+                    if (db.length > 0) {
+                        showToast('✅ 导入成功！共 ' + db.length + ' 条商品', false);
+                        if (result.errors.length > 0) {
+                            showToast('⚠️ 跳过 ' + result.errors.length + ' 行无效数据', true, true);
+                        }
+                    } else {
+                        showToast('⚠️ 导入完成，但无有效商品数据', true, true);
+                    }
+                    updateStats();
+                    isProcessing = false;
+
+                }).catch(function(err) {
                     console.error('CSV导入失败:', err);
-                    showToast('CSV导入失败: ' + (err.message || err.toString()), true, true);
+                    showToast('❌ CSV导入失败: ' + (err.message || err.toString()), true, true);
                     showProgress(false);
                     isProcessing = false;
                 });
+
                 return;
             }
 
-            // Excel
+            // Excel - 使用原有逻辑
             isProcessing = true;
             showToast("正在导入 Excel...", false);
             const fileReader = new FileReader();
@@ -566,51 +626,42 @@
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
                     if (json.length > 0) {
-                        const headers = Object.keys(json[0]);
-                        const colMap = autoMapColumns(headers);
-                        const finalCols = new Set();
-                        for (let h of headers) finalCols.add(h);
-                        finalCols.add('实际数量');
-                        finalCols.add('实际价格');
-                        finalCols.add('条码');
-                        finalCols.add('名称');
-                        const columnArray = Array.from(finalCols);
-                        const qtyCol = '实际数量';
-                        const priceCol = '实际价格';
-                        const qtyIdx = columnArray.indexOf(qtyCol);
-                        if (qtyIdx > 0) { columnArray.splice(qtyIdx, 1); columnArray.unshift(qtyCol); }
-                        const priceIdx = columnArray.indexOf(priceCol);
-                        if (priceIdx > 1 && priceIdx !== -1) { columnArray.splice(priceIdx, 1); columnArray.splice(1, 0, priceCol); }
-                        
-                        const resultRows = [];
-                        const errorList = [];
-                        for (let i = 0; i < json.length; i++) {
-                            const row = json[i];
+                        // 使用同样的extractProduct转换
+                        var resultRows = [];
+                        var errorList = [];
+                        var finalCols = ['实际数量', '实际价格', '条码', '名称'];
+                        var headers = Object.keys(json[0] || {});
+                        for (var h of headers) if (finalCols.indexOf(h) === -1) finalCols.push(h);
+
+                        for (var i = 0; i < json.length; i++) {
+                            var row = json[i];
                             try {
-                                const barcodeKey = colMap.barcode || '条码';
-                                const nameKey = colMap.name || '名称';
-                                const qtyKey = colMap.quantity || '库存数量';
-                                const priceKey = colMap.price || '零售价';
-                                const newRow = { ...row };
-                                newRow['条码'] = (row[barcodeKey] || '').toString().trim();
-                                newRow['名称'] = (row[nameKey] || '').toString().trim();
-                                newRow['实际数量'] = parseFloat(row[qtyKey]) || 0;
-                                newRow['实际价格'] = parseFloat(row[priceKey]) || 0;
-                                for (let col of columnArray) {
-                                    if (newRow[col] === undefined) newRow[col] = '';
-                                }
+                                var product = extractProduct(row);
+                                var newRow = { ...row };
+                                newRow['条码'] = product.barcode || '';
+                                newRow['名称'] = product.name || '';
+                                newRow['实际数量'] = product.quantity || 0;
+                                newRow['实际价格'] = product.price || 0;
                                 resultRows.push(newRow);
                             } catch (err) {
                                 errorList.push({ row: i + 1, message: err.message || '数据异常' });
                             }
                         }
-                        columns = columnArray;
+
+                        var qtyCol = '实际数量';
+                        var priceCol = '实际价格';
+                        var qtyIdx = finalCols.indexOf(qtyCol);
+                        if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
+                        var priceIdx = finalCols.indexOf(priceCol);
+                        if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
+
+                        columns = finalCols;
                         db = resultRows;
                         saveData();
                         render();
                         showErrors(errorList);
                         showProgress(false);
-                        showToast(`✅ Excel 导入成功！共 ${db.length} 条`, false);
+                        showToast('✅ Excel 导入成功！共 ' + db.length + ' 条', false);
                         updateStats();
                         isProcessing = false;
                     } else {
@@ -745,6 +796,7 @@
                 updateStats();
             } catch(e) {
                 console.error('渲染错误:', e);
+                showToast('渲染错误: ' + e.message, true, true);
             }
         }
 
@@ -1378,7 +1430,8 @@
         const topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = () => toggleEnhanceMode();
         
-        console.log(`⚡ 飞速盘点 ${VERSION} - 重写导入逻辑，确保数据完整显示`);
+        console.log('⚡ 飞速盘点 ' + VERSION + ' - 修复字段映射 | PapaParse step模式 | 支持中文列名');
+        console.log('📌 请打开浏览器控制台(F12)查看导入日志');
     </script>
 </body>
 </html>
