@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.27</title>
+    <title>飞速盘点 · Sanfei v3.3.28</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -120,7 +120,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.27</div>
+                    <div class="version-badge">sanfei v3.3.28</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
@@ -163,7 +163,7 @@
     </div>
 
     <script>
-        var VERSION = "S3.3.27";
+        var VERSION = "S3.3.28";
         var STORAGE_KEY = "FEISUPANDIAN_DATA";
         var db = [];
         var columns = [];
@@ -230,19 +230,27 @@
         function playBeep(success) { try { var audioCtx = new (window.AudioContext || window.webkitAudioContext)(); var oscillator = audioCtx.createOscillator(); var gainNode = audioCtx.createGain(); oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.frequency.value = success ? 1200 : 400; gainNode.gain.value = 0.6; oscillator.start(); gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2); oscillator.stop(audioCtx.currentTime + 0.2); audioCtx.resume(); } catch(e) {} }
         function vibrate() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30); }
 
-        // ==================== 简化版数据提取 ====================
+        // ==================== 核心：提取数据 ====================
         function extractProduct(row) {
             // 条码
             var barcode = row['条码'] || row['barcode'] || row['Barcode'] || row['商品编码'] || row['编码'] || '';
             // 名称
             var name = row['名称'] || row['商品名称'] || row['name'] || row['Name'] || '';
-            // 数量
-            var qty = parseFloat(row['库存数量'] || row['数量'] || row['库存'] || row['qty'] || 0) || 0;
-            // 价格
-            var price = parseFloat(row['零售价'] || row['售价'] || row['价格'] || row['price'] || 0) || 0;
+            // 数量 - 支持多个字段名
+            var qty = 0;
+            if (row['库存数量'] !== undefined && row['库存数量'] !== '') qty = parseFloat(row['库存数量']) || 0;
+            else if (row['数量'] !== undefined && row['数量'] !== '') qty = parseFloat(row['数量']) || 0;
+            else if (row['库存'] !== undefined && row['库存'] !== '') qty = parseFloat(row['库存']) || 0;
+            else if (row['qty'] !== undefined && row['qty'] !== '') qty = parseFloat(row['qty']) || 0;
+            // 价格 - 支持多个字段名
+            var price = 0;
+            if (row['零售价'] !== undefined && row['零售价'] !== '') price = parseFloat(row['零售价']) || 0;
+            else if (row['售价'] !== undefined && row['售价'] !== '') price = parseFloat(row['售价']) || 0;
+            else if (row['价格'] !== undefined && row['价格'] !== '') price = parseFloat(row['价格']) || 0;
+            else if (row['price'] !== undefined && row['price'] !== '') price = parseFloat(row['price']) || 0;
 
-            if (!barcode && !name) {
-                // 尝试在所有字段中找
+            // 如果还是没有条码，在所有字段中找数字
+            if (!barcode) {
                 for (var key in row) {
                     var val = String(row[key] || '').trim();
                     if (val && /^\d{8,14}$/.test(val.replace(/-/g, ''))) {
@@ -251,16 +259,14 @@
                     }
                 }
             }
-
-            if (!name && barcode) {
-                name = barcode;
-            }
+            if (!name && barcode) { name = barcode; }
 
             return {
                 barcode: String(barcode).trim(),
                 name: String(name).trim(),
                 quantity: qty,
-                price: price
+                price: price,
+                valid: (barcode && barcode !== '') || (name && name !== '')
             };
         }
 
@@ -372,7 +378,7 @@
 
                                 var product = extractProduct(row);
 
-                                if (product.barcode || product.name) {
+                                if (product.valid) {
                                     result.rows.push({
                                         barcode: product.barcode,
                                         name: product.name,
@@ -1329,7 +1335,7 @@
         var topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = function() { toggleEnhanceMode(); };
         
-        console.log('⚡ 飞速盘点 ' + VERSION + ' - 简化版，只加数量和价格');
+        console.log('⚡ 飞速盘点 ' + VERSION + ' - 基于v3.3.24，增加数量和价格');
     </script>
 </body>
 </html>
