@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.34</title>
+    <title>飞速盘点 · Sanfei v3.3.35</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -130,6 +130,7 @@
         .scan-tool-btn.active { background: #f59e0b; border-color: #fcd34d; color: #111827; }
         .focus-guide { position: absolute; top: 10px; left: 0; right: 0; text-align: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); padding: 6px 12px; border-radius: 20px; width: fit-content; margin: 0 auto; font-size: 11px; color: #fff; z-index: 20; pointer-events: none; }
         .enhance-badge { position: absolute; bottom: 80px; right: 10px; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: 20px; font-size: 10px; color: #fbbf24; font-weight: bold; pointer-events: none; z-index: 15; }
+
         #progressArea {
             background: #eef3fa; border-radius: 20px; padding: 16px 22px;
             margin: 6px 0 12px 0; display: none; flex-direction: column; gap: 6px;
@@ -162,7 +163,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.34</div>
+                    <div class="version-badge">sanfei v3.3.35</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
@@ -205,7 +206,7 @@
     </div>
 
     <script>
-        var VERSION = "S3.3.34";
+        var VERSION = "S3.3.35";
         var db = [];
         var columns = [];
         var scanning = false;
@@ -222,6 +223,7 @@
         var AUTO_ENHANCE_THRESHOLD = 3;
         var toastTimer = null;
         var isProcessing = false;
+        var BATCH_SIZE = 200; // 每批200条
 
         var isAndroid = /Android/i.test(navigator.userAgent);
         var isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
@@ -324,35 +326,166 @@
             list.innerHTML = errors.map(function(e) { return '<li>行 ' + e.row + ': ' + (e.message || '数据异常') + '</li>'; }).join('');
         }
 
-        function importCSV(file) {
+        // ========== 分批导入 Excel（核心修复） ==========
+        function importExcelInBatches(jsonData) {
+            return new Promise(function(resolve, reject) {
+                var total = jsonData.length;
+                if (total === 0) { resolve({ rows: [], errors: [] }); return; }
+
+                var allColumns = new Set();
+                allColumns.add('实际数量');
+                allColumns.add('实际价格');
+                allColumns.add('条码');
+                allColumns.add('名称');
+
+                var resultRows = [];
+                var errorList = [];
+                var processed = 0;
+
+                function processBatch() {
+                    var start = processed;
+                    var end = Math.min(start + BATCH_SIZE, total);
+                    var batch = jsonData.slice(start, end);
+
+                    for (var i = 0; i < batch.length; i++) {
+                        var idx = start + i;
+                        var row = batch[i];
+                        try {
+                            var product = extractProduct(row);
+                            var newRow = {};
+                            for (var key in row) {
+                                if (row.hasOwnProperty(key)) {
+                                    newRow[key] = row[key];
+                                    allColumns.add(key);
+                                }
+                            }
+                            newRow['条码'] = product.barcode || '';
+                            newRow['名称'] = product.name || '';
+                            newRow['实际数量'] = product.quantity || 0;
+                            newRow['实际价格'] = product.price || 0;
+                            resultRows.push(newRow);
+                        } catch (err) {
+                            errorList.push({ row: idx + 1, message: err.message || '数据异常' });
+                        }
+                    }
+
+                    processed = end;
+                    updateProgress(processed, total, '📊 正在导入数据...', processed + ' / ' + total);
+
+                    if (processed < total) {
+                        // 让出主线程，防止卡死
+                        setTimeout(processBatch, 10);
+                    } else {
+                        // 完成
+                        var finalCols = Array.from(allColumns);
+                        var qtyCol = '实际数量';
+                        var priceCol = '实际价格';
+                        var qtyIdx = finalCols.indexOf(qtyCol);
+                        if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
+                        var priceIdx = finalCols.indexOf(priceCol);
+                        if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
+
+                        resolve({ rows: resultRows, errors: errorList, columns: finalCols });
+                    }
+                }
+
+                updateProgress(0, total, '📊 正在准备导入...', '0%');
+                showProgress(true);
+                setTimeout(processBatch, 50);
+            });
+        }
+
+        // ========== CSV导入（分批） ==========
+        function importCSVInBatches(file) {
             return new Promise(function(resolve, reject) {
                 var result = { rows: [], errors: [], total: 0, valid: 0 };
+                var allColumns = new Set();
+                allColumns.add('实际数量');
+                allColumns.add('实际价格');
+                allColumns.add('条码');
+                allColumns.add('名称');
+
                 var reader = new FileReader();
                 reader.onload = function(ev) {
                     try {
                         var csvText = ev.target.result;
                         if (csvText.charCodeAt(0) === 0xFEFF) { csvText = csvText.slice(1); }
                         var firstRowPrinted = false;
+                        var batchBuffer = [];
+                        var batchCount = 0;
+                        var totalRows = 0;
+
                         Papa.parse(csvText, {
-                            header: true, comments: '#', skipEmptyLines: true, trimHeaders: true,
+                            header: true,
+                            comments: '#',
+                            skipEmptyLines: true,
+                            trimHeaders: true,
                             transformHeader: function(h) { return h.trim(); },
-                            worker: false,
+                            worker: true,
                             step: function(results) {
                                 var row = results.data;
                                 if (!row || Object.keys(row).length === 0) return;
-                                result.total++;
-                                if (!firstRowPrinted) { firstRowPrinted = true; console.log('📋 列名:', Object.keys(row)); }
+                                
+                                totalRows++;
+                                if (!firstRowPrinted) { 
+                                    firstRowPrinted = true; 
+                                    console.log('📋 列名:', Object.keys(row)); 
+                                }
+
                                 var product = extractProduct(row);
                                 if (product.valid) {
-                                    result.rows.push({ barcode: product.barcode, name: product.name, quantity: product.quantity, price: product.price, original: row });
+                                    var newRow = {};
+                                    for (var key in row) {
+                                        if (row.hasOwnProperty(key)) {
+                                            newRow[key] = row[key];
+                                            allColumns.add(key);
+                                        }
+                                    }
+                                    newRow['条码'] = product.barcode || '';
+                                    newRow['名称'] = product.name || '';
+                                    newRow['实际数量'] = product.quantity || 0;
+                                    newRow['实际价格'] = product.price || 0;
+                                    batchBuffer.push(newRow);
                                     result.valid++;
                                 } else {
-                                    result.errors.push({ row: result.total, data: row, message: '缺少条码或名称' });
+                                    result.errors.push({ row: totalRows, data: row, message: '缺少条码或名称' });
                                 }
-                                if (result.total % 100 === 0) { updateProgress(result.total, 0, '📄 解析中...', result.total + ' 行'); }
+
+                                batchCount++;
+                                if (batchCount >= BATCH_SIZE) {
+                                    // 每200条更新一次进度并让出主线程
+                                    result.rows = result.rows.concat(batchBuffer);
+                                    batchBuffer = [];
+                                    batchCount = 0;
+                                    updateProgress(result.rows.length, 0, '📄 解析中...', result.rows.length + ' 行');
+                                }
                             },
-                            complete: function() { console.log('✅ 解析完成'); console.log('📊 总行数:', result.total); console.log('✅ 有效:', result.valid); console.log('❌ 错误:', result.errors.length); resolve(result); },
-                            error: function(err) { console.error('PapaParse错误:', err); reject(err); }
+                            complete: function() {
+                                // 处理剩余数据
+                                if (batchBuffer.length > 0) {
+                                    result.rows = result.rows.concat(batchBuffer);
+                                    batchBuffer = [];
+                                }
+                                
+                                var finalCols = Array.from(allColumns);
+                                var qtyCol = '实际数量';
+                                var priceCol = '实际价格';
+                                var qtyIdx = finalCols.indexOf(qtyCol);
+                                if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
+                                var priceIdx = finalCols.indexOf(priceCol);
+                                if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
+
+                                console.log('✅ 解析完成');
+                                console.log('📊 总行数:', totalRows);
+                                console.log('✅ 有效:', result.valid);
+                                console.log('❌ 错误:', result.errors.length);
+                                
+                                resolve({ rows: result.rows, errors: result.errors, columns: finalCols });
+                            },
+                            error: function(err) {
+                                console.error('PapaParse错误:', err);
+                                reject(err);
+                            }
                         });
                     } catch (err) { reject(err); }
                 };
@@ -361,6 +494,7 @@
             });
         }
 
+        // ========== 文件导入入口 ==========
         document.getElementById('fileInput').onchange = function(e) {
             if (isProcessing) { showToast('⏳ 正在处理中...', false); return; }
             var file = e.target.files[0];
@@ -371,49 +505,34 @@
             if (ext === 'csv') {
                 isProcessing = true;
                 showProgress(true);
-                updateProgress(0, 1, '📄 正在读取...', '准备中');
-                importCSV(file).then(function(result) {
-                    if (result.rows.length === 0) { showToast('⚠️ 没有有效数据行', true); showProgress(false); isProcessing = false; return; }
-                    var allColumns = new Set();
-                    allColumns.add('实际数量'); allColumns.add('实际价格'); allColumns.add('条码'); allColumns.add('名称');
-                    for (var i = 0; i < result.rows.length; i++) {
-                        var r = result.rows[i];
-                        if (r.original) { for (var key in r.original) { if (r.original.hasOwnProperty(key)) { allColumns.add(key); } } }
-                    }
-                    var finalCols = Array.from(allColumns);
-                    var qtyCol = '实际数量'; var priceCol = '实际价格';
-                    var qtyIdx = finalCols.indexOf(qtyCol); if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
-                    var priceIdx = finalCols.indexOf(priceCol); if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
+                updateProgress(0, 1, '📄 正在读取 CSV...', '准备中');
 
-                    var loadedRows = [];
-                    for (var i = 0; i < result.rows.length; i++) {
-                        var r = result.rows[i];
-                        var newRow = {};
-                        if (r.original) {
-                            for (var key in r.original) {
-                                if (r.original.hasOwnProperty(key)) {
-                                    newRow[key] = r.original[key];
-                                }
-                            }
-                        }
-                        newRow['条码'] = r.barcode || '';
-                        newRow['名称'] = r.name || '';
-                        newRow['实际数量'] = r.quantity || 0;
-                        newRow['实际价格'] = r.price || 0;
-                        loadedRows.push(newRow);
+                importCSVInBatches(file).then(function(result) {
+                    if (result.rows.length === 0) { 
+                        showToast('⚠️ 没有有效数据行', true); 
+                        showProgress(false); 
+                        isProcessing = false; 
+                        return; 
                     }
 
-                    columns = finalCols;
-                    db = loadedRows;
+                    columns = result.columns;
+                    db = result.rows;
                     console.log('✅ 最终数据条数:', db.length);
                     render();
                     showErrors(result.errors.slice(0, 100));
                     showProgress(false);
-                    if (db.length > 0) { showToast('✅ 导入成功！共 ' + db.length + ' 条商品', false); if (result.errors.length > 0) { showToast('⚠️ 跳过 ' + result.errors.length + ' 行无效数据', true); } } 
-                    else { showToast('⚠️ 无有效商品数据', true); }
+                    
+                    if (db.length > 0) { 
+                        showToast('✅ 导入成功！共 ' + db.length + ' 条商品', false); 
+                        if (result.errors.length > 0) { 
+                            showToast('⚠️ 跳过 ' + result.errors.length + ' 行无效数据', true); 
+                        } 
+                    } else { 
+                        showToast('⚠️ 无有效商品数据', true); 
+                    }
                     isProcessing = false;
                 }).catch(function(err) {
-                    console.error('导入失败:', err);
+                    console.error('CSV导入失败:', err);
                     showToast('❌ 导入失败: ' + (err.message || err.toString()), true);
                     showProgress(false);
                     isProcessing = false;
@@ -421,9 +540,9 @@
                 return;
             }
 
-            // Excel
+            // Excel - 分批导入
             isProcessing = true;
-            showToast("正在导入 Excel...", false);
+            showToast("正在读取 Excel...", false);
             var fileReader = new FileReader();
             fileReader.onload = function(ev) {
                 try {
@@ -431,39 +550,54 @@
                     var workbook = XLSX.read(data, { type: 'array' });
                     var sheet = workbook.Sheets[workbook.SheetNames[0]];
                     var json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-                    if (json.length > 0) {
-                        var resultRows = [];
-                        var errorList = [];
-                        var allColumns = new Set();
-                        allColumns.add('实际数量'); allColumns.add('实际价格'); allColumns.add('条码'); allColumns.add('名称');
-                        for (var i = 0; i < json.length; i++) {
-                            var row = json[i];
-                            try {
-                                var product = extractProduct(row);
-                                var newRow = {};
-                                for (var key in row) { if (row.hasOwnProperty(key)) { newRow[key] = row[key]; allColumns.add(key); } }
-                                newRow['条码'] = product.barcode || '';
-                                newRow['名称'] = product.name || '';
-                                newRow['实际数量'] = product.quantity || 0;
-                                newRow['实际价格'] = product.price || 0;
-                                resultRows.push(newRow);
-                            } catch (err) { errorList.push({ row: i + 1, message: err.message || '数据异常' }); }
-                        }
-                        var finalCols = Array.from(allColumns);
-                        var qtyCol = '实际数量'; var priceCol = '实际价格';
-                        var qtyIdx = finalCols.indexOf(qtyCol); if (qtyIdx > 0) { finalCols.splice(qtyIdx, 1); finalCols.unshift(qtyCol); }
-                        var priceIdx = finalCols.indexOf(priceCol); if (priceIdx > 1 && priceIdx !== -1) { finalCols.splice(priceIdx, 1); finalCols.splice(1, 0, priceCol); }
-                        columns = finalCols;
-                        db = resultRows;
-                        render();
-                        showErrors(errorList);
+                    
+                    if (json.length === 0) {
+                        showToast("文件无数据", true);
                         showProgress(false);
-                        showToast('✅ Excel 导入成功！共 ' + db.length + ' 条', false);
                         isProcessing = false;
-                    } else { showToast("文件无数据", true); showProgress(false); isProcessing = false; }
-                } catch(err) { console.error(err); showToast("解析失败: " + (err.message || err.toString()), true); showProgress(false); isProcessing = false; }
+                        return;
+                    }
+
+                    console.log('📊 Excel 读取完成，共 ' + json.length + ' 行');
+
+                    importExcelInBatches(json).then(function(result) {
+                        if (result.rows.length === 0) {
+                            showToast('⚠️ 没有有效数据行', true);
+                            showProgress(false);
+                            isProcessing = false;
+                            return;
+                        }
+
+                        columns = result.columns;
+                        db = result.rows;
+                        console.log('✅ 最终数据条数:', db.length);
+                        render();
+                        showErrors(result.errors.slice(0, 100));
+                        showProgress(false);
+                        showToast('✅ 导入成功！共 ' + db.length + ' 条商品', false);
+                        if (result.errors.length > 0) {
+                            showToast('⚠️ 跳过 ' + result.errors.length + ' 行无效数据', true);
+                        }
+                        isProcessing = false;
+                    }).catch(function(err) {
+                        console.error('导入失败:', err);
+                        showToast('❌ 导入失败: ' + (err.message || err.toString()), true);
+                        showProgress(false);
+                        isProcessing = false;
+                    });
+
+                } catch(err) {
+                    console.error(err);
+                    showToast("解析失败: " + (err.message || err.toString()), true);
+                    showProgress(false);
+                    isProcessing = false;
+                }
             };
-            fileReader.onerror = function() { showToast('读取Excel文件失败', true); showProgress(false); isProcessing = false; };
+            fileReader.onerror = function() { 
+                showToast('读取Excel文件失败', true); 
+                showProgress(false); 
+                isProcessing = false; 
+            };
             fileReader.readAsArrayBuffer(file);
         };
 
@@ -482,6 +616,7 @@
             }
         }
 
+        // ========== 其他功能保持不变 ==========
         function preprocessCode(code) {
             if (!code) return code;
             var cleaned = String(code).replace(/[^\w\d\-]/g, '');
@@ -1128,8 +1263,9 @@
         var topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = function() { toggleEnhanceMode(); };
         
-        console.log('⚡ 飞速盘点 ' + VERSION + ' - 免授权版');
-        console.log('📌 数据保存在内存中，刷新页面会丢失，请及时导出备份');
+        console.log('⚡ 飞速盘点 ' + VERSION + ' - 分批导入版本');
+        console.log('📌 每批 ' + BATCH_SIZE + ' 条，适合大文件导入');
+        console.log('📌 数据保存在内存中，请及时导出备份');
     </script>
 </body>
 </html>
