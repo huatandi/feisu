@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.37</title>
+    <title>飞速盘点 · Sanfei v3.3.38</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -149,7 +149,6 @@
         .stats { display: flex; gap: 18px; font-size: 14px; color: #1f3a6b; }
         .stats span { background: white; padding: 4px 16px; border-radius: 30px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
 
-        /* 分页控件 */
         .pagination {
             display: flex; gap: 8px; align-items: center; justify-content: center;
             padding: 10px 0; flex-wrap: wrap; background: #f8faff;
@@ -179,7 +178,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.37</div>
+                    <div class="version-badge">sanfei v3.3.38</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
@@ -194,9 +193,17 @@
         </div>
         <div class="scrollable-area">
             <div id="progressArea">
-                <div class="progress-title"><span id="progressLabel">⏳ 正在读取数据...</span><span id="progressPercent">0%</span></div>
-                <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
-                <div class="progress-detail"><span id="progressCount">0 / 0</span><span id="progressStatus">准备中</span></div>
+                <div class="progress-title">
+                    <span id="progressLabel">⏳ 正在读取数据...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="progressFill" style="width:0%;"></div>
+                </div>
+                <div class="progress-detail">
+                    <span id="progressCount">0 / 0</span>
+                    <span id="progressStatus">准备中</span>
+                </div>
             </div>
             <div id="errorSummary" class="error-summary"><details><summary id="errorSummaryTitle">⚠️ 导入完成，部分行失败</summary><ul id="errorList"></ul></details></div>
             <div class="table-container">
@@ -205,7 +212,6 @@
                     <tbody id="tBody"></tbody>
                 </table>
             </div>
-            <!-- 分页控件 -->
             <div class="pagination" id="pagination">
                 <button id="prevPageBtn" onclick="changePage(-1)">◀ 上一页</button>
                 <span class="info" id="pageInfo">第 1 / 1 页</span>
@@ -229,7 +235,7 @@
     </div>
 
     <script>
-        var VERSION = "S3.3.37";
+        var VERSION = "S3.3.38";
         var db = [];
         var columns = [];
         var currentPage = 0;
@@ -255,6 +261,7 @@
         var isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
         var isMobile = isAndroid || isIPad || /iPhone/i.test(navigator.userAgent);
 
+        // ==================== Toast ====================
         function showToast(msg, isError, persistent) {
             if (isError === undefined) isError = false;
             if (persistent === undefined) persistent = false;
@@ -294,6 +301,7 @@
         function playBeep(success) { try { var audioCtx = new (window.AudioContext || window.webkitAudioContext)(); var oscillator = audioCtx.createOscillator(); var gainNode = audioCtx.createGain(); oscillator.connect(gainNode); gainNode.connect(audioCtx.destination); oscillator.frequency.value = success ? 1200 : 400; gainNode.gain.value = 0.6; oscillator.start(); gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2); oscillator.stop(audioCtx.currentTime + 0.2); audioCtx.resume(); } catch(e) {} }
         function vibrate() { if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(30); }
 
+        // ==================== 数据提取 ====================
         function extractProduct(row) {
             var barcode = row['条码'] || row['barcode'] || row['Barcode'] || row['商品编码'] || row['编码'] || '';
             var name = row['名称'] || row['商品名称'] || row['name'] || row['Name'] || '';
@@ -332,6 +340,7 @@
             else if (priceIndex === -1) columns.splice(1, 0, priceCol);
         }
 
+        // ==================== 进度显示 ====================
         function showProgress(show) { var el = document.getElementById('progressArea'); if (show) el.classList.add('active'); else el.classList.remove('active'); }
         function updateProgress(current, total, label, status) {
             var pct = total > 0 ? Math.round((current / total) * 100) : 0;
@@ -352,7 +361,7 @@
             list.innerHTML = errors.map(function(e) { return '<li>行 ' + e.row + ': ' + (e.message || '数据异常') + '</li>'; }).join('');
         }
 
-        // ========== 分页渲染 ==========
+        // ==================== 分页渲染 ====================
         function renderPage() {
             try {
                 var thead = document.getElementById('tHead');
@@ -366,7 +375,6 @@
                 var end = Math.min(start + pageSize, total);
                 var pageData = db.slice(start, end);
 
-                // 更新分页信息
                 document.getElementById('pageInfo').textContent = '第 ' + (currentPage + 1) + ' / ' + totalPages + ' 页';
                 document.getElementById('totalInfo').textContent = '共 ' + total + ' 条';
                 document.getElementById('prevPageBtn').disabled = (currentPage === 0);
@@ -436,7 +444,7 @@
             }
         }
 
-        // ========== 分批导入 Excel ==========
+        // ==================== 分批导入 Excel（无截断） ====================
         function importExcelInBatches(jsonData) {
             return new Promise(function(resolve, reject) {
                 var total = jsonData.length;
@@ -480,10 +488,10 @@
                     }
 
                     processed = end;
-                    updateProgress(processed, total, '📊 正在导入数据...', Math.round((processed/total)*100) + '%');
+                    updateProgress(processed, total, '📊 正在导入数据...', processed + ' / ' + total + '  (' + Math.round((processed/total)*100) + '%)');
 
                     if (processed < total) {
-                        setTimeout(processBatch, 50);
+                        setTimeout(processBatch, 30);
                     } else {
                         var finalCols = Array.from(allColumns);
                         var qtyCol = '实际数量';
@@ -497,13 +505,13 @@
                     }
                 }
 
-                updateProgress(0, total, '📊 正在准备导入...', '0%');
+                updateProgress(0, total, '📊 正在准备导入...', '0 / ' + total + ' (0%)');
                 showProgress(true);
                 setTimeout(processBatch, 100);
             });
         }
 
-        // ========== CSV导入 ==========
+        // ==================== CSV导入（无截断） ====================
         function importCSVInBatches(file) {
             return new Promise(function(resolve, reject) {
                 var result = { rows: [], errors: [], total: 0, valid: 0 };
@@ -601,7 +609,7 @@
             });
         }
 
-        // ========== 文件导入入口 ==========
+        // ==================== 文件导入入口 ====================
         document.getElementById('fileInput').onchange = function(e) {
             if (isProcessing) { showToast('⏳ 正在处理中...', false); return; }
             var file = e.target.files[0];
@@ -710,7 +718,7 @@
             fileReader.readAsArrayBuffer(file);
         };
 
-        // ========== 匹配逻辑 ==========
+        // ==================== 匹配逻辑 ====================
         function preprocessCode(code) {
             if (!code) return code;
             var cleaned = String(code).replace(/[^\w\d\-]/g, '');
@@ -783,7 +791,7 @@
             return -1;
         }
 
-        // ========== UI 函数 ==========
+        // ==================== UI 函数 ====================
         function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
         
         function updateQty(rowIndex, value) { 
@@ -933,7 +941,7 @@
             setTimeout(function() { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
-        // ========== 扫码相机 ==========
+        // ==================== 扫码相机（精简） ====================
         function setupCameraControls(track) {
             cameraTrack = track || null;
             var torchBtn = document.getElementById('torchBtn');
@@ -1194,6 +1202,7 @@
             return null;
         }
 
+        // ==================== 列管理 ====================
         function renderColList() {
             var container = document.getElementById('colList');
             container.innerHTML = columns.map(function(col, idx) {
@@ -1345,8 +1354,8 @@
         var topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = function() { toggleEnhanceMode(); };
         
-        console.log('⚡ 飞速盘点 ' + VERSION + ' - 分页显示，每页500条');
-        console.log('📌 所有数据都在内存中，搜索/扫码在所有数据中生效');
+        console.log('⚡ 飞速盘点 ' + VERSION + ' - 完整导入，无截断');
+        console.log('📌 进度条显示：已处理 / 总数 (百分比)');
         console.log('📌 请及时导出备份（💾 导出按钮）');
     </script>
 </body>
