@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <title>飞速盘点 · Sanfei v3.3.36</title>
+    <title>飞速盘点 · Sanfei v3.3.37</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -148,6 +148,22 @@
         .error-summary ul { max-height: 120px; overflow-y: auto; margin: 6px 0 0 18px; color: #5f2b2b; }
         .stats { display: flex; gap: 18px; font-size: 14px; color: #1f3a6b; }
         .stats span { background: white; padding: 4px 16px; border-radius: 30px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+
+        /* 分页控件 */
+        .pagination {
+            display: flex; gap: 8px; align-items: center; justify-content: center;
+            padding: 10px 0; flex-wrap: wrap; background: #f8faff;
+            border-radius: 0 0 12px 12px; border-top: 1px solid #e2e8f0;
+        }
+        .pagination button {
+            padding: 6px 14px; border-radius: 8px; border: 1px solid #d0dbe8;
+            background: white; cursor: pointer; font-size: 13px; font-weight: 600;
+            transition: 0.1s;
+        }
+        .pagination button:hover { background: #e2eaf6; }
+        .pagination button.active { background: #1a5fb4; color: white; border-color: #1a5fb4; }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pagination .info { font-size: 13px; color: #4a6580; margin: 0 8px; }
         .auth-overlay { display: none !important; }
     </style>
 </head>
@@ -163,7 +179,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v3.3.36</div>
+                    <div class="version-badge">sanfei v3.3.37</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
@@ -189,6 +205,13 @@
                     <tbody id="tBody"></tbody>
                 </table>
             </div>
+            <!-- 分页控件 -->
+            <div class="pagination" id="pagination">
+                <button id="prevPageBtn" onclick="changePage(-1)">◀ 上一页</button>
+                <span class="info" id="pageInfo">第 1 / 1 页</span>
+                <button id="nextPageBtn" onclick="changePage(1)">下一页 ▶</button>
+                <span class="info" id="totalInfo">共 0 条</span>
+            </div>
         </div>
     </div>
 
@@ -206,9 +229,12 @@
     </div>
 
     <script>
-        var VERSION = "S3.3.36";
+        var VERSION = "S3.3.37";
         var db = [];
         var columns = [];
+        var currentPage = 0;
+        var pageSize = 500;
+        var totalPages = 0;
         var scanning = false;
         var reader = null;
         var lastCode = "";
@@ -223,7 +249,7 @@
         var AUTO_ENHANCE_THRESHOLD = 3;
         var toastTimer = null;
         var isProcessing = false;
-        var BATCH_SIZE = 50; // ⭐ 每批50条，极低内存消耗
+        var BATCH_SIZE = 50;
 
         var isAndroid = /Android/i.test(navigator.userAgent);
         var isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
@@ -326,7 +352,91 @@
             list.innerHTML = errors.map(function(e) { return '<li>行 ' + e.row + ': ' + (e.message || '数据异常') + '</li>'; }).join('');
         }
 
-        // ========== 分批导入 Excel（每批50条） ==========
+        // ========== 分页渲染 ==========
+        function renderPage() {
+            try {
+                var thead = document.getElementById('tHead');
+                var tbody = document.getElementById('tBody');
+                var total = db.length;
+                totalPages = Math.ceil(total / pageSize) || 1;
+                if (currentPage >= totalPages) currentPage = totalPages - 1;
+                if (currentPage < 0) currentPage = 0;
+
+                var start = currentPage * pageSize;
+                var end = Math.min(start + pageSize, total);
+                var pageData = db.slice(start, end);
+
+                // 更新分页信息
+                document.getElementById('pageInfo').textContent = '第 ' + (currentPage + 1) + ' / ' + totalPages + ' 页';
+                document.getElementById('totalInfo').textContent = '共 ' + total + ' 条';
+                document.getElementById('prevPageBtn').disabled = (currentPage === 0);
+                document.getElementById('nextPageBtn').disabled = (currentPage >= totalPages - 1);
+
+                if (!columns.length || total === 0) {
+                    thead.innerHTML = '';
+                    tbody.innerHTML = '<tr><td colspan="10" class="text-center p-6 text-gray-500">暂无数据，请导入Excel或CSV文件</td></tr>';
+                    return;
+                }
+
+                thead.innerHTML = '<tr>' + columns.map(function(col) { return '<th>' + col + '</th>'; }).join('') + '</tr>';
+                tbody.innerHTML = pageData.map(function(row, idx) {
+                    var realIdx = start + idx;
+                    return '<tr id="row-' + realIdx + '">' +
+                        columns.map(function(col) {
+                            if (col === '实际数量') {
+                                return '<td><input id="qty-' + realIdx + '" type="number" value="' + (row[col] || '') + '" class="qty-input" onchange="updateQty(' + realIdx + ', this.value)" onfocus="this.select()" placeholder="0" inputmode="numeric" /></td>';
+                            } else if (col === '实际价格') {
+                                return '<td><input id="price-' + realIdx + '" type="number" step="0.01" value="' + (row[col] || '') + '" class="price-input" onchange="updatePrice(' + realIdx + ', this.value)" onfocus="this.select()" placeholder="0.00" inputmode="decimal" /></td>';
+                            } else {
+                                var val = String(row[col] || '');
+                                if (val.length > 100) val = val.substring(0, 100) + '...';
+                                return '<td title="' + String(row[col] || '') + '"><input type="text" value="' + escapeHtml(val) + '" class="w-full p-2 text-sm outline-none bg-transparent" style="min-width:80px; width:100%;" onchange="updateCell(' + realIdx + ', \'' + col + '\', this.value)" /></td>';
+                            }
+                        }).join('') +
+                        '</tr>';
+                }).join('');
+
+                setTimeout(function() { autoAdjustColumns(); }, 50);
+                if (pendingJump !== null) {
+                    var jumpIdx = pendingJump;
+                    var targetPage = Math.floor(jumpIdx / pageSize);
+                    if (targetPage !== currentPage) {
+                        currentPage = targetPage;
+                        renderPage();
+                    }
+                    setTimeout(function() { jumpToRowAndFocusQty(jumpIdx); pendingJump = null; }, 100);
+                }
+                updateStats();
+            } catch(e) {
+                console.error('渲染错误:', e);
+                showToast('渲染错误: ' + e.message, true);
+            }
+        }
+
+        function changePage(delta) {
+            var newPage = currentPage + delta;
+            if (newPage >= 0 && newPage < totalPages) {
+                currentPage = newPage;
+                renderPage();
+            }
+        }
+
+        function updateStats() {
+            var total = db.length;
+            var totalPrice = 0;
+            for (var i = 0; i < db.length; i++) {
+                var row = db[i];
+                var qty = parseFloat(row['实际数量']) || 0;
+                var price = parseFloat(row['实际价格']) || 0;
+                totalPrice += qty * price;
+            }
+            var statsDiv = document.querySelector('.stats');
+            if (statsDiv) {
+                statsDiv.innerHTML = '<span>📊 ' + total + ' 条</span><span>💰 ' + totalPrice.toFixed(2) + '</span>';
+            }
+        }
+
+        // ========== 分批导入 Excel ==========
         function importExcelInBatches(jsonData) {
             return new Promise(function(resolve, reject) {
                 var total = jsonData.length;
@@ -373,10 +483,8 @@
                     updateProgress(processed, total, '📊 正在导入数据...', Math.round((processed/total)*100) + '%');
 
                     if (processed < total) {
-                        // 每批之间等待50ms，让浏览器回收内存
                         setTimeout(processBatch, 50);
                     } else {
-                        // 完成
                         var finalCols = Array.from(allColumns);
                         var qtyCol = '实际数量';
                         var priceCol = '实际价格';
@@ -395,7 +503,7 @@
             });
         }
 
-        // ========== CSV导入（分批 + 限制解析大小） ==========
+        // ========== CSV导入 ==========
         function importCSVInBatches(file) {
             return new Promise(function(resolve, reject) {
                 var result = { rows: [], errors: [], total: 0, valid: 0 };
@@ -411,27 +519,18 @@
                         var csvText = ev.target.result;
                         if (csvText.charCodeAt(0) === 0xFEFF) { csvText = csvText.slice(1); }
                         
-                        // ⭐ 限制解析行数，防止内存爆炸
-                        var MAX_LINES = 50000;
-                        var lines = csvText.split(/\r?\n/);
-                        if (lines.length > MAX_LINES) {
-                            lines = lines.slice(0, MAX_LINES);
-                            showToast('⚠️ 文件超过5万行，只解析前5万行', true, true);
-                        }
-                        var limitedCSV = lines.join('\n');
-                        
                         var firstRowPrinted = false;
                         var batchBuffer = [];
                         var batchCount = 0;
                         var totalRows = 0;
 
-                        Papa.parse(limitedCSV, {
+                        Papa.parse(csvText, {
                             header: true,
                             comments: '#',
                             skipEmptyLines: true,
                             trimHeaders: true,
                             transformHeader: function(h) { return h.trim(); },
-                            worker: false, // ⭐ 不用worker，避免克隆错误
+                            worker: false,
                             step: function(results) {
                                 var row = results.data;
                                 if (!row || Object.keys(row).length === 0) return;
@@ -526,7 +625,8 @@
                     columns = result.columns;
                     db = result.rows;
                     console.log('✅ 最终数据条数:', db.length);
-                    renderLimited(); // ⭐ 只渲染前500条
+                    currentPage = 0;
+                    renderPage();
                     showErrors(result.errors.slice(0, 100));
                     showProgress(false);
                     
@@ -548,7 +648,7 @@
                 return;
             }
 
-            // Excel - 分批导入（每批50条）
+            // Excel
             isProcessing = true;
             showToast("正在读取 Excel...", false);
             var fileReader = new FileReader();
@@ -579,7 +679,8 @@
                         columns = result.columns;
                         db = result.rows;
                         console.log('✅ 最终数据条数:', db.length);
-                        renderLimited(); // ⭐ 只渲染前500条
+                        currentPage = 0;
+                        renderPage();
                         showErrors(result.errors.slice(0, 100));
                         showProgress(false);
                         showToast('✅ 导入成功！共 ' + db.length + ' 条商品', false);
@@ -609,68 +710,7 @@
             fileReader.readAsArrayBuffer(file);
         };
 
-        // ========== 只渲染前500条（防止DOM爆炸） ==========
-        function renderLimited() {
-            try {
-                var thead = document.getElementById('tHead');
-                var tbody = document.getElementById('tBody');
-                if (!columns.length || db.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="10" class="text-center p-6 text-gray-500">暂无数据，请导入Excel或CSV文件</td></tr>';
-                    return;
-                }
-                
-                var DISPLAY_LIMIT = 500;
-                var displayData = db.slice(0, DISPLAY_LIMIT);
-                
-                thead.innerHTML = '<tr>' + columns.map(function(col) { return '<th>' + col + '</th>'; }).join('') + '</tr>';
-                tbody.innerHTML = displayData.map(function(row, idx) {
-                    return '<tr id="row-' + idx + '">' +
-                        columns.map(function(col) {
-                            if (col === '实际数量') {
-                                return '<td><input id="qty-' + idx + '" type="number" value="' + (row[col] || '') + '" class="qty-input" onchange="updateQty(' + idx + ', this.value)" onfocus="this.select()" placeholder="0" inputmode="numeric" /></td>';
-                            } else if (col === '实际价格') {
-                                return '<td><input id="price-' + idx + '" type="number" step="0.01" value="' + (row[col] || '') + '" class="price-input" onchange="updatePrice(' + idx + ', this.value)" onfocus="this.select()" placeholder="0.00" inputmode="decimal" /></td>';
-                            } else {
-                                var val = String(row[col] || '');
-                                if (val.length > 100) val = val.substring(0, 100) + '...';
-                                return '<td title="' + String(row[col] || '') + '"><input type="text" value="' + escapeHtml(val) + '" class="w-full p-2 text-sm outline-none bg-transparent" style="min-width:80px; width:100%;" onchange="updateCell(' + idx + ', \'' + col + '\', this.value)" /></td>';
-                            }
-                        }).join('') +
-                        '</tr>';
-                }).join('');
-                
-                // 如果数据超过显示限制，显示提示
-                if (db.length > DISPLAY_LIMIT) {
-                    var totalRow = document.createElement('tr');
-                    totalRow.innerHTML = '<td colspan="' + columns.length + '" class="text-center p-3 text-gray-500 bg-gray-50">📌 共 ' + db.length + ' 条数据，仅显示前 ' + DISPLAY_LIMIT + ' 条（搜索和扫码功能在所有数据中生效）</td>';
-                    tbody.appendChild(totalRow);
-                }
-                
-                setTimeout(function() { autoAdjustColumns(); }, 50);
-                if (pendingJump !== null) setTimeout(function() { jumpToRowAndFocusQty(pendingJump); pendingJump = null; }, 100);
-                updateStats();
-            } catch(e) {
-                console.error('渲染错误:', e);
-                showToast('渲染错误: ' + e.message, true);
-            }
-        }
-
-        function updateStats() {
-            var total = db.length;
-            var totalPrice = 0;
-            for (var i = 0; i < db.length; i++) {
-                var row = db[i];
-                var qty = parseFloat(row['实际数量']) || 0;
-                var price = parseFloat(row['实际价格']) || 0;
-                totalPrice += qty * price;
-            }
-            var statsDiv = document.querySelector('.stats');
-            if (statsDiv) {
-                statsDiv.innerHTML = '<span>📊 ' + total + ' 条</span><span>💰 ' + totalPrice.toFixed(2) + '</span>';
-            }
-        }
-
-        // ========== 匹配逻辑（在所有数据中搜索） ==========
+        // ========== 匹配逻辑 ==========
         function preprocessCode(code) {
             if (!code) return code;
             var cleaned = String(code).replace(/[^\w\d\-]/g, '');
@@ -743,11 +783,7 @@
             return -1;
         }
 
-        // ========== UI 渲染 ==========
-        function render() {
-            renderLimited();
-        }
-
+        // ========== UI 函数 ==========
         function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, function(m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
         
         function updateQty(rowIndex, value) { 
@@ -866,7 +902,14 @@
             var scanFrame = document.getElementById('scanFrame');
             if (scanFrame) { scanFrame.classList.add('scan-success'); setTimeout(function() { scanFrame.classList.remove('scan-success'); }, 200); }
             if (fromCamera) stopScanningAndJump(foundIndex);
-            else jumpToRowAndFocusQty(foundIndex);
+            else {
+                var targetPage = Math.floor(foundIndex / pageSize);
+                if (targetPage !== currentPage) {
+                    currentPage = targetPage;
+                    renderPage();
+                }
+                jumpToRowAndFocusQty(foundIndex);
+            }
             return true;
         }
 
@@ -882,6 +925,11 @@
                 videoEl.srcObject = null;
             }
             document.getElementById('scanUI').style.display = 'none';
+            var targetPage = Math.floor(foundIndex / pageSize);
+            if (targetPage !== currentPage) {
+                currentPage = targetPage;
+                renderPage();
+            }
             setTimeout(function() { jumpToRowAndFocusQty(foundIndex); pendingJump = null; }, 150);
         }
 
@@ -1173,17 +1221,17 @@
                         var temp = columns[fromIndex];
                         columns[fromIndex] = columns[toIndex];
                         columns[toIndex] = temp;
-                        renderColList(); render(); showToast("列顺序已更新", false);
+                        renderColList(); renderPage(); showToast("列顺序已更新", false);
                     }
                 });
             });
         }
 
-        function moveColumnUp(index) { if (index > 0) { var temp = columns[index]; columns[index] = columns[index-1]; columns[index-1] = temp; renderColList(); render(); showToast("列顺序已更新", false); } }
-        function moveColumnDown(index) { if (index < columns.length-1) { var temp = columns[index]; columns[index] = columns[index+1]; columns[index+1] = temp; renderColList(); render(); showToast("列顺序已更新", false); } }
+        function moveColumnUp(index) { if (index > 0) { var temp = columns[index]; columns[index] = columns[index-1]; columns[index-1] = temp; renderColList(); renderPage(); showToast("列顺序已更新", false); } }
+        function moveColumnDown(index) { if (index < columns.length-1) { var temp = columns[index]; columns[index] = columns[index+1]; columns[index+1] = temp; renderColList(); renderPage(); showToast("列顺序已更新", false); } }
         function openColModal() { renderColList(); document.getElementById('colModal').style.display = 'flex'; }
-        function closeColModal() { document.getElementById('colModal').style.display = 'none'; render(); }
-        function addColumn() { var newCol = document.getElementById('newColName').value.trim(); if (newCol && !columns.includes(newCol)) { columns.push(newCol); for (var i = 0; i < db.length; i++) { db[i][newCol] = ''; } renderColList(); render(); showToast('已添加列: ' + newCol, false); document.getElementById('newColName').value = ''; } else if (columns.includes(newCol)) showToast("列名已存在", true); }
+        function closeColModal() { document.getElementById('colModal').style.display = 'none'; renderPage(); }
+        function addColumn() { var newCol = document.getElementById('newColName').value.trim(); if (newCol && !columns.includes(newCol)) { columns.push(newCol); for (var i = 0; i < db.length; i++) { db[i][newCol] = ''; } renderColList(); renderPage(); showToast('已添加列: ' + newCol, false); document.getElementById('newColName').value = ''; } else if (columns.includes(newCol)) showToast("列名已存在", true); }
         function deleteColumn(colName) { 
             if (colName === '实际数量' || colName === '实际价格') {
                 showToast("⚠️ 核心列不能删除", true);
@@ -1191,7 +1239,7 @@
             }
             if (confirm('确定删除列 "' + colName + '" 吗？数据将丢失！')) { 
                 var index = columns.indexOf(colName); 
-                if (index !== -1) { columns.splice(index, 1); for (var i = 0; i < db.length; i++) { delete db[i][colName]; } renderColList(); render(); showToast('已删除列: ' + colName, false); } 
+                if (index !== -1) { columns.splice(index, 1); for (var i = 0; i < db.length; i++) { delete db[i][colName]; } renderColList(); renderPage(); showToast('已删除列: ' + colName, false); } 
             } 
         }
 
@@ -1200,7 +1248,8 @@
                 db = [];
                 columns = ['实际数量', '实际价格', '商品名称', '编码', '价格'];
                 normalizeSpecialColumns();
-                render();
+                currentPage = 0;
+                renderPage();
                 showToast("已清空所有数据", false);
             }
         }
@@ -1266,11 +1315,13 @@
         function renderAdminCodeList() {}
         function generateNewCodes() {}
 
+        function render() { renderPage(); }
+
         window.addEventListener('resize', function() { setTimeout(function() { autoAdjustColumns(); }, 100); });
         window.addEventListener('beforeunload', function() { if (scanning) stopScanning(true); });
         document.addEventListener('touchstart', function(e) { if (currentInputElement && !e.target.closest('.qty-input') && !e.target.closest('.price-input') && !e.target.closest('#manualInput')) hideKeyboard(); });
         
-        render();
+        renderPage();
         setupKeyboardListener();
         initAuthSystem();
         
@@ -1294,8 +1345,9 @@
         var topEnhanceBtn = document.getElementById('scanEnhanceBtn');
         if (topEnhanceBtn) topEnhanceBtn.onclick = function() { toggleEnhanceMode(); };
         
-        console.log('⚡ 飞速盘点 ' + VERSION + ' - 每批50条，只渲染前500条');
-        console.log('📌 数据保存在内存中，请及时导出备份');
+        console.log('⚡ 飞速盘点 ' + VERSION + ' - 分页显示，每页500条');
+        console.log('📌 所有数据都在内存中，搜索/扫码在所有数据中生效');
+        console.log('📌 请及时导出备份（💾 导出按钮）');
     </script>
 </body>
 </html>
