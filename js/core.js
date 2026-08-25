@@ -1,6 +1,6 @@
 'use strict';
 
-var VERSION = 'S4.1.0';
+var VERSION = 'S4.1.2';
 var db = [];
 var columns = [];
 var currentPage = 0;
@@ -25,6 +25,12 @@ var searchIndex = new Map();
 var searchableRows = [];
 var undoStack = [];
 var MAX_UNDO = 100;
+
+/* v4.1.2 扫码结果提示状态：
+ * 只追踪“条码不存在”的持久提示。
+ * 下一次识别到不同的有效条码时自动清除，不影响其他错误/进度提示。
+ */
+var activeBarcodeNotFoundCode = null;
 
 var isAndroid = /Android/i.test(navigator.userAgent);
 var isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
@@ -67,6 +73,26 @@ function showToast(msg, isError, persistent) {
 }
 
 function dismissToast(){ var toast=document.getElementById('toast'); if(toast) toast.style.display='none'; if(toastTimer){clearTimeout(toastTimer);toastTimer=null;} }
+
+function showBarcodeNotFoundToast(code){
+  activeBarcodeNotFoundCode = String(code || '');
+  showToast('❌ 条码不存在: ' + activeBarcodeNotFoundCode.substring(0,20), true, true);
+}
+
+function clearPreviousBarcodeNotFoundOnNextScan(nextCode){
+  var code = String(nextCode || '').trim();
+  if(!code || !activeBarcodeNotFoundCode) return;
+  /* 同一个不存在条码继续被镜头重复读到时不闪烁；
+     只有识别到“另一个”条码才自动移除上一条提示。 */
+  if(code !== activeBarcodeNotFoundCode){
+    dismissToast();
+    activeBarcodeNotFoundCode = null;
+  }
+}
+
+function clearBarcodeNotFoundState(){
+  activeBarcodeNotFoundCode = null;
+}
 function copyText(text){
   if(navigator.clipboard && navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){showToast('✅ 已复制');}).catch(function(){copyTextFallback(text);});}
   else copyTextFallback(text);
