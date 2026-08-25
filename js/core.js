@@ -1,6 +1,6 @@
 'use strict';
 
-var VERSION = 'S4.1.2';
+var VERSION = 'S4.1.3';
 var db = [];
 var columns = [];
 var currentPage = 0;
@@ -76,7 +76,7 @@ function dismissToast(){ var toast=document.getElementById('toast'); if(toast) t
 
 function showBarcodeNotFoundToast(code){
   activeBarcodeNotFoundCode = String(code || '');
-  showToast('❌ 条码不存在: ' + activeBarcodeNotFoundCode.substring(0,20), true, true);
+  showToast('❌ 条码不存在: ' + activeBarcodeNotFoundCode, true, true);
 }
 
 function clearPreviousBarcodeNotFoundOnNextScan(nextCode){
