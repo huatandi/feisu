@@ -1,6 +1,6 @@
 'use strict';
 
-var VERSION = 'S4.0.0';
+var VERSION = 'S4.1.0';
 var db = [];
 var columns = [];
 var currentPage = 0;
@@ -74,8 +74,8 @@ function copyText(text){
 function copyTextFallback(text){ var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';ta.style.left='-9999px';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');showToast('✅ 已复制');}catch(e){showToast('❌ 复制失败，请手动复制',true);}document.body.removeChild(ta); }
 function copyToastMessage(){ /* 兼容旧调用 */ }
 
-function playBeep(success){ try{var audioCtx=new (window.AudioContext||window.webkitAudioContext)();var oscillator=audioCtx.createOscillator();var gainNode=audioCtx.createGain();oscillator.connect(gainNode);gainNode.connect(audioCtx.destination);oscillator.frequency.value=success?1200:400;gainNode.gain.value=.6;oscillator.start();gainNode.gain.exponentialRampToValueAtTime(.00001,audioCtx.currentTime+.2);oscillator.stop(audioCtx.currentTime+.2);audioCtx.resume();setTimeout(function(){audioCtx.close().catch(function(){});},400);}catch(e){} }
-function vibrate(){ if(navigator.vibrate) navigator.vibrate(30); }
+function playBeep(success, barcode){ if(window.SoundManager){if(success)SoundManager.success(barcode);else SoundManager.error(barcode);return;} }
+function vibrate(){ /* v4.1: 震动由 SoundManager 与提示音统一管理，保留兼容空函数 */ }
 
 function normalizeSpecialColumns(){
   var qtyCol='实际数量', priceCol='实际价格';

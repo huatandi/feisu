@@ -19,7 +19,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v4.0.0</div>
+                    <div class="version-badge">sanfei v4.1.0</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
@@ -71,7 +71,7 @@
     </div>
 
     <div id="scanUI" class="fixed inset-0 bg-black z-[999] hidden flex-col">
-        <div class="scan-header"><div class="scan-header-left"><span class="font-bold text-blue-400 text-lg">🔍 极速条码引擎</span><button id="scanEnhanceBtn" class="scan-enhance-btn">✨ 增强</button></div><button onclick="stopScanning(true)" class="close-scan-btn text-white font-bold">✕ 关闭扫描</button></div>
+        <div class="scan-header"><div class="scan-header-left"><span class="font-bold text-blue-400 text-lg">🔍 极速条码引擎</span><button id="scanEnhanceBtn" class="scan-enhance-btn">✨ 增强</button><button id="scanSoundBtn" type="button" class="scan-sound-btn active" aria-pressed="true" title="扫码提示音：开">🔊 音效</button></div><button onclick="stopScanning(true)" class="close-scan-btn text-white font-bold">✕ 关闭扫描</button></div>
         <div class="relative flex-1 bg-black"><video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video><div class="focus-guide">💡 点击画面辅助对焦 | 识别速度已优化 | 增强模式可提升劣质条码识别率</div><div class="scan-frame" id="scanFrame"><div class="scan-line"></div></div><div id="enhanceBadge" class="enhance-badge hidden">✨ 增强模式已激活</div><div class="absolute bottom-8 left-0 right-0 text-center"><div class="bg-black/70 backdrop-blur text-white px-4 py-2 rounded-full inline-block text-sm font-bold border-2 border-blue-500">📷 将条码对准扫描框</div><div class="mt-3"><button id="torchBtn" type="button" class="scan-tool-btn">🔦 补光</button></div></div></div>
     </div>
 
@@ -83,6 +83,7 @@
   <script src="./js/scanner.js"></script>
   <script src="./js/columns.js"></script>
   <script src="./js/keyboard.js"></script>
+  <script src="./js/sound-manager.js"></script>
   <script src="./js/app.js"></script>
 </body>
 </html>

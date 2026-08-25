@@ -153,3 +153,14 @@
         .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
         .pagination .info { font-size: 13px; color: #4a6580; margin: 0 8px; }
         .auth-overlay { display: none !important; }
+
+/* ===== v4.1 扫码声音反馈 ===== */
+.scan-sound-btn {
+  background: #334155; color: #fff; border: 2px solid #94a3b8; border-radius: 9999px;
+  padding: 10px 16px; font-size: 14px; font-weight: 900; cursor: pointer;
+  box-shadow: 0 3px 12px rgba(15,23,42,.35); transition: transform .1s, background .15s, border-color .15s;
+  white-space: nowrap;
+}
+.scan-sound-btn.active { background: #0f766e; border-color: #5eead4; }
+.scan-sound-btn:active { transform: scale(.96); }
+@media (max-width: 640px) { .scan-sound-btn { padding: 9px 12px; font-size: 12px; } }
