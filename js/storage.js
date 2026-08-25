@@ -1,0 +1,10 @@
+'use strict';
+var STORAGE_DB='sanfei_inventory_v4';
+var STORAGE_STORE='sessions';
+var STORAGE_KEY='current';
+var saveTimer=null;
+function openInventoryDb(){return new Promise(function(resolve,reject){if(!('indexedDB' in window)){reject(new Error('IndexedDB unavailable'));return;}var req=indexedDB.open(STORAGE_DB,1);req.onupgradeneeded=function(){var idb=req.result;if(!idb.objectStoreNames.contains(STORAGE_STORE))idb.createObjectStore(STORAGE_STORE);};req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error);};});}
+async function persistSession(){try{var idb=await openInventoryDb();await new Promise(function(resolve,reject){var tx=idb.transaction(STORAGE_STORE,'readwrite');tx.objectStore(STORAGE_STORE).put({version:VERSION,db:db,columns:columns,currentPage:currentPage,savedAt:Date.now()},STORAGE_KEY);tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};});idb.close();}catch(e){console.warn('自动保存失败',e);}}
+function scheduleAutoSave(){if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(persistSession,500);}
+async function restoreSession(){try{var idb=await openInventoryDb();var data=await new Promise(function(resolve,reject){var tx=idb.transaction(STORAGE_STORE,'readonly');var req=tx.objectStore(STORAGE_STORE).get(STORAGE_KEY);req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error);};});idb.close();if(data&&Array.isArray(data.db)&&data.db.length){db=data.db;columns=Array.isArray(data.columns)?data.columns:[];currentPage=Number.isFinite(data.currentPage)?data.currentPage:0;normalizeSpecialColumns();rebuildSearchIndex();renderPage();showToast('✅ 已恢复上次盘点 '+db.length+' 条');return true;}}catch(e){console.warn('恢复失败',e);}return false;}
+async function clearPersistedSession(){try{var idb=await openInventoryDb();await new Promise(function(resolve,reject){var tx=idb.transaction(STORAGE_STORE,'readwrite');tx.objectStore(STORAGE_STORE).delete(STORAGE_KEY);tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};});idb.close();}catch(e){console.warn(e);}}
