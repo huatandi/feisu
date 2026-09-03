@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Sanfei SoundManager v4.1.1
+ * Sanfei SoundManager v4.4.0
  * 重点修复 iOS/Android/PWA AudioContext 解锁与提示音过轻问题。
  */
 var SoundManager = (function(){
@@ -21,6 +21,8 @@ var SoundManager = (function(){
     } catch(e){ enabled = true; }
     updateToggleUI();
     bindGestureUnlock();
+    window.addEventListener('pageshow',function(){if(enabled)unlock();});
+    document.addEventListener('visibilitychange',function(){if(enabled&&!document.hidden)unlock();});
   }
 
   // 必须尽量在用户手势的同步调用栈里创建/恢复 AudioContext。
@@ -97,27 +99,28 @@ var SoundManager = (function(){
       if(!ok || !ctx) return;
       try {
         var now=ctx.currentTime;
-        var master=ctx.createGain();
+        var master=ctx.createGain(), compressor=ctx.createDynamicsCompressor();
+        compressor.threshold.value=-18;compressor.knee.value=12;compressor.ratio.value=6;compressor.attack.value=.002;compressor.release.value=.12;
         master.gain.setValueAtTime(0.0001,now);
-        master.gain.exponentialRampToValueAtTime(0.34,now+0.005);
-        master.gain.exponentialRampToValueAtTime(0.0001,now+0.22);
-        master.connect(ctx.destination);
+        master.gain.exponentialRampToValueAtTime(0.88,now+0.004);
+        master.gain.exponentialRampToValueAtTime(0.0001,now+0.30);
+        master.connect(compressor);compressor.connect(ctx.destination);
 
         var o1=ctx.createOscillator();
         o1.type='sine';
-        o1.frequency.setValueAtTime(1568,now);
-        o1.frequency.exponentialRampToValueAtTime(1480,now+0.18);
+        o1.frequency.setValueAtTime(1760,now);
+        o1.frequency.exponentialRampToValueAtTime(1480,now+0.24);
         o1.connect(master);
 
         var hg=ctx.createGain();
-        hg.gain.setValueAtTime(0.10,now);
-        hg.gain.exponentialRampToValueAtTime(0.0001,now+0.14);
-        hg.connect(ctx.destination);
+        hg.gain.setValueAtTime(0.34,now);
+        hg.gain.exponentialRampToValueAtTime(0.0001,now+0.20);
+        hg.connect(compressor);
         var o2=ctx.createOscillator();
         o2.type='sine'; o2.frequency.value=2352; o2.connect(hg);
 
         o1.start(now); o2.start(now);
-        o1.stop(now+0.23); o2.stop(now+0.15);
+        o1.stop(now+0.31); o2.stop(now+0.21);
       } catch(e){ console.warn('[SoundManager] success failed:',e); }
     });
   }
@@ -126,15 +129,17 @@ var SoundManager = (function(){
     ensureReady().then(function(ok){
       if(!ok || !ctx) return;
       try {
-        var now=ctx.currentTime, osc=ctx.createOscillator(), gain=ctx.createGain();
+        var now=ctx.currentTime, osc=ctx.createOscillator(), gain=ctx.createGain(), compressor=ctx.createDynamicsCompressor();
+        compressor.threshold.value=-20;compressor.knee.value=10;compressor.ratio.value=8;compressor.attack.value=.002;compressor.release.value=.15;
         osc.type='triangle';
         osc.frequency.setValueAtTime(210,now);
         osc.frequency.exponentialRampToValueAtTime(95,now+0.26);
         gain.gain.setValueAtTime(0.0001,now);
-        gain.gain.exponentialRampToValueAtTime(0.32,now+0.006);
-        gain.gain.exponentialRampToValueAtTime(0.0001,now+0.28);
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.start(now); osc.stop(now+0.29);
+        gain.gain.exponentialRampToValueAtTime(0.82,now+0.005);
+        gain.gain.setValueAtTime(0.72,now+0.18);
+        gain.gain.exponentialRampToValueAtTime(0.0001,now+0.38);
+        osc.connect(gain);gain.connect(compressor);compressor.connect(ctx.destination);
+        osc.start(now); osc.stop(now+0.39);
       } catch(e){ console.warn('[SoundManager] error failed:',e); }
     });
   }

@@ -6,8 +6,9 @@ function bindAppEvents(){
   document.getElementById('scanBtn').onclick=function(){if(window.SoundManager)SoundManager.unlock();if(scanning)stopScanning(true);else startScanning();hideKeyboard();};
   document.getElementById('showKeyboardBtn').onclick=showKeyboard;
   var enhance=document.getElementById('scanEnhanceBtn');if(enhance)enhance.onclick=toggleEnhanceMode;var soundBtn=document.getElementById('scanSoundBtn');if(soundBtn)soundBtn.onclick=function(e){e.stopPropagation();if(window.SoundManager){SoundManager.unlock();var on=SoundManager.toggle();showToast(on?'🔊 扫码提示音已开启':'🔇 扫码提示音已关闭');}};
-  window.addEventListener('resize',function(){setTimeout(autoAdjustColumns,100);});
+  window.addEventListener('resize',function(){setTimeout(function(){autoAdjustColumns();positionScanErrorToast();},100);});
   window.addEventListener('beforeunload',function(){if(scanning)stopScanning(true);});
+  document.addEventListener('visibilitychange',function(){if(document.hidden&&scanning){stopScanning(true);showToast('摄像头已在后台自动关闭，节省电量');}});
   document.addEventListener('touchstart',function(e){if(currentInputElement&&!e.target.closest('.qty-input')&&!e.target.closest('.price-input')&&!e.target.closest('#manualInput'))hideKeyboard();});
   document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!e.shiftKey){e.preventDefault();undoLastChange();}});
 }

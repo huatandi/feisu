@@ -1,6 +1,6 @@
 'use strict';
 
-var VERSION = 'S4.3.0';
+var VERSION = 'S4.5.0';
 var db = [];
 var columns = [];
 var currentPage = 0;
@@ -49,6 +49,8 @@ function showToast(msg, isError, persistent) {
   if (persistent === undefined) persistent = false;
   var toast = document.getElementById('toast');
   if (!toast) return;
+  toast.className = '';
+  Object.assign(toast.style,{left:'50%',top:'20%',width:'auto',maxHeight:'none',transform:'translateX(-50%)',overflow:''});
   if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
   toast.replaceChildren();
   if (isError) {
@@ -78,6 +80,15 @@ function dismissToast(){ var toast=document.getElementById('toast'); if(toast) t
 function showBarcodeNotFoundToast(code){
   activeBarcodeNotFoundCode = String(code || '');
   showToast('❌ 条码不存在: ' + activeBarcodeNotFoundCode, true, true);
+  var toast=document.getElementById('toast');
+  if(toast&&scanning){toast.classList.add('scan-error-toast');requestAnimationFrame(positionScanErrorToast);}
+}
+
+function positionScanErrorToast(){
+  var toast=document.getElementById('toast'),frame=document.getElementById('scanFrame'),header=document.querySelector('#scanUI .scan-header');
+  if(!toast||!frame||!header||!toast.classList.contains('scan-error-toast'))return;
+  var fr=frame.getBoundingClientRect(),hr=header.getBoundingClientRect(),gap=6,available=Math.max(34,fr.top-hr.bottom-gap*2);
+  Object.assign(toast.style,{left:fr.left+'px',top:(hr.bottom+gap)+'px',width:fr.width+'px',maxWidth:fr.width+'px',maxHeight:available+'px',transform:'none'});
 }
 
 function clearPreviousBarcodeNotFoundOnNextScan(nextCode){

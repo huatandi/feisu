@@ -78,6 +78,9 @@
         #toast .toast-close:hover { background: rgba(255,255,255,0.3); }
         #toast .toast-copy { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; color: white; padding: 2px 12px; margin-left: 8px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.1s; }
         #toast .toast-copy:hover { background: rgba(255,255,255,0.3); }
+        #toast.scan-error-toast { box-sizing:border-box; min-width:0 !important; padding:5px 8px !important; line-height:1.25 !important; border-radius:9px !important; font-size:12px !important; overflow:auto; display:flex !important; align-items:center; gap:5px; text-align:left !important; }
+        #toast.scan-error-toast > span { flex:1; min-width:0; overflow-wrap:anywhere; }
+        #toast.scan-error-toast .toast-copy, #toast.scan-error-toast .toast-close { flex:0 0 auto; margin-left:0; padding:3px 7px; min-height:26px; line-height:1; }
         #colModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(8px); }
         .modal-content { background: white; border-radius: 24px; max-width: 90%; width: 350px; max-height: 70vh; overflow: auto; }
         .scan-frame { position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%); width: 80%; height: 220px; border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.75); z-index: 10; pointer-events: none; background: rgba(0,0,0,0.1); }
