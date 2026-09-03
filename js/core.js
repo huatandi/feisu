@@ -1,6 +1,6 @@
 'use strict';
 
-var VERSION = 'S4.5.0';
+var VERSION = 'S4.6.0';
 var db = [];
 var columns = [];
 var currentPage = 0;

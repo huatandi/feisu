@@ -7,6 +7,7 @@
 var SoundManager = (function(){
   var STORAGE_KEY = 'sanfei_scan_sound_enabled';
   var ctx = null;
+  var successAudio = null, errorAudio = null;
   var enabled = true;
   var lastByType = { success:{barcode:'',at:0}, error:{barcode:'',at:0} };
   var SAME_BARCODE_COOLDOWN = { success:800, error:1000 };
@@ -19,6 +20,11 @@ var SoundManager = (function(){
       var saved = localStorage.getItem(STORAGE_KEY);
       enabled = saved === null ? true : saved === 'true';
     } catch(e){ enabled = true; }
+    try {
+      successAudio=new Audio('./assets/audio/scan-success.wav');
+      errorAudio=new Audio('./assets/audio/scan-error.wav');
+      [successAudio,errorAudio].forEach(function(a){a.preload='auto';a.volume=1;a.load();});
+    } catch(e){ successAudio=null; errorAudio=null; }
     updateToggleUI();
     bindGestureUnlock();
     window.addEventListener('pageshow',function(){if(enabled)unlock();});
@@ -58,10 +64,20 @@ var SoundManager = (function(){
   function bindGestureUnlock(){
     if(gestureBound) return;
     gestureBound = true;
-    function once(){ unlock(); }
+    function once(){ unlock();primeMedia(successAudio);primeMedia(errorAudio); }
     document.addEventListener('pointerdown', once, {passive:true});
     document.addEventListener('touchend', once, {passive:true});
     document.addEventListener('keydown', once, {passive:true});
+  }
+
+  function primeMedia(audio){
+    if(!audio||audio._sanfeiPrimed)return;
+    try{audio.muted=true;var p=audio.play();if(p&&p.then)p.then(function(){audio.pause();audio.currentTime=0;audio.muted=false;audio._sanfeiPrimed=true;}).catch(function(){audio.muted=false;});}catch(e){audio.muted=false;}
+  }
+
+  function playMedia(audio,fallback){
+    if(!audio){fallback();return;}
+    try{audio.pause();audio.currentTime=0;audio.muted=false;audio.volume=1;var p=audio.play();if(p&&p.catch)p.catch(fallback);}catch(e){fallback();}
   }
 
   function shouldPlay(type, barcode){
@@ -85,13 +101,13 @@ var SoundManager = (function(){
   function success(barcode){
     if(!shouldPlay('success', barcode)) return;
     safeVibrate(28);
-    playSuccess();
+    playMedia(successAudio,playSuccess);
   }
 
   function error(barcode){
     if(!shouldPlay('error', barcode)) return;
     safeVibrate([75,35,75]);
-    playError();
+    playMedia(errorAudio,playError);
   }
 
   function playSuccess(){
@@ -147,7 +163,7 @@ var SoundManager = (function(){
   // 用户点音效按钮时立即试听；用于确认设备音频通道已经解锁。
   function test(){
     if(!enabled) return;
-    unlock().then(function(){ playSuccess(); });
+    unlock().then(function(){ playMedia(successAudio,playSuccess); });
   }
 
   function setEnabled(value){
