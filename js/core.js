@@ -1,6 +1,6 @@
 'use strict';
 
-var VERSION = 'S4.1.3';
+var VERSION = 'S4.3.0';
 var db = [];
 var columns = [];
 var currentPage = 0;
@@ -10,7 +10,6 @@ var scanning = false;
 var reader = null;
 var lastCode = '';
 var lastTime = 0;
-var currentFocusInterval = null;
 var pendingJump = null;
 var currentInputElement = null;
 var originalViewportHeight = window.innerHeight;
@@ -25,6 +24,8 @@ var searchIndex = new Map();
 var searchableRows = [];
 var undoStack = [];
 var MAX_UNDO = 100;
+var hiddenColumns = new Set();
+try{hiddenColumns=new Set(JSON.parse(localStorage.getItem('sanfei_hidden_columns')||'[]'));}catch(e){hiddenColumns=new Set();}
 
 /* v4.1.2 扫码结果提示状态：
  * 只追踪“条码不存在”的持久提示。
