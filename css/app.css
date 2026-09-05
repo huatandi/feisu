@@ -214,3 +214,20 @@
 .mini-status-btn{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:5px 7px;margin:2px;font-size:10px;font-weight:900;touch-action:manipulation}.mini-status-btn.review{background:#ede9fe;border-color:#a78bfa;color:#5b21b6}
 #toast.scan-error-toast{border-radius:16px !important;resize:both;overflow:auto !important;min-width:260px !important;min-height:48px;max-width:96vw !important;max-height:70vh !important}
 #toast.scan-error-toast .toast-drag{flex:0 0 auto;min-width:38px;min-height:38px;border:1px solid rgba(255,255,255,.35);border-radius:10px;background:rgba(255,255,255,.14);color:#fff;font-size:18px;cursor:move;touch-action:none}
+
+/* ===== v4.9.3 原数量框与实际数量框统一圆角 ===== */
+#mainTable input.qty-source-input {
+  min-width: 80px;
+  max-width: 120px;
+  height: 50px;
+  box-sizing: border-box;
+  border-radius: 10px !important;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 900;
+  transition: all 0.2s;
+}
+#mainTable input.qty-source-input:focus {
+  border-radius: 10px !important;
+  outline: none;
+}

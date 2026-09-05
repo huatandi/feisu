@@ -75,11 +75,16 @@ function exportExcel(){
   var sum=inventorySummary();
   if((sum.unpan||sum.review)&&!confirm('盘点检查：\n未盘点 '+sum.unpan+' 项\n待复盘问题 '+sum.review+' 项\n\n仍然导出吗？'))return;
   var base=currentImportFileName||'库存',defaultName=base+'_FEISU盘点_'+new Date().toISOString().slice(0,10),name=prompt('请输入导出文件名：',defaultName);if(!name||!name.trim())name=defaultName;
-  var rows=exportRows(),exportHeaders=columns.map(function(c){return displayColumnName(c);}),aoa=[['飞速盘点 · FEISU  |  免费盘点工具生成'],exportHeaders];
+  var rows=exportRows(),exportHeaders=columns.map(function(c){return displayColumnName(c);}),aoa=[['飞速盘点 · FEISU'],exportHeaders];
   rows.forEach(function(r){aoa.push(columns.map(function(c){return r[c]??'';}));});
-  var ws=XLSX.utils.aoa_to_sheet(aoa);if(columns.length>1)ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:columns.length-1}}];ws['!freeze']={xSplit:0,ySplit:2,topLeftCell:'A3',activePane:'bottomLeft',state:'frozen'};
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  if(columns.length>1)ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:columns.length-1}}];
+  /* FEISU 强制品牌水印：淡灰、空心大字；不写“免费”，避免未来商业模式变化。 */
+  if(ws.A1){ws.A1.s={font:{name:'Arial',sz:34,bold:true,outline:true,color:{rgb:'D9DEE7'}},alignment:{horizontal:'center',vertical:'center'}};}
+  ws['!rows']=ws['!rows']||[];ws['!rows'][0]={hpt:48};
+  ws['!freeze']={xSplit:0,ySplit:2,topLeftCell:'A3',activePane:'bottomLeft',state:'frozen'};
   var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'盘点结果');
   var summary=[['飞速盘点 · FEISU'],['原文件',base],['总商品',sum.total],['已盘',sum.completed],['未盘点',sum.unpan],['一致',sum.match],['数量不足',sum.short],['数量超出',sum.over],['实物未找到',sum.notfound],['实际为零',sum.zero],['待复盘',sum.review],['完成率',sum.percent+'%']];
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(summary),'FEISU盘点摘要');
-  XLSX.writeFile(wb,name.trim()+'.xlsx');showToast('✅ 导出成功 · 已加入 FEISU 品牌水印行');
+  var sws=XLSX.utils.aoa_to_sheet(summary);if(sws.A1){sws.A1.s={font:{name:'Arial',sz:28,bold:true,outline:true,color:{rgb:'D9DEE7'}},alignment:{horizontal:'center'}};}sws['!rows']=[{hpt:42}];XLSX.utils.book_append_sheet(wb,sws,'FEISU盘点摘要');
+  XLSX.writeFile(wb,name.trim()+'.xlsx');showToast('✅ 导出成功 · 已加入“飞速盘点 · FEISU”淡色空心水印');
 }

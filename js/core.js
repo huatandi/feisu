@@ -236,7 +236,23 @@ function showUnknownBarcodes(){
   if(!items.length){showToast('✅ 暂无未知条码');return;}
   alert('Excel 中不存在的条码（扫描次数）\n\n'+items.map(function(c){return c+'  × '+unknownBarcodes[c];}).join('\n'));
 }
-function markRowNotFound(rowIndex){if(!db[rowIndex])return;db[rowIndex].__feisuStatus=db[rowIndex].__feisuStatus==='notfound'?'': 'notfound';if(db[rowIndex].__feisuStatus==='notfound')db[rowIndex]['实际数量']='';db[rowIndex].__feisuReviewed=false;renderPage();scheduleAutoSave();}
+function markRowNotFound(rowIndex){
+  var row=db[rowIndex];if(!row)return;
+  var wasNotFound=row.__feisuStatus==='notfound';
+  if(!wasNotFound){
+    /* 已经实际查找但现场没有商品：这是已盘结果，实际数量必须为 0，不能再表现为“未盘”。 */
+    row.__feisuStatus='notfound';
+    row.__feisuNotFoundPreviousActual=row['实际数量'];
+    row['实际数量']=0;
+  }else{
+    /* 取消“未找到”即撤销这次确认；恢复标记前的实际数量（通常为空=未盘）。 */
+    row.__feisuStatus='';
+    row['实际数量']=row.__feisuNotFoundPreviousActual===undefined?'':row.__feisuNotFoundPreviousActual;
+    delete row.__feisuNotFoundPreviousActual;
+  }
+  row.__feisuReviewed=false;renderPage();scheduleAutoSave();
+  showToast(wasNotFound?'已取消“实物未找到”':'实物未找到 · 实际数量已记为 0');
+}
 function markRowReviewed(rowIndex){if(!db[rowIndex])return;db[rowIndex].__feisuReviewed=true;renderPage();scheduleAutoSave();showToast('✅ 已复盘确认');}
 function isExactBarcodeForRow(row,code){
   var names=['条码','Código Barras','Codigo Barras','barcode','Barcode','商品条码','EAN','UPC'];
