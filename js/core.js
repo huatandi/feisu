@@ -1,6 +1,6 @@
 'use strict';
 
-var VERSION = 'S4.6.0';
+var VERSION = 'S4.7.1';
 var db = [];
 var columns = [];
 var currentPage = 0;
@@ -75,7 +75,7 @@ function showToast(msg, isError, persistent) {
   }
 }
 
-function dismissToast(){ var toast=document.getElementById('toast'); if(toast) toast.style.display='none'; if(toastTimer){clearTimeout(toastTimer);toastTimer=null;} }
+function dismissToast(){ var toast=document.getElementById('toast'); if(toast){toast.classList.remove('scan-error-toast');toast.style.setProperty('display','none','important');} if(toastTimer){clearTimeout(toastTimer);toastTimer=null;} activeBarcodeNotFoundCode=null; }
 
 function showBarcodeNotFoundToast(code){
   activeBarcodeNotFoundCode = String(code || '');
@@ -126,11 +126,36 @@ function normalizeSpecialColumns(){
 function extractProduct(row){
   var barcode=row['条码']||row['barcode']||row['Barcode']||row['商品编码']||row['编码']||'';
   var name=row['名称']||row['商品名称']||row['name']||row['Name']||'';
-  var qty=parseFloat(row['库存数量']||row['数量']||row['库存']||0)||0;
+  var qty=parseFloat(row['CNT']||row['数量']||row['库存数量']||row['库存']||0)||0;
   var price=parseFloat(row['零售价']||row['售价']||row['价格']||0)||0;
   if(!barcode){for(var key in row){var val=String(row[key]||'').trim();if(val&&/^\d{8,14}$/.test(val.replace(/-/g,''))){barcode=val;break;}}}
   if(!name&&barcode) name=barcode;
   return {barcode:String(barcode).trim(),name:String(name).trim(),quantity:qty,price:price,valid:!!((barcode&&barcode!=='')||(name&&name!==''))};
+}
+
+
+
+/* v4.7: 盘点数量对比。优先把 CNT 视为 Excel 原始库存数量；
+   兼容中文“数量”、库存数量等旧文件，不改变已有数据结构。 */
+function getSourceQtyColumn(row){
+  var preferred=['CNT','数量','库存数量','库存','原数量','账面数量'];
+  for(var i=0;i<preferred.length;i++){
+    var key=preferred[i];
+    if(key!=='实际数量' && row && Object.prototype.hasOwnProperty.call(row,key)) return key;
+  }
+  return null;
+}
+function comparableNumber(value){
+  if(value===null||value===undefined||String(value).trim()==='') return null;
+  var n=Number(String(value).replace(/,/g,'').trim());
+  return Number.isFinite(n)?n:null;
+}
+function getQtyComparison(row){
+  var sourceCol=getSourceQtyColumn(row);
+  if(!sourceCol) return {sourceCol:null,state:'none'};
+  var source=comparableNumber(row[sourceCol]), actual=comparableNumber(row['实际数量']);
+  if(source===null||actual===null) return {sourceCol:sourceCol,state:'none'};
+  return {sourceCol:sourceCol,state:Math.abs(source-actual)<1e-9?'match':'mismatch'};
 }
 
 function showProgress(show){var el=document.getElementById('progressArea');if(el)el.classList.toggle('active',!!show);}

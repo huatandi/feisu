@@ -1,4 +1,14 @@
-# 飞速盘点 Sanfei v4.6.0（快速对焦与实体音效修复版）
+# 飞速盘点 Sanfei v4.7.0（数量差异着色 + 原始表头恢复版）
+
+## v4.7 盘点对比
+
+- Excel 原数量与“实际数量”一致：两个输入框显示蓝色。
+- 不一致：实际数量显示红色，Excel 原数量显示黄色。
+- 优先识别 `CNT` 为原数量，并兼容中文 `数量` / `库存数量` / `库存`。
+- Excel 中 `EMPTY / __EMPTY / EMPTY-1...` 等空表头按原模板位置恢复为 `Ref / Código Barras / Descripción / Local Descripción / Uds/E / CNT / Precio / LSJ / HYJ / DTO 3 / CDTO / IMP(Mex.$)`。
+- 其余扫码、搜索、分页、列隐藏、导出、声音、摄像头逻辑保持原样。
+
+
 
 ## v4.6 真实设备修复
 
