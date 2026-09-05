@@ -41,7 +41,7 @@ function jumpToRowAndFocusQty(foundIndex){var rowEl=document.getElementById('row
 function handleBarcode(code,fromCamera){
   if(!code)return false;var now=Date.now(),codeStr=String(code).trim();if(!codeStr)return false;clearPreviousBarcodeNotFoundOnNextScan(codeStr);if(codeStr===lastCode&&(now-lastTime)<200)return false;lastCode=codeStr;lastTime=now;
   var idx=findBestMatchRowIndex(codeStr);if(idx===-1){playBeep(false,codeStr);showBarcodeNotFoundToast(codeStr);consecutiveFailures++;return false;}
-  clearBarcodeNotFoundState();consecutiveFailures=0;var incremented=incrementScannedQty(idx,codeStr);playBeep(true,codeStr);var productName=db[idx]['名称']||db[idx]['商品名称']||db[idx]['Descripción']||codeStr;showToast('✅ '+productName+(incremented?' · 实际数量 +1':''));
+  clearBarcodeNotFoundState();consecutiveFailures=0;playBeep(true,codeStr);var productName=db[idx]['名称']||db[idx]['商品名称']||db[idx]['Descripción']||codeStr;showToast('✅ '+productName+' · 请盘点实际数量');
   var frame=document.getElementById('scanFrame');if(frame){frame.classList.add('scan-success');setTimeout(function(){frame.classList.remove('scan-success');},200);}currentInventoryFilter='all';var idxs=filteredRowIndexes(),pos=idxs.indexOf(idx),p=pos<0?0:Math.floor(pos/pageSize);if(p!==currentPage){currentPage=p;renderPage();}else renderPage();jumpToRowAndFocusQty(idx);if(fromCamera)stopScanningAndJump(idx);return true;
 }
 function render(){renderPage();}
