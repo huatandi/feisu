@@ -1,6 +1,6 @@
 'use strict';
 
-var VERSION = 'FEISU 4.8.1';
+var VERSION = 'FEISU 4.9';
 var db = [];
 var columns = [];
 var currentPage = 0;
@@ -134,19 +134,26 @@ function normalizeSpecialColumns(){
   if(!columns.includes(p))columns.push(p);
 }
 function extractProduct(row){
-  var barcode=row['条码']||row['barcode']||row['Barcode']||row['商品编码']||row['编码']||'';
-  var name=row['名称']||row['商品名称']||row['name']||row['Name']||'';
-  var qty=parseFloat(row['CNT']||row['数量']||row['库存数量']||row['库存']||0)||0;
-  var price=parseFloat(row['零售价']||row['售价']||row['价格']||0)||0;
-  if(!barcode){for(var key in row){var val=String(row[key]||'').trim();if(val&&/^\d{8,14}$/.test(val.replace(/-/g,''))){barcode=val;break;}}}
-  if(!name&&barcode) name=barcode;
-  return {barcode:String(barcode).trim(),name:String(name).trim(),quantity:qty,price:price,valid:!!((barcode&&barcode!=='')||(name&&name!==''))};
+  var barcode='',name='',price=0;
+  for(var key in row){
+    if(!Object.prototype.hasOwnProperty.call(row,key))continue;
+    var label=(typeof displayColumnName==='function'?displayColumnName(key):String(key)).trim();
+    var n=label.toUpperCase().replace(/[\s._\-\/\\:：()（）]+/g,'');
+    var val=row[key];
+    if(!barcode&&/(条码|BARCODE|CODIGOBARRAS|CÓDIGOBARRAS|EAN|UPC)/.test(n))barcode=val;
+    if(!name&&/(产品名称|商品名称|品名|名称|DESCRIPCION|DESCRIPCIÓN|DESCRIPTION)/.test(n))name=val;
+    if(!price&&/^(零售价|售价|价格|PRECIO|PRICE|LSJ)$/.test(n)){var pv=parseFloat(val);if(Number.isFinite(pv))price=pv;}
+  }
+  if(!barcode){for(var k in row){if(!Object.prototype.hasOwnProperty.call(row,k))continue;var v=String(row[k]||'').trim().replace(/\.0$/,'');if(v&&/^\d{8,14}$/.test(v.replace(/-/g,''))){barcode=v;break;}}}
+  if(!name){for(var k2 in row){if(!Object.prototype.hasOwnProperty.call(row,k2))continue;var lab=(typeof displayColumnName==='function'?displayColumnName(k2):String(k2));if(/(DESCRIP|名称|品名)/i.test(lab)&&String(row[k2]||'').trim()){name=row[k2];break;}}}
+  if(!name&&barcode)name=barcode;
+  return {barcode:String(barcode==null?'':barcode).trim().replace(/\.0$/,''),name:String(name==null?'':name).trim(),quantity:0,price:price,valid:!!(String(barcode||'').trim()||String(name||'').trim())};
 }
 
 
 
 /* v4.8: 智能识别 Excel 原数量列 + 盘点状态。 */
-function normalizeHeaderName(v){return String(v||'').trim().toUpperCase().replace(/[\s._\-\/\\]+/g,'');}
+function normalizeHeaderName(v){return String(v||'').replace(/[\u200B-\u200D\u2060]/g,'').trim().toUpperCase().replace(/[\s._\-\/\\]+/g,'');}
 function quantityHeaderScore(name){
   var n=normalizeHeaderName(name);
   if(!n || n==='实际数量' || n==='差异' || n==='盘点状态') return -1;
