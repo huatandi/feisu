@@ -205,3 +205,12 @@
     justify-content: center;
     touch-action: manipulation;
 }
+
+/* ===== FEISU v4.8 盘点工作流 ===== */
+.inventory-dashboard{margin:8px 0 12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;display:flex;flex-direction:column;gap:8px}
+.inventory-stats{display:flex;gap:7px;align-items:center;flex-wrap:wrap;font-size:12px}.inventory-stats span,.inventory-stats strong{padding:5px 9px;background:#fff;border:1px solid #e2e8f0;border-radius:999px}.inventory-stats strong{background:#dbeafe;color:#1d4ed8}
+.inventory-filters{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}.inventory-filters button{flex:0 0 auto;border:1px solid #cbd5e1;background:#fff;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800}.inventory-filters button.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.diff-cell{min-width:66px;text-align:center;font-size:16px;font-weight:900}.status-cell{min-width:210px}.status-pill{display:inline-block;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:900;margin-right:5px;background:#e2e8f0}.status-一致{background:#dbeafe;color:#1d4ed8}.status-数量不足,.status-数量超出,.status-实物未找到,.status-实际为零{background:#fee2e2;color:#991b1b}.status-未盘点{background:#fef3c7;color:#92400e}
+.mini-status-btn{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:5px 7px;margin:2px;font-size:10px;font-weight:900;touch-action:manipulation}.mini-status-btn.review{background:#ede9fe;border-color:#a78bfa;color:#5b21b6}
+#toast.scan-error-toast{border-radius:16px !important;resize:both;overflow:auto !important;min-width:260px !important;min-height:48px;max-width:96vw !important;max-height:70vh !important}
+#toast.scan-error-toast .toast-drag{flex:0 0 auto;min-width:38px;min-height:38px;border:1px solid rgba(255,255,255,.35);border-radius:10px;background:rgba(255,255,255,.14);color:#fff;font-size:18px;cursor:move;touch-action:none}

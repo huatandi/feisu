@@ -84,6 +84,15 @@ function exactMatch(code,dbValue){
   return false;
 }
 
+
+function isSearchIgnoredColumn(key){
+  var k=String(key||'');
+  if(k.indexOf('__feisu')===0)return true;
+  if(k==='实际数量'||k==='实际价格'||k==='差异'||k==='盘点状态')return true;
+  if(typeof quantityHeaderScore==='function'&&quantityHeaderScore(k)>=0)return true;
+  return false;
+}
+
 function rebuildSearchIndex(){
   searchIndex=new Map();
   searchableRows=new Array(db.length);
@@ -93,7 +102,7 @@ function rebuildSearchIndex(){
     var texts=[];
 
     for(var key in row){
-      if(!Object.prototype.hasOwnProperty.call(row,key)) continue;
+      if(!Object.prototype.hasOwnProperty.call(row,key)||isSearchIgnoredColumn(key)) continue;
       var val=cleanSearchText(row[key]);
       if(!val) continue;
 
@@ -132,7 +141,7 @@ function findBarcodeRowLegacy(code){
   for(var i=0;i<db.length;i++){
     var row=db[i]||{};
     for(var key in row){
-      if(!Object.prototype.hasOwnProperty.call(row,key)) continue;
+      if(!Object.prototype.hasOwnProperty.call(row,key)||isSearchIgnoredColumn(key)) continue;
       if(exactMatch(code,row[key])) return i;
     }
   }
@@ -153,7 +162,7 @@ function findBarcodeRow(code){
 
 function getSearchableRowText(row){
   var texts=[];
-  Object.keys(row||{}).forEach(function(k){texts.push(cleanSearchText(row[k]));});
+  Object.keys(row||{}).forEach(function(k){if(!isSearchIgnoredColumn(k))texts.push(cleanSearchText(row[k]));});
   return texts.join(' ').toLowerCase();
 }
 
@@ -171,7 +180,7 @@ function findBestMatchRowIndex(query){
   for(var i=0;i<db.length;i++){
     var row=db[i]||{};
     for(var key in row){
-      if(!Object.prototype.hasOwnProperty.call(row,key)) continue;
+      if(!Object.prototype.hasOwnProperty.call(row,key)||isSearchIgnoredColumn(key)) continue;
       var raw=cleanSearchText(row[key]);
       var v=raw.toLowerCase();
       var pv=preprocessCode(raw).toLowerCase();

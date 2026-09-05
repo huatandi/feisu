@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-  <title>飞速盘点 · Sanfei v4.6.0</title>
+  <title>飞速盘点 · FEISU v4.8.0</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -19,7 +19,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">sanfei v4.6.0</div>
+                    <div class="version-badge">FEISU v4.8.0</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
@@ -47,6 +47,19 @@
                 </div>
             </div>
             <div id="errorSummary" class="error-summary"><details><summary id="errorSummaryTitle">⚠️ 导入完成，部分行失败</summary><ul id="errorList"></ul></details></div>
+            <div id="inventoryDashboard" class="inventory-dashboard">
+              <div class="inventory-stats" id="inventoryStats"></div>
+              <div class="inventory-filters">
+                <button data-filter="all" onclick="setInventoryFilter('all')">全部</button>
+                <button data-filter="unpan" onclick="setInventoryFilter('unpan')">未盘点</button>
+                <button data-filter="match" onclick="setInventoryFilter('match')">一致</button>
+                <button data-filter="short" onclick="setInventoryFilter('short')">数量不足</button>
+                <button data-filter="over" onclick="setInventoryFilter('over')">数量超出</button>
+                <button data-filter="notfound" onclick="setInventoryFilter('notfound')">实物未找到</button>
+                <button data-filter="review" onclick="setInventoryFilter('review')">待复盘</button>
+                <button onclick="showUnknownBarcodes()">未知条码</button>
+              </div>
+            </div>
             <div class="table-container">
                 <table id="mainTable">
                     <thead id="tHead"></thead>
