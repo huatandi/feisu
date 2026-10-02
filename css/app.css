@@ -89,7 +89,7 @@
         .col-item { background: white; margin-bottom: 8px; border-radius: 12px; border: 1px solid #e2e8f0; transition: all 0.2s; cursor: move; touch-action: none; }
         .col-item.dragging { opacity: 0.4; transform: scale(0.98); background: #dbeafe; }
         .version-badge { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 16px; font-size: 10px; font-weight: bold; }
-        .btn-group-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0; }
+        .btn-group-4 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 16px 0; }
         .action-btn { padding: 12px 4px; border-radius: 12px; font-weight: bold; font-size: 13px; text-align: center; transition: all 0.1s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
         .bottom-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 600px; margin: 0 auto; }
         .bottom-btn { padding: 14px 4px; border-radius: 14px; font-weight: bold; font-size: 16px; text-align: center; transition: all 0.1s; cursor: pointer; }
@@ -231,3 +231,15 @@
   border-radius: 10px !important;
   outline: none;
 }
+
+/* 统计与筛选：宽屏一行，窄屏上下两行；各行可横滑，不挤压页面。 */
+.inventory-dashboard{flex-direction:row;align-items:center;gap:10px}
+.inventory-stats{flex:0 0 auto;flex-wrap:nowrap;white-space:nowrap;gap:4px}
+.inventory-stats span,.inventory-stats strong{padding:5px 6px}
+.inventory-filters{flex:1;min-width:0;align-items:center}
+@media(max-width:900px){
+ .inventory-dashboard{flex-direction:column;align-items:stretch}
+ .inventory-stats{overflow-x:auto}
+ .inventory-filters{flex:none;width:100%}
+}
+@media(max-width:480px){.btn-group-4{gap:4px}.btn-group-4 .action-btn{padding:10px 2px;font-size:12px}}
