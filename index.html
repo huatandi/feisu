@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-  <title>飞速盘点 · FEISU v5.0.1</title>
+  <title>飞速盘点 · FEISU v5.0.2</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
@@ -19,7 +19,7 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">FEISU v5.0.1</div>
+                    <div class="version-badge">FEISU v5.0.2</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
@@ -28,6 +28,8 @@
                     <button onclick="openColModal()" class="action-btn bg-gray-700 text-white shadow-md">📊 列管理</button>
                     <label class="action-btn bg-emerald-600 text-white shadow-md cursor-pointer">📂 导入 <input type="file" id="fileInput" class="hidden" accept=".xlsx,.xls,.csv" /></label>
                     <button onclick="exportExcel()" class="action-btn bg-emerald-600 text-white shadow-md">💾 导出</button>
+                    <button onclick="backupCurrentInventory()" class="action-btn bg-blue-600 text-white">💾 文件备份</button>
+                    <button onclick="document.getElementById('backupInput').click()" class="action-btn bg-blue-600 text-white">📂 恢复备份</button><input id="backupInput" type="file" accept=".json" hidden onchange="restoreFileBackup(this)">
                     <button onclick="openInventoryHistory()" class="action-btn bg-blue-600 text-white shadow-md">📚 历史盘点</button>
                     <button id="confirmBtn" class="action-btn bg-blue-600 text-white shadow-md">✅ 确认</button>
                 </div>
@@ -91,6 +93,7 @@
 
   <script src="./js/core.js"></script>
   <script src="./js/storage.js"></script>
+  <script src="./js/file-backup.js"></script>
   <script src="./js/search.js"></script>
   <script src="./js/table.js"></script>
   <script src="./js/import-export.js"></script>
