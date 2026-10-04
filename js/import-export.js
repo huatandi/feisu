@@ -67,6 +67,7 @@ function importCSVInBatches(file){return new Promise(function(resolve,reject){va
 async function applyImportResult(result,fileName){
   if(!result.rows.length){showToast('⚠️ 没有有效数据行',true);showProgress(false);isProcessing=false;return;}
   if(!await saveBeforeInventorySwitch()){showProgress(false);isProcessing=false;return;}
+  if(!await promptInventoryBackup()){showProgress(false);isProcessing=false;return;}
   var next={id:newInventorySessionId(),version:VERSION,db:result.rows,columns:result.columns,currentPage:0,filter:'all',unknownBarcodes:{},currentImportFileName:fileName,sourceQtyColumn:detectSourceQtyColumn(result.columns,result.rows),savedAt:Date.now()};
   try{await writeSession(next);}catch(e){console.warn(e);showToast('❌ 新订单保存失败，原盘点已保留，导入未替换',true);showProgress(false);isProcessing=false;return;}
   inventorySessionId=next.id;currentImportFileName=fileName;undoStack=[];
