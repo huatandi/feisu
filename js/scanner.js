@@ -10,26 +10,90 @@ async function safeApply(t,a){if(!t||!a.length)return false;try{await t.applyCon
 async function applyCameraTuning(t){if(!t||!t.getCapabilities)return;var c=t.getCapabilities(),s=t.getSettings?t.getSettings():{},a=[];if(c.focusMode&&Array.from(c.focusMode).includes('continuous'))a.push({focusMode:'continuous'});if(c.exposureMode&&Array.from(c.exposureMode).includes('continuous'))a.push({exposureMode:'continuous'});if(c.whiteBalanceMode&&Array.from(c.whiteBalanceMode).includes('continuous'))a.push({whiteBalanceMode:'continuous'});await safeApply(t,a);scheduleFocusKick();if(c.zoom){currentZoom=clamp(Number(s.zoom)||Number(c.zoom.min)||1,c.zoom.min,c.zoom.max);updateZoomUI(c.zoom);}}
 function updateZoomUI(c){var l=document.getElementById('zoomLabel'),m=document.getElementById('zoomOutBtn'),p=document.getElementById('zoomInBtn'),ok=!!c;[l,m,p].forEach(function(x){if(x)x.hidden=!ok;});if(l)l.textContent=currentZoom.toFixed(1)+'×';if(m)m.disabled=!ok||currentZoom<=c.min+.01;if(p)p.disabled=!ok||currentZoom>=c.max-.01;}
 async function changeCameraZoom(d){var c=cap(cameraTrack,'zoom');if(!c){showToast('当前浏览器不支持相机变焦',true);return;}var n=clamp(currentZoom+d*Math.max(Number(c.step)||.1,.2),c.min,c.max);if(await safeApply(cameraTrack,[{zoom:n}])){currentZoom=n;updateZoomUI(c);}}
-async function requestFocusReset(){if(!cameraTrack)return;var m=cap(cameraTrack,'focusMode');if(m&&Array.from(m).includes('continuous')){await safeApply(cameraTrack,[{focusMode:'continuous'}]);showToast('🎯 正在连续对焦，请保持约半秒');}else showToast('此设备由系统自动对焦');}
+async function requestFocusReset(event){if(!cameraTrack)return;if(await requestBarcodeFocus(event)){showToast("🎯 已请求条码区域对焦，请保持约半秒");return;}if(!scanning||!cameraTrack)return;var m=cap(cameraTrack,'focusMode');if(m&&Array.from(m).includes('continuous')){await safeApply(cameraTrack,[{focusMode:'continuous'}]);showToast('🎯 正在连续对焦，请保持约半秒');}else showToast('此设备由系统自动对焦');}
 function kickContinuousFocus(){if(!cameraTrack)return;var a=[],fm=cap(cameraTrack,'focusMode'),em=cap(cameraTrack,'exposureMode');if(fm&&Array.from(fm).includes('continuous'))a.push({focusMode:'continuous'});if(em&&Array.from(em).includes('continuous'))a.push({exposureMode:'continuous'});if(a.length)safeApply(cameraTrack,a);}
 function scheduleFocusKick(){focusKickTimers.forEach(clearTimeout);focusKickTimers=[40,140,320,650,1100,1800].map(function(ms){return setTimeout(function(){if(scanning)kickContinuousFocus();},ms);});}
-function setupCameraControls(t){cameraTrack=t||null;var b=document.getElementById('torchBtn'),tc=cap(t,'torch');if(b){b.hidden=!tc;b.classList.remove('active');b.textContent='🔦 补光';b.onclick=async function(e){e.stopPropagation();var on=!b.classList.contains('active');if(await safeApply(cameraTrack,[{torch:on}])){b.classList.toggle('active',on);b.textContent=on?'🔦 关补光':'🔦 补光';}};}var m=document.getElementById('zoomOutBtn'),p=document.getElementById('zoomInBtn'),cycle=document.getElementById('cameraCycleBtn');if(m)m.onclick=function(e){e.stopPropagation();changeCameraZoom(-1);};if(p)p.onclick=function(e){e.stopPropagation();changeCameraZoom(1);};if(cycle)cycle.onclick=function(e){e.stopPropagation();cycleCamera();};updateZoomUI(cap(t,'zoom'));refreshCameraDevices();detectorWarmTimer=setTimeout(function(){if(scanning)getEnhancedDetector();},900);qualityUpgradeTimer=setTimeout(function(){if(scanning&&cameraTrack){highQualityApplied=true;safeApply(cameraTrack,[{width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:24,max:30}}]);}},2200);var box=document.querySelector('#scanUI .relative');if(box&&!box.dataset.focusBound){box.dataset.focusBound='1';box.addEventListener('click',function(e){if(!e.target.closest('button'))requestFocusReset();});}}
+function setupCameraControls(t){cameraTrack=t||null;var b=document.getElementById('torchBtn'),tc=cap(t,'torch');if(b){b.hidden=!tc;b.classList.remove('active');b.textContent='🔦 补光';b.onclick=async function(e){e.stopPropagation();var on=!b.classList.contains('active');if(await safeApply(cameraTrack,[{torch:on}])){b.classList.toggle('active',on);b.textContent=on?'🔦 关补光':'🔦 补光';}};}var m=document.getElementById('zoomOutBtn'),p=document.getElementById('zoomInBtn'),cycle=document.getElementById('cameraCycleBtn');if(m)m.onclick=function(e){e.stopPropagation();changeCameraZoom(-1);};if(p)p.onclick=function(e){e.stopPropagation();changeCameraZoom(1);};if(cycle)cycle.onclick=function(e){e.stopPropagation();cycleCamera();};updateZoomUI(cap(t,'zoom'));refreshCameraDevices();detectorWarmTimer=setTimeout(function(){if(scanning)getEnhancedDetector();},900);qualityUpgradeTimer=setTimeout(function(){if(scanning&&cameraTrack){highQualityApplied=true;safeApply(cameraTrack,[{width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:24,max:30}}]);}},2200);var box=document.querySelector('#scanUI .relative');if(box&&!box.dataset.focusBound){box.dataset.focusBound='1';box.addEventListener('click',function(e){if(!e.target.closest('button'))requestFocusReset(e);});}}
 function cameraConstraints(){var video={width:{ideal:1280,min:640},height:{ideal:720,min:480},frameRate:{ideal:24,min:15,max:30},aspectRatio:{ideal:16/9},advanced:[{focusMode:'continuous'},{exposureMode:'continuous'},{whiteBalanceMode:'continuous'}]};if(selectedCameraId)video.deviceId={ideal:selectedCameraId};else video.facingMode={ideal:'environment'};return {video:video,audio:false};}
 async function refreshCameraDevices(){try{var all=await navigator.mediaDevices.enumerateDevices();cameraDevices=all.filter(function(d){return d.kind==='videoinput';});var b=document.getElementById('cameraCycleBtn');if(b){var i=cameraDevices.findIndex(function(d){return d.deviceId===selectedCameraId;});b.hidden=cameraDevices.length<2;b.textContent='📷 镜头 '+(Math.max(0,i)+1)+'/'+cameraDevices.length;}}catch(e){cameraDevices=[];}}
 async function cycleCamera(){if(cameraSwitching)return;await refreshCameraDevices();if(cameraDevices.length<2){showToast('只检测到一个可用摄像头');return;}cameraSwitching=true;var i=cameraDevices.findIndex(function(d){return d.deviceId===selectedCameraId;});selectedCameraId=cameraDevices[(i+1+cameraDevices.length)%cameraDevices.length].deviceId;localStorage.setItem('sanfei_camera_id',selectedCameraId);stopScanning(true);setTimeout(function(){cameraSwitching=false;startScanning();},180);}
 async function startScanning(){if(scanning){showToast('扫描器已在运行');return;}var f=document.getElementById('scanFrame'),v=document.getElementById('video');if(f)f.style.top=isIPad?'18%':'28%';document.getElementById('scanUI').style.display='flex';scanning=true;consecutiveFailures=0;if(reader){try{await reader.reset();}catch(e){}reader=null;}var badge=document.getElementById('enhanceBadge');if(badge)badge.classList.toggle('hidden',!enhanceMode);try{var h=new Map();h.set(ZXing.DecodeHintType.TRY_HARDER,true);h.set(ZXing.DecodeHintType.ALSO_INVERTED,true);h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_93,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.ITF,ZXing.BarcodeFormat.CODABAR]);reader=new ZXing.BrowserMultiFormatReader(h);reader.timeBetweenDecodingAttempts=60;await reader.decodeFromConstraints(cameraConstraints(),'video',async function(r){if(!scanning)return;if(r&&r.getText){acceptDecodedBarcode(r.getText(),r.getBarcodeFormat?String(r.getBarcodeFormat()):'ZXing-JS');return;}consecutiveFailures++;if((enhanceMode||consecutiveFailures>=8)&&Date.now()-lastEnhancedAttempt>220){lastEnhancedAttempt=Date.now();var x=await tryEnhancedDecode(v,f);if(x)acceptDecodedBarcode(x,'WASM/Native ROI');}});var t=v&&v.srcObject&&v.srcObject.getVideoTracks()[0];if(t){setupCameraControls(t);await applyCameraTuning(t);console.info('[Camera] settings',t.getSettings?t.getSettings():{});}showToast('极速扫码已启动'+(enhanceMode?' · WASM增强':' · 自动对焦'));}catch(e){console.error('相机错误:',e);var msg=e&&e.name==='NotAllowedError'?'摄像头权限被拒绝':e&&e.name==='NotFoundError'?'未找到后置摄像头':'无法启动摄像头';showToast(msg+'，请检查权限与 HTTPS',true);stopScanning(true);}}
-function acceptDecodedBarcode(v,f){var s=String(v||'').trim();if(!s)return;console.info('[Scanner] decoded:',{code:s,format:f,length:s.length});handleBarcode(s,true);consecutiveFailures=0;}
-function stopScanning(){scanning=false;focusKickTimers.forEach(clearTimeout);focusKickTimers=[];if(focusResetTimer){clearTimeout(focusResetTimer);focusResetTimer=null;}if(qualityUpgradeTimer){clearTimeout(qualityUpgradeTimer);qualityUpgradeTimer=null;}if(detectorWarmTimer){clearTimeout(detectorWarmTimer);detectorWarmTimer=null;}if(reader){try{reader.reset();}catch(e){}reader=null;}var v=document.getElementById('video');if(v&&v.srcObject){v.srcObject.getTracks().forEach(function(t){t.stop();});v.srcObject=null;}document.getElementById('scanUI').style.display='none';cameraTrack=null;consecutiveFailures=0;enhancedDecodeBusy=false;highQualityApplied=false;}
+function acceptDecodedBarcode(v,f){if(!scanning)return;scannerRecoveryLastSuccess=Date.now();scannerRecoveryFocusRequested=false;var s=String(v||'').trim();if(!s)return;console.info('[Scanner] decoded:',{code:s,format:f,length:s.length});handleBarcode(s,true);consecutiveFailures=0;}
+function stopScanning(){resetScannerRecovery();scanning=false;focusKickTimers.forEach(clearTimeout);focusKickTimers=[];if(focusResetTimer){clearTimeout(focusResetTimer);focusResetTimer=null;}if(qualityUpgradeTimer){clearTimeout(qualityUpgradeTimer);qualityUpgradeTimer=null;}if(detectorWarmTimer){clearTimeout(detectorWarmTimer);detectorWarmTimer=null;}if(reader){try{reader.reset();}catch(e){}reader=null;}var v=document.getElementById('video');if(v&&v.srcObject){v.srcObject.getTracks().forEach(function(t){t.stop();});v.srcObject=null;}document.getElementById('scanUI').style.display='none';cameraTrack=null;consecutiveFailures=0;enhancedDecodeBusy=false;highQualityApplied=false;}
 function toggleEnhanceMode(){enhanceMode=!enhanceMode;var b=document.getElementById('scanEnhanceBtn'),g=document.getElementById('enhanceBadge');if(b){b.classList.toggle('active',enhanceMode);b.textContent=enhanceMode?'✨ 增强开':'✨ 增强';}if(g)g.classList.toggle('hidden',!enhanceMode);showToast(enhanceMode?'增强模式已开启：ROI + WASM 后备':'增强模式已关闭');}
 function getFrameROI(v,f){if(!v||!f||!v.videoWidth)return null;var vw=v.videoWidth,vh=v.videoHeight,vr=v.getBoundingClientRect(),fr=f.getBoundingClientRect(),va=vw/vh,ba=vr.width/vr.height,rw,rh,ox=0,oy=0;if(va>ba){rh=vr.height;rw=rh*va;ox=(rw-vr.width)/2;}else{rw=vr.width;rh=rw/va;oy=(rh-vr.height)/2;}var sx=vw/rw,sy=vh/rh,x=clamp(Math.floor((fr.left-vr.left+ox)*sx),0,vw-1),y=clamp(Math.floor((fr.top-vr.top+oy)*sy),0,vh-1),w=Math.min(vw-x,Math.floor(fr.width*sx)),h=Math.min(vh-y,Math.floor(fr.height*sy));return w>20&&h>20?{x:x,y:y,w:w,h:h}:null;}
 function captureROI(v,r,binary){var z=Math.min(1.6,1600/Math.max(r.w,1)),c=document.createElement('canvas');c.width=Math.round(r.w*z);c.height=Math.round(r.h*z);var x=c.getContext('2d',{willReadFrequently:binary});x.imageSmoothingEnabled=false;x.drawImage(v,r.x,r.y,r.w,r.h,0,0,c.width,c.height);if(binary){var im=x.getImageData(0,0,c.width,c.height),d=im.data,lo=255,hi=0;for(var i=0;i<d.length;i+=4){var g=.299*d[i]+.587*d[i+1]+.114*d[i+2];d[i]=d[i+1]=d[i+2]=g;lo=Math.min(lo,g);hi=Math.max(hi,g);}var q=lo+(hi-lo)*.52;for(var j=0;j<d.length;j+=4){var a=d[j]>q?255:0;d[j]=d[j+1]=d[j+2]=a;}x.putImageData(im,0,0);}return c;}
 async function getEnhancedDetector(){if(enhancedDetector)return enhancedDetector;if(enhancedDetectorPromise)return enhancedDetectorPromise;enhancedDetectorPromise=(async function(){var f=['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar'];try{if('BarcodeDetector'in globalThis){var s=BarcodeDetector.getSupportedFormats?await BarcodeDetector.getSupportedFormats():f,u=f.filter(function(x){return s.includes(x);});if(u.length)return new BarcodeDetector({formats:u});}}catch(e){}try{var m=await import('https://esm.sh/barcode-detector@3.2.2/ponyfill');return new m.BarcodeDetector({formats:f});}catch(e){console.info('[Scanner] WASM unavailable; ZXing-JS remains active');return null;}})();enhancedDetector=await enhancedDetectorPromise;return enhancedDetector;}
-async function tryEnhancedDecode(v,f){if(enhancedDecodeBusy||!v||v.readyState<2)return null;enhancedDecodeBusy=true;try{var r=getFrameROI(v,f),d=await getEnhancedDetector();if(!r||!d)return null;var modes=(Date.now()-scanStartedAt>3000)?[false,true]:[false];for(var b of modes){var codes=await d.detect(captureROI(v,r,b));if(codes&&codes.length&&codes[0].rawValue)return String(codes[0].rawValue);}}catch(e){}finally{enhancedDecodeBusy=false;}return null;}
+async function tryEnhancedDecode(v,f){if(enhancedDecodeBusy||!v||v.readyState<2)return null;enhancedDecodeBusy=true;var token=scannerRecoveryEpoch;try{var r=getFrameROI(v,f);if(r)requestStallFocus();var d=await getEnhancedDetector();if(!r||!d)return null;var modes=(Date.now()-scanStartedAt>3000)?[false,true]:[false];for(var b of modes){var codes=await d.detect(captureROI(v,r,b));if(codes&&codes.length&&codes[0].rawValue)return token===scannerRecoveryEpoch&&scanning?String(codes[0].rawValue):null;}return await tryTiltRecovery(v,r,d,token);}catch(e){}finally{if(token===scannerRecoveryEpoch)enhancedDecodeBusy=false;}return null;}
 
 /* Adaptive scheduler: fast first response, expensive recovery only after a stall. */
 var startScanningEnergyBase=startScanning,lastEnergyEnhancedAt=0,tryEnhancedDecodeEnergyBase=tryEnhancedDecode;
-startScanning=function(){scanStartedAt=Date.now();highQualityApplied=false;var result=startScanningEnergyBase();setTimeout(function(){if(reader)reader.timeBetweenDecodingAttempts=70;},50);return result;};
+startScanning=function(){resetScannerRecovery();scanStartedAt=Date.now();highQualityApplied=false;var result=startScanningEnergyBase();setTimeout(function(){if(reader)reader.timeBetweenDecodingAttempts=70;},50);return result;};
 tryEnhancedDecode=async function(v,f){var now=Date.now(),age=now-scanStartedAt,minAge=enhanceMode?350:850,minGap=enhanceMode?240:360;if(age<minAge||now-lastEnergyEnhancedAt<minGap)return null;lastEnergyEnhancedAt=now;return tryEnhancedDecodeEnergyBase(v,f);};
+
+/* v5.0.0: bounded recovery, after unchanged native/WASM ROI attempts fail. */
+var scannerRecoveryEpoch=0,scannerRecoveryAngle=0,scannerRecoveryLastTiltAt=0;
+var scannerRecoveryFocusRequested=false,scannerRecoveryFocusBusy=false;
+var scannerRecoveryLastSuccess=0;
+function resetScannerRecovery(){scannerRecoveryEpoch++;scannerRecoveryAngle=0;scannerRecoveryLastTiltAt=0;scannerRecoveryFocusRequested=false;scannerRecoveryFocusBusy=false;scannerRecoveryLastSuccess=Date.now();}
+function barcodeFocusPoint(v,f,event){
+  if(!v||!v.videoWidth||!v.videoHeight)return null;
+  var vr=v.getBoundingClientRect();if(!vr.width||!vr.height)return null;
+  var scale=Math.max(vr.width/v.videoWidth,vr.height/v.videoHeight);
+  var ox=(v.videoWidth*scale-vr.width)/2,oy=(v.videoHeight*scale-vr.height)/2;
+  var fr=f?f.getBoundingClientRect():vr;
+  var px=event&&Number.isFinite(event.clientX)?event.clientX:fr.left+fr.width/2;
+  var py=event&&Number.isFinite(event.clientY)?event.clientY:fr.top+fr.height/2;
+  return {x:clamp((px-vr.left+ox)/(v.videoWidth*scale),0,1),y:clamp((py-vr.top+oy)/(v.videoHeight*scale),0,1)};
+}
+async function requestBarcodeFocus(event){
+  var t=cameraTrack,token=scannerRecoveryEpoch;
+  if(!scanning||!t||scannerRecoveryFocusBusy)return false;
+  var supported=navigator.mediaDevices&&navigator.mediaDevices.getSupportedConstraints?navigator.mediaDevices.getSupportedConstraints():{};
+  var settings=t.getSettings?t.getSettings():{};
+  // A global constraint flag alone does not establish support on this camera.
+  if(!supported.pointsOfInterest||!('pointsOfInterest' in settings))return false;
+  var point=barcodeFocusPoint(document.getElementById('video'),document.getElementById('scanFrame'),event);
+  if(!point)return false;
+  scannerRecoveryFocusBusy=true;
+  try{
+    var constraint={pointsOfInterest:[point]},m=cap(t,'focusMode');
+    if(m&&Array.from(m).includes('continuous'))constraint.focusMode='continuous';
+    var ok=await safeApply(t,[constraint]);
+    if(token!==scannerRecoveryEpoch||!scanning||t!==cameraTrack)return false;
+    // The browser may silently ignore optional constraints; do not claim support.
+    var after=t.getSettings?t.getSettings():{},points=after.pointsOfInterest;
+    return !!(ok&&points&&points.length&&Math.abs(points[0].x-point.x)<.05&&Math.abs(points[0].y-point.y)<.05);
+  }catch(e){return false;}finally{if(token===scannerRecoveryEpoch)scannerRecoveryFocusBusy=false;}
+}
+function requestStallFocus(){if(scanning&&!scannerRecoveryFocusRequested&&Date.now()-Math.max(scanStartedAt,scannerRecoveryLastSuccess)>=1800){scannerRecoveryFocusRequested=true;requestBarcodeFocus().catch(function(){});}}
+function expandedBarcodeROI(v,r){
+  var padX=Math.round(r.w*.12),padY=Math.round(r.w*.35);
+  var x=Math.max(0,r.x-padX),y=Math.max(0,r.y-padY);
+  return {x:x,y:y,w:Math.min(v.videoWidth,r.x+r.w+padX)-x,h:Math.min(v.videoHeight,r.y+r.h+padY)-y};
+}
+function rotateBarcodeCanvas(source,degrees){
+  var a=degrees*Math.PI/180,cos=Math.abs(Math.cos(a)),sin=Math.abs(Math.sin(a));
+  var w=Math.ceil(source.width*cos+source.height*sin),h=Math.ceil(source.width*sin+source.height*cos);
+  var scale=Math.min(1,1600/Math.max(w,h)),c=document.createElement('canvas');
+  c.width=Math.max(1,Math.ceil(w*scale));c.height=Math.max(1,Math.ceil(h*scale));
+  var ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+  ctx.translate(c.width/2,c.height/2);ctx.scale(scale,scale);ctx.rotate(a);ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(source,-source.width/2,-source.height/2);return c;
+}
+async function tryTiltRecovery(v,r,detector,token){
+  var now=Date.now(),stalled=now-Math.max(scanStartedAt,scannerRecoveryLastSuccess);
+  if(!scanning||token!==scannerRecoveryEpoch||stalled<1800)return null;
+  requestStallFocus();
+  if(now-scannerRecoveryLastTiltAt<800)return null;
+  scannerRecoveryLastTiltAt=now;
+  // One extra decode per recovery tick, padded ROI preserves tilted barcode ends.
+  var angles=[0,-20,20,-40,40,-60,60,90],angle=angles[scannerRecoveryAngle++%angles.length];
+  var image=captureROI(v,expandedBarcodeROI(v,r),false);
+  var codes=await detector.detect(angle?rotateBarcodeCanvas(image,angle):image);
+  if(!scanning||token!==scannerRecoveryEpoch)return null;
+  return codes&&codes.length&&codes[0].rawValue?String(codes[0].rawValue):null;
+}
 
 /* Stable boundary for a future Capacitor/VisionKit/ML Kit implementation. */
 window.ScannerAdapter={
