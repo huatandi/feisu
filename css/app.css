@@ -264,3 +264,14 @@
  .inventory-filters{gap:4px}
  .inventory-filters button{padding:6px 8px}
 }
+
+/* R3：图片预览及触底工具栏 */
+.product-picture{display:inline-block;width:72px;height:72px;object-fit:contain;margin:3px;cursor:zoom-in;border-radius:6px;background:#fff}
+.picture-preview{position:fixed;inset:0;z-index:11000;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:50px 16px}
+.picture-preview img{max-width:100%;max-height:100%;object-fit:contain}
+.picture-preview button{position:absolute;right:16px;top:12px;padding:10px 16px;background:#fff;border-radius:10px;font-size:18px}
+.bottom-fixed-btns{transition:transform .18s ease-out,bottom .3s ease-out}
+.bottom-fixed-btns.bottom-bar-hidden{transform:translateY(calc(100% - 8px));pointer-events:none}
+.keyboard-open .bottom-fixed-btns{transform:none;pointer-events:auto}
+
+.scrollable-area{padding-bottom:110px}
