@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-  <title>飞速盘点 · FEISU v5.0.2</title>
+  <title>飞速盘点 · FEISU v5.0.2 · 布局修正版 R2</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="./css/app.css">
+  <link rel="stylesheet" href="./css/app.css?v=502-r2">
 </head>
 <body>
 <div id="toast"></div>
@@ -19,12 +19,15 @@
                 <div class="flex items-center justify-center gap-3">
                     <span class="text-2xl">⚡</span>
                     <h1 class="text-2xl font-black tracking-tight">飞速盘点</h1>
-                    <div class="version-badge">FEISU v5.0.2</div>
+                    <div class="version-badge">FEISU v5.0.2 · 布局修正版 R2</div>
                 </div>
             </div>
             <div style="padding: 16px 16px 0 16px;">
-                <input type="text" id="manualInput" placeholder="📱 输入条码/编码/名称..." />
-                <div class="btn-group-4">
+                <div class="scan-input-row">
+                  <input type="text" id="manualInput" placeholder="📱 输入条码/编码/名称..." />
+                  <button id="settingsToggle" type="button" aria-label="设置" title="设置" aria-expanded="false" aria-controls="settingsPanel">⚙️</button>
+                </div>
+                <div id="settingsPanel" class="btn-group-4 settings-panel" hidden>
                     <button onclick="openColModal()" class="action-btn bg-gray-700 text-white shadow-md">📊 列管理</button>
                     <label class="action-btn bg-emerald-600 text-white shadow-md cursor-pointer">📂 导入 <input type="file" id="fileInput" class="hidden" accept=".xlsx,.xls,.csv" /></label>
                     <button onclick="exportExcel()" class="action-btn bg-emerald-600 text-white shadow-md">💾 导出</button>
@@ -51,7 +54,6 @@
             </div>
             <div id="errorSummary" class="error-summary"><details><summary id="errorSummaryTitle">⚠️ 导入完成，部分行失败</summary><ul id="errorList"></ul></details></div>
             <div id="inventoryDashboard" class="inventory-dashboard">
-              <div class="inventory-stats" id="inventoryStats"></div>
               <div class="inventory-filters">
                 <button data-filter="all" onclick="setInventoryFilter('all')">全部</button>
                 <button data-filter="unpan" onclick="setInventoryFilter('unpan')">未盘点</button>
@@ -62,6 +64,7 @@
                 <button data-filter="review" onclick="setInventoryFilter('review')">待复盘</button>
                 <button onclick="showUnknownBarcodes()">未知条码</button>
               </div>
+              <div class="inventory-stats" id="inventoryStats"></div>
             </div>
             <div class="table-container">
                 <table id="mainTable">
@@ -91,18 +94,18 @@
         <div class="relative flex-1 bg-black"><video id="video" class="w-full h-full object-cover" playsinline muted autoplay></video><div class="focus-guide">💡 保持约半秒自动对焦 · 点击条码位置辅助对焦（设备支持时）</div><div class="scan-frame" id="scanFrame"><div class="scan-line"></div></div><div id="enhanceBadge" class="enhance-badge hidden">✨ ROI + WASM 增强</div><div class="absolute bottom-8 left-0 right-0 text-center scan-controls"><div class="bg-black/70 backdrop-blur text-white px-4 py-2 rounded-full inline-block text-sm font-bold border-2 border-blue-500">📷 让完整条码横向填满扫描框</div><div class="mt-3"><button id="fragmentAssistBtn" type="button" class="scan-tool-btn" onclick="toggleFragmentAssist()">🧩 电子单辅助开</button><button type="button" class="scan-tool-btn" onclick="manualFragmentLookup()">数字片段</button><button id="cameraCycleBtn" type="button" class="scan-tool-btn" hidden>📷 镜头</button><button id="zoomOutBtn" type="button" class="scan-tool-btn" hidden>－</button><span id="zoomLabel" class="zoom-label" hidden>1.0×</span><button id="zoomInBtn" type="button" class="scan-tool-btn" hidden>＋</button><button id="torchBtn" type="button" class="scan-tool-btn">🔦 补光</button></div></div></div>
     </div>
 
-  <script src="./js/core.js"></script>
-  <script src="./js/storage.js"></script>
-  <script src="./js/file-backup.js"></script>
-  <script src="./js/search.js"></script>
-  <script src="./js/table.js"></script>
-  <script src="./js/import-export.js"></script>
-  <script src="./js/fragment-assist.js"></script>
-  <script src="./js/quagga-recovery.js"></script>
-  <script src="./js/scanner.js"></script>
-  <script src="./js/columns.js"></script>
-  <script src="./js/keyboard.js"></script>
-  <script src="./js/sound-manager.js"></script>
-  <script src="./js/app.js"></script>
+  <script src="./js/core.js?v=502-r2"></script>
+  <script src="./js/storage.js?v=502-r2"></script>
+  <script src="./js/file-backup.js?v=502-r2"></script>
+  <script src="./js/search.js?v=502-r2"></script>
+  <script src="./js/table.js?v=502-r2"></script>
+  <script src="./js/import-export.js?v=502-r2"></script>
+  <script src="./js/fragment-assist.js?v=502-r2"></script>
+  <script src="./js/quagga-recovery.js?v=502-r2"></script>
+  <script src="./js/scanner.js?v=502-r2"></script>
+  <script src="./js/columns.js?v=502-r2"></script>
+  <script src="./js/keyboard.js?v=502-r2"></script>
+  <script src="./js/sound-manager.js?v=502-r2"></script>
+  <script src="./js/app.js?v=502-r2"></script>
 </body>
 </html>

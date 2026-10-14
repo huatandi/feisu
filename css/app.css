@@ -243,3 +243,24 @@
  .inventory-filters{flex:none;width:100%}
 }
 @media(max-width:480px){.btn-group-4{gap:4px}.btn-group-4 .action-btn{padding:10px 2px;font-size:12px}}
+
+
+/* R2：输入框右侧设置；筛选在前，统计在后。 */
+.scan-input-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.scan-input-row #manualInput{flex:1;min-width:0;width:auto}
+#settingsToggle{flex:0 0 50px;width:50px;height:50px;border:1px solid #cbd5e1;border-radius:12px;background:#f1f5f9;color:#1e293b;font-size:26px;cursor:pointer}
+#settingsToggle[aria-expanded="true"]{background:#dbeafe;border-color:#2563eb}
+#settingsToggle:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
+.settings-panel[hidden]{display:none!important}
+.settings-panel{grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px;margin:0 0 12px;padding:10px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;max-height:40vh;overflow:auto}
+.settings-panel .action-btn{min-height:44px;font-size:13px;padding:12px 8px}
+.inventory-dashboard{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:8px;padding:8px}
+.inventory-filters{flex:0 1 auto;width:auto;max-width:100%;min-width:0;flex-wrap:wrap;overflow:visible;padding:0}
+.inventory-stats{flex:0 1 auto;max-width:100%;flex-wrap:wrap;overflow:visible}
+@media(max-width:480px){
+ .scan-input-row{gap:8px}
+ #settingsToggle{flex-basis:46px;width:46px;height:46px}
+ .inventory-dashboard{gap:6px}
+ .inventory-filters{gap:4px}
+ .inventory-filters button{padding:6px 8px}
+}

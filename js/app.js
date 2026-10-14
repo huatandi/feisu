@@ -1,6 +1,17 @@
 'use strict';
 function bindAppEvents(){
   bindFileImport();
+  var settingsToggle=document.getElementById('settingsToggle');
+  var settingsPanel=document.getElementById('settingsPanel');
+  function closeSettings(){settingsPanel.hidden=true;settingsToggle.setAttribute('aria-expanded','false');}
+  settingsToggle.addEventListener('click',function(){
+    settingsPanel.hidden=!settingsPanel.hidden;
+    settingsToggle.setAttribute('aria-expanded',String(!settingsPanel.hidden));
+  });
+  settingsPanel.addEventListener('click',function(e){if(e.target.closest('button,label'))closeSettings();});
+  document.addEventListener('click',function(e){if(!settingsPanel.hidden&&!settingsPanel.contains(e.target)&&!settingsToggle.contains(e.target))closeSettings();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!settingsPanel.hidden){closeSettings();settingsToggle.focus();}});
+
   document.getElementById('confirmBtn').onclick=function(){if(window.SoundManager)SoundManager.unlock();var input=document.getElementById('manualInput'),val=input.value.trim();if(val){handleBarcode(val,false);input.value='';}hideKeyboard();};
   document.getElementById('manualInput').addEventListener('keydown',function(e){if(e.key==='Enter'){if(window.SoundManager)SoundManager.unlock();var val=e.target.value.trim();if(val){handleBarcode(val,false);e.target.value='';}hideKeyboard();}});
   document.getElementById('scanBtn').onclick=function(){if(window.SoundManager)SoundManager.unlock();if(scanning)stopScanning(true);else startScanning();hideKeyboard();};
