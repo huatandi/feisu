@@ -5,7 +5,7 @@ const valid=d=>d&&/^history:[0-9]+:[a-z0-9]+$/.test(d.id)&&Array.isArray(d.db)&&
 const file=id=>path.join(DIR,id.replaceAll(':','_')+'.json');
 async function atomic(p,data){const t=p+'.tmp';try{await fs.writeFile(t,JSON.stringify(data),'utf8');const h=await fs.open(t,'r+');try{await h.sync();}finally{await h.close();}await fs.rename(t,p);}finally{await fs.rm(t,{force:true});}}
 async function records(){const out=[];for(const n of await fs.readdir(DIR)){if(!/^history_[0-9]+_[a-z0-9]+\.json$/.test(n))continue;const d=JSON.parse(await fs.readFile(path.join(DIR,n),'utf8'));if(!valid(d))throw Error('历史文件损坏：'+n);out.push(d);}return out;}
-async function trim(current){const all=await records();all.sort((a,b)=>Number(a.id.split(':')[1])-Number(b.id.split(':')[1])||a.id.localeCompare(b.id));while(all.length>50){const i=all.findIndex(d=>d.id!==current);if(i<0)throw Error('清理失败');await fs.unlink(file(all.splice(i,1)[0].id));}}
+async function trim(current){const all=await records();all.sort((a,b)=>a.savedAt-b.savedAt||Number(a.id.split(':')[1])-Number(b.id.split(':')[1])||a.id.localeCompare(b.id));while(all.length>50){const i=all.findIndex(d=>d.id!==current);if(i<0)throw Error('清理失败');await fs.unlink(file(all.splice(i,1)[0].id));}}
 let queue=Promise.resolve();
 async function api(req,res,url){const mutate=async()=>{if(req.method==='GET'&&url.pathname==='/api/history'){const all=await records();let current=null;try{current=JSON.parse(await fs.readFile(path.join(DIR,'current.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}return {records:all,current};}
 if(req.method==='DELETE'&&url.pathname==='/api/current'){await fs.rm(path.join(DIR,'current.json'),{force:true});return {ok:true};}

@@ -71,7 +71,7 @@ async function applyImportResult(result,fileName){
     updateProgress(0,0,'正在保存当前盘点…','解析已完成');
     if(!await saveBeforeInventorySwitch())return;
     showProgress(false);
-    if(!await promptInventoryBackup())return;
+    if(!await confirmInventorySwitch({nextName:fileName}))return;
     showProgress(true);updateProgress(0,0,'正在保存新电子单…','请稍候');
     var next={id:newInventorySessionId(),version:VERSION,db:result.rows,columns:result.columns,currentPage:0,filter:'all',unknownBarcodes:{},currentImportFileName:fileName,sourceQtyColumn:detectSourceQtyColumn(result.columns,result.rows),savedAt:Date.now()};
     await writeSession(next);

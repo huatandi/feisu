@@ -275,3 +275,20 @@
 .keyboard-open .bottom-fixed-btns{transform:none;pointer-events:auto}
 
 .scrollable-area{padding-bottom:110px}
+
+/* R4：换单只确认一次；额外文件备份不阻挡换单。 */
+.inventory-switch-overlay{position:fixed;inset:0;z-index:12000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+.inventory-switch-panel{box-sizing:border-box;background:#fff;color:#0f172a;padding:24px;border-radius:20px;width:440px;max-width:100%;max-height:calc(100% - 32px);overflow:auto;box-shadow:0 20px 60px #0003;line-height:1.6}
+.inventory-switch-panel h2{font-size:22px;font-weight:700;margin:0 0 10px}
+.inventory-switch-panel p{font-size:15px;margin:0 0 16px}
+.inventory-switch-next{padding:10px 12px;background:#f1f5f9;border-radius:8px;overflow-wrap:anywhere}
+.inventory-switch-button{display:block;width:100%;min-height:48px;padding:12px 16px;border:1px solid transparent;border-radius:10px;font:inherit;font-weight:600;cursor:pointer;touch-action:manipulation}
+.inventory-switch-button.primary{background:#2563eb;color:#fff;margin-bottom:18px}
+.inventory-switch-button.secondary{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+.inventory-switch-button.cancel{background:#fff;color:#475569;border-color:#cbd5e1;margin-top:14px}
+.inventory-switch-button:focus-visible{outline:3px solid #60a5fa;outline-offset:3px}
+.inventory-switch-button:disabled{opacity:.6;cursor:wait}
+.inventory-switch-panel .inventory-switch-backup-note{font-size:13px;color:#64748b;margin-bottom:8px}
+.inventory-switch-panel .inventory-switch-status{font-size:13px;color:#475569;margin:8px 0 0;overflow-wrap:anywhere}
+.inventory-switch-status:empty{display:none}
+@media(max-width:480px){.inventory-switch-panel{padding:20px}}
