@@ -23,10 +23,10 @@ function bytesToImageData(bytes,ext){
   for(var i=0;i<array.length;i+=8192)parts.push(String.fromCharCode.apply(null,array.subarray(i,i+8192)));
   return 'data:image/'+(ext==='jpg'?'jpeg':ext)+';base64,'+btoa(parts.join(''));
 }
-async function importEmbeddedImages(data,parsed){
+async function importEmbeddedImages(data,parsed,sheetIndex){
   if(!window.ExcelJS)throw new Error('图片组件未加载，请刷新重试');
   var wb=new ExcelJS.Workbook();await wb.xlsx.load(data);
-  var sheet=wb.worksheets[0];if(!sheet)return;
+  var sheet=wb.worksheets[sheetIndex||0];if(!sheet)return;
   var rowLookup=new Map();parsed.sourceRowNumbers.forEach(function(n,i){rowLookup.set(n,i);});
   sheet.getImages().forEach(function(entry){
     var anchor=entry.range.tl,rowIndex=rowLookup.get(Math.floor(anchor.nativeRow??anchor.row));

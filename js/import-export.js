@@ -34,19 +34,70 @@ function detectWorksheetHeaderRow(aoa){
   return 0;
 }
 function worksheetToSourceRows(sheet){
+  if(!sheet)throw new Error('没有找到可读取的工作表');
   var aoa=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:true,blankrows:true});
+  return sourceRowsFromArray(aoa,sheet['!ref']?XLSX.utils.decode_range(sheet['!ref']).s.r:0);
+}
+function sourceRowsFromArray(aoa,rangeStart){
   if(!aoa.length)return {rows:[],headerRow:0,meta:[]};
   var hr=detectWorksheetHeaderRow(aoa),rawHeaders=aoa[hr]||[],last=rawHeaders.length;
   for(var r=hr+1;r<Math.min(aoa.length,hr+30);r++)last=Math.max(last,(aoa[r]||[]).length);
   var used=new Set(),headers=[];for(var c=0;c<last;c++)headers.push(makeUniqueHeader(rawHeaders[c],c,used));
   var rows=[],sourceRowNumbers=[];
-  var rangeStart=sheet['!ref']?XLSX.utils.decode_range(sheet['!ref']).s.r:0;
   for(var rr=hr+1;rr<aoa.length;rr++){
     var src=aoa[rr]||[],has=false,obj={};
     for(var cc=0;cc<headers.length;cc++){var val=src[cc]===undefined?'':src[cc];if(String(val).trim()!=='')has=true;obj[headers[cc]]=val;}
     if(has){rows.push(obj);sourceRowNumbers.push(rr+rangeStart);}
   }
   return {rows:rows,headerRow:hr,meta:aoa.slice(0,hr),headers:headers,sourceRowNumbers:sourceRowNumbers};
+}
+/* Only when the normal XLSX reader rejects an otherwise valid .xlsx, try the
+   already bundled ExcelJS parser. No format conversion or file rewrite occurs. */
+function excelJSCellValue(cell){
+  var v=cell&&cell.value;
+  if(v==null)return '';
+  if(v instanceof Date)return v.toISOString().slice(0,10);
+  if(typeof v==='object'){
+    if(v.richText)return v.richText.map(function(x){return x.text||'';}).join('');
+    if(v.result!==undefined)return v.result==null?'':v.result;
+    if(v.text!==undefined)return v.text;
+    if(v.hyperlink!==undefined)return v.text||v.hyperlink;
+    return '';
+  }
+  return v;
+}
+async function parseExcelWithFallback(data,ext){
+  var primaryError=null;
+  try{
+    if(!window.XLSX)throw new Error('Excel 主解析组件未加载');
+    var workbook=XLSX.read(data,{type:'array'});
+    if(!workbook||!Array.isArray(workbook.SheetNames)||!workbook.Sheets)throw new Error('工作簿结构无效');
+    for(var i=0;i<workbook.SheetNames.length;i++){
+      var sheet=workbook.Sheets[workbook.SheetNames[i]];
+      if(!sheet)continue;
+      var parsed=worksheetToSourceRows(sheet);
+      if(parsed.rows.length)return {parsed:parsed,sheetIndex:i,engine:'XLSX'};
+    }
+    throw new Error('没有包含商品数据的工作表');
+  }catch(e){primaryError=e;}
+  if(ext!=='xlsx'||!window.ExcelJS)throw primaryError;
+  try{
+    var wb=new ExcelJS.Workbook();
+    await wb.xlsx.load(data);
+    for(var i=0;i<wb.worksheets.length;i++){
+      var sheet=wb.worksheets[i],aoa=[];
+      sheet.eachRow({includeEmpty:false},function(row,n){
+        var cells=[];row.eachCell({includeEmpty:false},function(cell,c){cells[c-1]=excelJSCellValue(cell);});
+        aoa[n-1]=cells;
+      });
+      var parsed=sourceRowsFromArray(aoa,0);
+      if(parsed.rows.length)return {parsed:parsed,sheetIndex:i,engine:'ExcelJS'};
+    }
+    throw new Error('没有包含商品数据的工作表');
+  }catch(secondary){
+    console.warn('[FEISU Import] both readers failed',primaryError,secondary);
+    throw new Error('Excel 文件无法解析（两种解析器均失败）。原文件未修改；可尝试在 Excel 中另存为 .xlsx。');
+  }
 }
 function buildImportedRow(rawRow,allColumns){
   var row=rawRow||{},product=extractProduct(row),newRow={};
@@ -84,7 +135,7 @@ async function applyImportResult(result,fileName){
   }catch(e){console.error('导入完成阶段失败',e);showToast('❌ 导入未完成：'+(e.message||e)+'；请勿清除网站数据',true);}
   finally{showProgress(false);isProcessing=false;}
 }
-function bindFileImport(){document.getElementById('fileInput').onchange=function(e){if(isProcessing){showToast('⏳ 正在处理中...');return;}var file=e.target.files[0];if(!file)return;e.target.value='';var importedFileName=file.name.replace(/\.(xlsx|xls|csv)$/i,'');var ext=file.name.split('.').pop().toLowerCase();isProcessing=true;showProgress(true);if(ext==='csv'){updateProgress(0,0,'📄 正在读取 CSV...','流式解析');importCSVInBatches(file).then(function(result){return applyImportResult(result,importedFileName);}).catch(function(err){console.error(err);showToast('❌ CSV导入失败: '+(err.message||err),true);showProgress(false);isProcessing=false;});return;}showToast('正在读取 Excel...');var fr=new FileReader();fr.onload=async function(ev){try{var data=new Uint8Array(ev.target.result),workbook=XLSX.read(data,{type:'array'}),sheet=workbook.Sheets[workbook.SheetNames[0]],parsed=worksheetToSourceRows(sheet);if(ext==='xlsx')await importEmbeddedImages(data,parsed);if(!parsed.rows.length){showToast('文件无数据',true);showProgress(false);isProcessing=false;return;}console.info('[FEISU Import] detected header row:',parsed.headerRow+1,parsed.headers.map(displayColumnName));importExcelInBatches(parsed.rows).then(function(result){return applyImportResult(result,importedFileName);}).catch(function(err){console.error(err);showToast('❌ Excel导入失败：'+(err.message||err),true);showProgress(false);isProcessing=false;});}catch(err){console.error(err);showToast('解析失败: '+(err.message||err),true);showProgress(false);isProcessing=false;}};fr.onerror=function(){showToast('读取Excel文件失败',true);showProgress(false);isProcessing=false;};fr.readAsArrayBuffer(file);};}
+function bindFileImport(){document.getElementById('fileInput').onchange=function(e){if(isProcessing){showToast('⏳ 正在处理中...');return;}var file=e.target.files[0];if(!file)return;e.target.value='';var importedFileName=file.name.replace(/\.(xlsx|xls|csv)$/i,'');var ext=file.name.split('.').pop().toLowerCase();isProcessing=true;showProgress(true);if(ext==='csv'){updateProgress(0,0,'📄 正在读取 CSV...','流式解析');importCSVInBatches(file).then(function(result){return applyImportResult(result,importedFileName);}).catch(function(err){console.error(err);showToast('❌ CSV导入失败: '+(err.message||err),true);showProgress(false);isProcessing=false;});return;}showToast('正在读取 Excel...');var fr=new FileReader();fr.onload=async function(ev){try{var data=new Uint8Array(ev.target.result),result=await parseExcelWithFallback(data,ext),parsed=result.parsed;if(ext==='xlsx')await importEmbeddedImages(data,parsed,result.sheetIndex);if(!parsed.rows.length){showToast('文件无数据',true);showProgress(false);isProcessing=false;return;}console.info('[FEISU Import] detected header row:',parsed.headerRow+1,parsed.headers.map(displayColumnName));importExcelInBatches(parsed.rows).then(function(result){return applyImportResult(result,importedFileName);}).catch(function(err){console.error(err);showToast('❌ Excel导入失败：'+(err.message||err),true);showProgress(false);isProcessing=false;});}catch(err){console.error(err);showToast('解析失败: '+(err.message||err),true);showProgress(false);isProcessing=false;}};fr.onerror=function(){showToast('读取Excel文件失败',true);showProgress(false);isProcessing=false;};fr.readAsArrayBuffer(file);};}
 function exportRows(){return db.map(function(row){var out={};columns.forEach(function(col){if(col==='差异')out[col]=getInventoryDiff(row);else if(col==='盘点状态')out[col]=getInventoryStatus(row)+(row.__feisuReviewed?'（已复盘）':'');else out[col]=row[col]??'';});return out;});}
 async function exportExcel(){
   if(!db.length){showToast('暂无数据可导出',true);return;}
