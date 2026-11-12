@@ -1,0 +1,159 @@
+{
+  "release": "FEISU v5.0.2 R8",
+  "basis": [
+    "uploaded R4",
+    "session-generated R7"
+  ],
+  "files": [
+    {
+      "path": "R5修复与验证说明.md",
+      "sha256": "06bff7a56d4dd5fe130cd4e591d6fd52b8c09c94ffc5efe8ca0c17bc6c677b88",
+      "r4_sha256": null,
+      "r7_sha256": "06bff7a56d4dd5fe130cd4e591d6fd52b8c09c94ffc5efe8ca0c17bc6c677b88"
+    },
+    {
+      "path": "R6修复与合并说明.md",
+      "sha256": "97c14ce6bc39ecf8e4401177f5bd439994232746c85f86022d58ad6556c0c899",
+      "r4_sha256": null,
+      "r7_sha256": "97c14ce6bc39ecf8e4401177f5bd439994232746c85f86022d58ad6556c0c899"
+    },
+    {
+      "path": "R7均衡优化与验证说明.md",
+      "sha256": "9779288da417de1e166bdc7c4482c956cac28966f2bc8c2dca06488a1fb36c66",
+      "r4_sha256": null,
+      "r7_sha256": "9f0616a959fa8688e431b8e7d8c548abd9f785a6b217f39c2039b91eb338f51e"
+    },
+    {
+      "path": "R8框内识别与诊断说明.md",
+      "sha256": "1b56b5f8d0c81a7157573f53a27a503291339bfd44b2727abebd9bd53ceb1606",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "css/app.css",
+      "sha256": "e158ccc5e90fcd00f4ddf91141cf0a835cbbedece8bf8474b37605948dadc86c",
+      "r4_sha256": "d4efc82c7a76d198f86bca9ca034673ddea21611681f1c1bbb9253838afe4837",
+      "r7_sha256": "e158ccc5e90fcd00f4ddf91141cf0a835cbbedece8bf8474b37605948dadc86c"
+    },
+    {
+      "path": "index.html",
+      "sha256": "3993646ce8586331c5b92fcf50712994e2f10d2ea565eb78f90416965276e3f5",
+      "r4_sha256": "b2c3e09521045526ae639c3c3919bf4bdff2d188a86a2bb629c32e9295f03d8b",
+      "r7_sha256": "d685e77c453e802448d3e10f57fc5be940faa8991f1a6a50fccdbfe47ba9cadc"
+    },
+    {
+      "path": "install-r8.ps1",
+      "sha256": "deec919b7537c0f8cc05a7215393bde390c51ba5800d697dbe5140633eb5118e",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "js/app.js",
+      "sha256": "85070f09ec6921614ab2091e1e471b7a51c564d9023379f9835d425bc335fdd2",
+      "r4_sha256": "d9d43b1fd955496a7be7fd28057d4e62bfec9ba51f32e49118b2e4d9ef32f6e1",
+      "r7_sha256": "85070f09ec6921614ab2091e1e471b7a51c564d9023379f9835d425bc335fdd2"
+    },
+    {
+      "path": "js/core.js",
+      "sha256": "8d44029c25e7885a5425a6a3c06254eb3d7cd7a777ca01dfb718f24d084b1e1d",
+      "r4_sha256": "26ce0e10c0bd035f4faf40c750ab11908536f800d1aa674e24b40388367b4edb",
+      "r7_sha256": "0f5eed69ca610c411db9de712e761533646725fc8d6a642d97dbcec29a073590"
+    },
+    {
+      "path": "js/images.js",
+      "sha256": "37e6d28dc9f8af567240c6636145ee165343d665024005b1751ebd816b686e47",
+      "r4_sha256": "bcd6cd4e39fa35e2e7a882c2e29b5172e8148795fac4d7b1a3af5ad10ffac6fd",
+      "r7_sha256": "37e6d28dc9f8af567240c6636145ee165343d665024005b1751ebd816b686e47"
+    },
+    {
+      "path": "js/import-export.js",
+      "sha256": "43ec3ad057bfbeb1ae227dee88d7f45fba0b051801dd676e183fa3654a26990d",
+      "r4_sha256": "37145b227980922d8cc340bae2621a054c9b4eb1988049e619e2e449fcd4339a",
+      "r7_sha256": "43ec3ad057bfbeb1ae227dee88d7f45fba0b051801dd676e183fa3654a26990d"
+    },
+    {
+      "path": "js/scanner.js",
+      "sha256": "6bfa7574bc516d3b42fc556b9f96c687b4146206ab60c5313ac809599bfeb91c",
+      "r4_sha256": "4f0813bd69b12e5a8b5635f3f7a0984fcf02183768609efd5eb1ae0ef08e45fc",
+      "r7_sha256": "f1a3ed0321ff00a6cc59b7fd578835a3048935edcd91b9c73cbedfd487679383"
+    },
+    {
+      "path": "local-server.cjs",
+      "sha256": "2eb1b3cc31ca0fbac3bf90a86301561a321e4baf26e40a3aea8d70c991e7cc17",
+      "r4_sha256": "14473fb9b2dca1f15597196cbc0e121736d08b8ec2326f7790e021c7778f41d4",
+      "r7_sha256": "2eb1b3cc31ca0fbac3bf90a86301561a321e4baf26e40a3aea8d70c991e7cc17"
+    },
+    {
+      "path": "tests/import-scanner.cjs",
+      "sha256": "6e99b35d9980eef6623b0cbf931d6ace62e2f70f89302f5d0f0ede397fdaa603",
+      "r4_sha256": null,
+      "r7_sha256": "6e99b35d9980eef6623b0cbf931d6ace62e2f70f89302f5d0f0ede397fdaa603"
+    },
+    {
+      "path": "tests/local-server.cjs",
+      "sha256": "34cc295aedd7f7c531da24ee62d3fc1d833c1b9bf4f21d9b702399caefeea567",
+      "r4_sha256": null,
+      "r7_sha256": "13277b1d5dbf002c1693698441c429bddc962be65b599dad53f1a7f05e5ed72f"
+    },
+    {
+      "path": "tests/power-r7.cjs",
+      "sha256": "971b7bdf451643dd184ec881af06d1cb1e993501d2ee008f3ce285bed65b0dfe",
+      "r4_sha256": null,
+      "r7_sha256": "971b7bdf451643dd184ec881af06d1cb1e993501d2ee008f3ce285bed65b0dfe"
+    },
+    {
+      "path": "tests/primary-r8.cjs",
+      "sha256": "1f2f8922b802a8ca103b1306d7303a6e45984b219697dccda3259048b4e6c047",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "tests/release-r6.cjs",
+      "sha256": "86f5b21fd507b61730ddf4475646b0c09c7f8cb2192bec88721dfcd87f509ce6",
+      "r4_sha256": null,
+      "r7_sha256": "eb236db473961df29a5e9ba912c75cd7680400381772f37ec5d766e41e774053"
+    },
+    {
+      "path": "vendor/papaparse-5.4.1.min.js",
+      "sha256": "b8e870c5d2b29772f10c9fa9a693c8b896aac8540ed6701e3cc6304c683febdb",
+      "r4_sha256": null,
+      "r7_sha256": "b8e870c5d2b29772f10c9fa9a693c8b896aac8540ed6701e3cc6304c683febdb"
+    },
+    {
+      "path": "vendor/papaparse-LICENSE.txt",
+      "sha256": "99aa68e4b42758b09828a46515f70369e5463458ab7a990189f641af2b8d9b4e",
+      "r4_sha256": null,
+      "r7_sha256": "99aa68e4b42758b09828a46515f70369e5463458ab7a990189f641af2b8d9b4e"
+    },
+    {
+      "path": "vendor/xlsx-js-style-1.2.0.min.js",
+      "sha256": "1c7abf2993ff2cd61e508f9268e9acda0098c9796f3925d2ba0d2579072653e2",
+      "r4_sha256": null,
+      "r7_sha256": "1c7abf2993ff2cd61e508f9268e9acda0098c9796f3925d2ba0d2579072653e2"
+    },
+    {
+      "path": "vendor/xlsx-js-style-LICENSE.txt",
+      "sha256": "4d2a38ac35cda06a555c84074a819d413339cd3691b822cae50f8f322fe01f64",
+      "r4_sha256": null,
+      "r7_sha256": "4d2a38ac35cda06a555c84074a819d413339cd3691b822cae50f8f322fe01f64"
+    },
+    {
+      "path": "vendor/zxing-0.19.1.min.js",
+      "sha256": "c5837e4858a3775173bab09ee36e6052545c7880c9d7452e2f464770c6e642ce",
+      "r4_sha256": null,
+      "r7_sha256": "c5837e4858a3775173bab09ee36e6052545c7880c9d7452e2f464770c6e642ce"
+    },
+    {
+      "path": "vendor/zxing-LICENSE.txt",
+      "sha256": "4c26c3077daa7ce4d56ad91f279fafc395bf33c3a0f1ba9ab8cf511bad148ea5",
+      "r4_sha256": null,
+      "r7_sha256": "4c26c3077daa7ce4d56ad91f279fafc395bf33c3a0f1ba9ab8cf511bad148ea5"
+    },
+    {
+      "path": "应用R8到仓库.cmd",
+      "sha256": "ef7de433a10d27cfc10d64d2e284bf3099bebafcdb04f2cd821a570941126349",
+      "r4_sha256": null,
+      "r7_sha256": null
+    }
+  ]
+}
