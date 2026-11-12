@@ -121,6 +121,7 @@ function rebuildSearchIndex(){
     searchableRows[i]=texts.join(' ');
   }
 
+  if(typeof rebuildFragmentIndex==='function')rebuildFragmentIndex();
   console.info('[SearchEngine] index rebuilt:', {rows:db.length,keys:searchIndex.size});
 }
 

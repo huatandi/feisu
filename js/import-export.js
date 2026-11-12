@@ -34,43 +34,111 @@ function detectWorksheetHeaderRow(aoa){
   return 0;
 }
 function worksheetToSourceRows(sheet){
-  var aoa=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:true,blankrows:false});
+  if(!sheet)throw new Error('没有找到可读取的工作表');
+  var aoa=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:true,blankrows:true});
+  return sourceRowsFromArray(aoa,sheet['!ref']?XLSX.utils.decode_range(sheet['!ref']).s.r:0);
+}
+function sourceRowsFromArray(aoa,rangeStart){
+  aoa=Array.from(aoa||[],function(row){return Array.isArray(row)?row:[];});
   if(!aoa.length)return {rows:[],headerRow:0,meta:[]};
   var hr=detectWorksheetHeaderRow(aoa),rawHeaders=aoa[hr]||[],last=rawHeaders.length;
   for(var r=hr+1;r<Math.min(aoa.length,hr+30);r++)last=Math.max(last,(aoa[r]||[]).length);
   var used=new Set(),headers=[];for(var c=0;c<last;c++)headers.push(makeUniqueHeader(rawHeaders[c],c,used));
-  var rows=[];
+  var rows=[],sourceRowNumbers=[];
   for(var rr=hr+1;rr<aoa.length;rr++){
     var src=aoa[rr]||[],has=false,obj={};
     for(var cc=0;cc<headers.length;cc++){var val=src[cc]===undefined?'':src[cc];if(String(val).trim()!=='')has=true;obj[headers[cc]]=val;}
-    if(has)rows.push(obj);
+    if(has){rows.push(obj);sourceRowNumbers.push(rr+rangeStart);}
   }
-  return {rows:rows,headerRow:hr,meta:aoa.slice(0,hr),headers:headers};
+  return {rows:rows,headerRow:hr,meta:aoa.slice(0,hr),headers:headers,sourceRowNumbers:sourceRowNumbers};
+}
+/* Only when the normal XLSX reader rejects an otherwise valid .xlsx, try the
+   already bundled ExcelJS parser. No format conversion or file rewrite occurs. */
+function excelJSCellValue(cell){
+  var v=cell&&cell.value;
+  if(v==null)return '';
+  if(v instanceof Date)return v.toISOString().slice(0,10);
+  if(typeof v==='object'){
+    if(v.richText)return v.richText.map(function(x){return x.text||'';}).join('');
+    if(v.result!==undefined)return v.result==null?'':v.result;
+    if(v.text!==undefined)return v.text;
+    if(v.hyperlink!==undefined)return v.text||v.hyperlink;
+    return '';
+  }
+  return v;
+}
+async function parseExcelWithFallback(data,ext){
+  var primaryError=null;
+  try{
+    if(!window.XLSX)throw new Error('Excel 主解析组件未加载');
+    var workbook=XLSX.read(data,{type:'array'});
+    if(!workbook||!Array.isArray(workbook.SheetNames)||!workbook.Sheets)throw new Error('工作簿结构无效');
+    for(var i=0;i<workbook.SheetNames.length;i++){
+      var sheet=workbook.Sheets[workbook.SheetNames[i]];
+      if(!sheet)continue;
+      var parsed=worksheetToSourceRows(sheet);
+      if(parsed.rows.length)return {parsed:parsed,sheetIndex:i,engine:'XLSX'};
+    }
+    throw new Error('没有包含商品数据的工作表');
+  }catch(e){primaryError=e;}
+  if(ext!=='xlsx'||!window.ExcelJS)throw primaryError;
+  try{
+    var wb=new ExcelJS.Workbook();
+    await wb.xlsx.load(data);
+    for(var i=0;i<wb.worksheets.length;i++){
+      var sheet=wb.worksheets[i],aoa=[];
+      sheet.eachRow({includeEmpty:false},function(row,n){
+        var cells=[];row.eachCell({includeEmpty:false},function(cell,c){cells[c-1]=excelJSCellValue(cell);});
+        aoa[n-1]=cells;
+      });
+      var parsed=sourceRowsFromArray(aoa,0);
+      if(parsed.rows.length)return {parsed:parsed,sheetIndex:i,engine:'ExcelJS'};
+    }
+    throw new Error('没有包含商品数据的工作表');
+  }catch(secondary){
+    console.warn('[FEISU Import] both readers failed',primaryError,secondary);
+    throw new Error('Excel 文件无法解析（两种解析器均失败）。原文件未修改；可尝试在 Excel 中另存为 .xlsx。');
+  }
 }
 function buildImportedRow(rawRow,allColumns){
   var row=rawRow||{},product=extractProduct(row),newRow={};
-  for(var key in row){if(Object.prototype.hasOwnProperty.call(row,key)){newRow[key]=row[key];allColumns.add(key);}}
+  for(var key in row){if(Object.prototype.hasOwnProperty.call(row,key)){newRow[key]=row[key];if(key!=='__feisuImages')allColumns.add(key);}}
   /* FEISU semantic aliases stay internal. Never add/rename supplier 条码/名称 columns. */
   newRow['实际数量']='';newRow['实际价格']=product.price||'';newRow.__feisuStatus='';newRow.__feisuReviewed=false;
   return {row:newRow,valid:product.valid};
 }
 function finalizeColumns(allColumns,rows){
   var cols=Array.from(allColumns).filter(function(c){return c!=='实际数量'&&c!=='差异'&&c!=='盘点状态';});
-  sourceQtyColumn=detectSourceQtyColumn(cols,rows);
-  var insertAt=sourceQtyColumn?cols.indexOf(sourceQtyColumn)+1:0;
+  var importedQtyColumn=detectSourceQtyColumn(cols,rows);
+  var insertAt=importedQtyColumn?cols.indexOf(importedQtyColumn)+1:0;
   cols.splice(insertAt,0,'实际数量','差异','盘点状态');
   var p=cols.indexOf('实际价格');if(p===-1)cols.push(p='实际价格');
   return cols;
 }
-function importExcelInBatches(jsonData){return new Promise(function(resolve){var total=jsonData.length;if(!total){resolve({rows:[],errors:[],columns:[]});return;}var allColumns=new Set(),rows=[],errors=[],processed=0;function batch(){var end=Math.min(processed+BATCH_SIZE,total);for(var i=processed;i<end;i++){try{var r=buildImportedRow(jsonData[i],allColumns);if(r.valid)rows.push(r.row);else errors.push({row:i+1,message:'缺少可识别的条码或名称'});}catch(e){errors.push({row:i+1,message:e.message||'数据异常'});}}processed=end;updateProgress(processed,total,'📊 正在导入数据...',processed+' / '+total);if(processed<total)setTimeout(batch,0);else resolve({rows:rows,errors:errors,columns:finalizeColumns(allColumns,rows)});}showProgress(true);updateProgress(0,total,'📊 正在准备导入...','0 / '+total);setTimeout(batch,0);});}
+function importExcelInBatches(jsonData){return new Promise(function(resolve,reject){var total=jsonData.length;if(!total){resolve({rows:[],errors:[],columns:[]});return;}var allColumns=new Set(),rows=[],errors=[],processed=0;function batch(){var end=Math.min(processed+BATCH_SIZE,total);for(var i=processed;i<end;i++){try{var r=buildImportedRow(jsonData[i],allColumns);if(r.valid)rows.push(r.row);else errors.push({row:i+1,message:'缺少可识别的条码或名称'});}catch(e){errors.push({row:i+1,message:e.message||'数据异常'});}}processed=end;updateProgress(processed,total,'📊 正在导入数据...',processed+' / '+total);if(processed<total)setTimeout(batch,0);else{try{resolve({rows:rows,errors:errors,columns:finalizeColumns(allColumns,rows)});}catch(e){reject(e);}}}showProgress(true);updateProgress(0,total,'📊 正在准备导入...','0 / '+total);setTimeout(batch,0);});}
 function importCSVInBatches(file){return new Promise(function(resolve,reject){var rows=[],errors=[],allColumns=new Set(),totalRows=0;Papa.parse(file,{header:true,comments:'#',skipEmptyLines:true,transformHeader:function(h){return h.trim();},worker:true,chunkSize:1024*1024,chunk:function(results){for(var i=0;i<results.data.length;i++){var row=results.data[i];if(!row||!Object.keys(row).length)continue;totalRows++;try{var r=buildImportedRow(row,allColumns);if(r.valid)rows.push(r.row);else errors.push({row:totalRows,message:'缺少可识别的条码或名称'});}catch(e){errors.push({row:totalRows,message:e.message||'数据异常'});}}updateProgress(rows.length,0,'📄 流式解析 CSV...',rows.length+' 条');},complete:function(){resolve({rows:rows,errors:errors,columns:finalizeColumns(allColumns,rows)});},error:function(err){reject(err);}});});}
-function applyImportResult(result){
-  if(!result.rows.length){showToast('⚠️ 没有有效数据行',true);showProgress(false);isProcessing=false;return;}
-  columns=result.columns;db=result.rows;unknownBarcodes={};currentInventoryFilter='all';currentPage=0;sourceQtyColumn=detectSourceQtyColumn(columns,db);rebuildSearchIndex();renderPage();showErrors(result.errors);showProgress(false);scheduleAutoSave();showToast('✅ 导入成功！原表头已保留 · 共 '+db.length+' 条商品');isProcessing=false;
+async function applyImportResult(result,fileName){
+  try{
+    if(!result.rows.length){showToast('⚠️ 没有有效数据行',true);return;}
+    updateProgress(0,0,'正在保存当前盘点…','解析已完成');
+    if(!await saveBeforeInventorySwitch())return;
+    showProgress(false);
+    if(!await confirmInventorySwitch({nextName:fileName}))return;
+    showProgress(true);updateProgress(0,0,'正在保存新电子单…','请稍候');
+    var next={id:newInventorySessionId(),version:VERSION,db:result.rows,columns:result.columns,currentPage:0,filter:'all',unknownBarcodes:{},currentImportFileName:fileName,sourceQtyColumn:detectSourceQtyColumn(result.columns,result.rows),savedAt:Date.now()};
+    await writeSession(next);
+    inventorySessionId=next.id;currentImportFileName=fileName;undoStack=[];
+    columns=result.columns;db=result.rows;unknownBarcodes={};currentInventoryFilter='all';currentPage=0;sourceQtyColumn=next.sourceQtyColumn;
+    updateProgress(0,0,'正在更新商品列表…',db.length+' 条');
+    await new Promise(function(resolve){setTimeout(resolve,0);});
+    rebuildSearchIndex();renderPage();showErrors(result.errors);
+    showToast('✅ 导入成功！原表头已保留 · 共 '+db.length+' 条商品');
+  }catch(e){console.error('导入完成阶段失败',e);showToast('❌ 导入未完成：'+(e.message||e)+'；请勿清除网站数据',true);}
+  finally{showProgress(false);isProcessing=false;}
 }
-function bindFileImport(){document.getElementById('fileInput').onchange=function(e){if(isProcessing){showToast('⏳ 正在处理中...');return;}var file=e.target.files[0];if(!file)return;e.target.value='';currentImportFileName=file.name.replace(/\.(xlsx|xls|csv)$/i,'');var ext=file.name.split('.').pop().toLowerCase();isProcessing=true;showProgress(true);if(ext==='csv'){updateProgress(0,0,'📄 正在读取 CSV...','流式解析');importCSVInBatches(file).then(applyImportResult).catch(function(err){console.error(err);showToast('❌ CSV导入失败: '+(err.message||err),true);showProgress(false);isProcessing=false;});return;}showToast('正在读取 Excel...');var fr=new FileReader();fr.onload=function(ev){try{var data=new Uint8Array(ev.target.result),workbook=XLSX.read(data,{type:'array'}),sheet=workbook.Sheets[workbook.SheetNames[0]],parsed=worksheetToSourceRows(sheet);if(!parsed.rows.length){showToast('文件无数据',true);showProgress(false);isProcessing=false;return;}console.info('[FEISU Import] detected header row:',parsed.headerRow+1,parsed.headers.map(displayColumnName));importExcelInBatches(parsed.rows).then(applyImportResult);}catch(err){console.error(err);showToast('解析失败: '+(err.message||err),true);showProgress(false);isProcessing=false;}};fr.onerror=function(){showToast('读取Excel文件失败',true);showProgress(false);isProcessing=false;};fr.readAsArrayBuffer(file);};}
+function bindFileImport(){document.getElementById('fileInput').onchange=function(e){if(isProcessing){showToast('⏳ 正在处理中...');return;}var file=e.target.files[0];if(!file)return;e.target.value='';var importedFileName=file.name.replace(/\.(xlsx|xls|csv)$/i,'');var ext=file.name.split('.').pop().toLowerCase();isProcessing=true;showProgress(true);if(ext==='csv'){updateProgress(0,0,'📄 正在读取 CSV...','流式解析');importCSVInBatches(file).then(function(result){return applyImportResult(result,importedFileName);}).catch(function(err){console.error(err);showToast('❌ CSV导入失败: '+(err.message||err),true);showProgress(false);isProcessing=false;});return;}showToast('正在读取 Excel...');var fr=new FileReader();fr.onload=async function(ev){try{var data=new Uint8Array(ev.target.result),result=await parseExcelWithFallback(data,ext),parsed=result.parsed;if(ext==='xlsx'){try{await importEmbeddedImages(data,parsed,result.sheetIndex);}catch(imageError){console.warn('[FEISU Import] images skipped',imageError);showToast('商品数据解析成功，部分内嵌图片无法读取',true);}}if(!parsed.rows.length){showToast('文件无数据',true);showProgress(false);isProcessing=false;return;}console.info('[FEISU Import] detected header row:',parsed.headerRow+1,parsed.headers.map(displayColumnName));importExcelInBatches(parsed.rows).then(function(result){return applyImportResult(result,importedFileName);}).catch(function(err){console.error(err);showToast('❌ Excel导入失败：'+(err.message||err),true);showProgress(false);isProcessing=false;});}catch(err){console.error(err);showToast('解析失败: '+(err.message||err),true);showProgress(false);isProcessing=false;}};fr.onerror=function(){showToast('读取Excel文件失败',true);showProgress(false);isProcessing=false;};fr.readAsArrayBuffer(file);};}
 function exportRows(){return db.map(function(row){var out={};columns.forEach(function(col){if(col==='差异')out[col]=getInventoryDiff(row);else if(col==='盘点状态')out[col]=getInventoryStatus(row)+(row.__feisuReviewed?'（已复盘）':'');else out[col]=row[col]??'';});return out;});}
-function exportExcel(){
+async function exportExcel(){
   if(!db.length){showToast('暂无数据可导出',true);return;}
   var sum=inventorySummary();
   if((sum.unpan||sum.review)&&!confirm('盘点检查：\n未盘点 '+sum.unpan+' 项\n待复盘问题 '+sum.review+' 项\n\n仍然导出吗？'))return;
@@ -86,5 +154,5 @@ function exportExcel(){
   var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'盘点结果');
   var summary=[['飞速盘点 · FEISU'],['原文件',base],['总商品',sum.total],['已盘',sum.completed],['未盘点',sum.unpan],['一致',sum.match],['数量不足',sum.short],['数量超出',sum.over],['实物未找到',sum.notfound],['实际为零',sum.zero],['待复盘',sum.review],['完成率',sum.percent+'%']];
   var sws=XLSX.utils.aoa_to_sheet(summary);if(sws.A1){sws.A1.s={font:{name:'Arial',sz:28,bold:true,outline:true,color:{rgb:'D9DEE7'}},alignment:{horizontal:'center'}};}sws['!rows']=[{hpt:42}];XLSX.utils.book_append_sheet(wb,sws,'FEISU盘点摘要');
-  XLSX.writeFile(wb,name.trim()+'.xlsx');showToast('✅ 导出成功 · 已加入“飞速盘点 · FEISU”淡色空心水印');
+  try{await writeWorkbookWithImages(wb,name.trim()+'.xlsx');}catch(e){console.error(e);showToast('❌ 导出失败：'+e.message,true);return;}showToast('✅ 导出成功 · 已加入“飞速盘点 · FEISU”淡色空心水印');
 }

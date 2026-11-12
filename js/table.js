@@ -10,6 +10,8 @@ function makeInputCell(realIdx,col,row){
   if(col==='盘点状态')return makeStatusCell(realIdx,row);
   var td=document.createElement('td');td.dataset.col=col;td.dataset.rowIndex=realIdx;
   if(col==='差异'){var d=document.createElement('div');d.className='diff-cell';var v=getInventoryDiff(row);d.textContent=v===''?'—':(v>0?'+'+v:String(v));td.appendChild(d);return td;}
+  var pictures=typeof getRowPictures==='function'?getRowPictures(row,col):[];
+  if(pictures.length){pictures.forEach(function(pic){var img=document.createElement('img');img.src=pic.data;img.className='product-picture';img.alt='商品图片';img.loading='lazy';img.onclick=function(){openPicturePreview(pic.data);};td.appendChild(img);});if(row[col]&&!safePictureSource(row[col])){var caption=document.createElement('div');caption.textContent=String(row[col]);td.appendChild(caption);}return td;}
   var input=document.createElement('input');
   if(col==='实际数量'){input.id='qty-'+realIdx;input.type='number';input.value=row[col]??'';input.className='qty-input';input.placeholder='未盘';input.inputMode='numeric';input.addEventListener('change',function(){updateQty(realIdx,this.value);});}
   else if(col==='实际价格'){input.id='price-'+realIdx;input.type='number';input.step='0.01';input.value=row[col]??'';input.className='price-input';input.placeholder='0.00';input.inputMode='decimal';input.addEventListener('change',function(){updatePrice(realIdx,this.value);});}

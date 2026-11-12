@@ -1,0 +1,23 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const ExcelJS=require('../vendor/exceljs-4.4.0.min.js');
+const c=vm.createContext({console,window:{ExcelJS},ExcelJS,Uint8Array,Uint32Array,ArrayBuffer,Date,setTimeout,clearTimeout,localStorage:{getItem(){return '';}},navigator:{mediaDevices:{getSupportedConstraints(){return {pointsOfInterest:true};}}}});
+for(const f of ['import-export','scanner'])vm.runInContext(fs.readFileSync(__dirname+'/../js/'+f+'.js','utf8'),c);
+(async()=>{
+ const wb=new ExcelJS.Workbook(),sheet=wb.addWorksheet('商品');
+ sheet.getCell('A4').value='条码';sheet.getCell('B4').value='商品名称';sheet.getCell('A6').value='0012345678905';sheet.getCell('B6').value={richText:[{text:'测试'},{text:'商品'}]};
+ const data=await wb.xlsx.writeBuffer(),result=await c.parseExcelWithFallback(data,'xlsx');
+ assert.equal(result.engine,'ExcelJS');assert.equal(result.parsed.rows[0]['条码'],'0012345678905');assert.equal(result.parsed.rows[0]['商品名称'],'测试商品');assert.equal(result.parsed.sourceRowNumbers[0],5);
+ console.log('PASS real XLSX fallback: leading blank rows, internal blank rows, rich text, leading zero barcode, image row mapping');
+ c.scanning=true;c.scannerRecoveryEpoch=1;
+ let settings={},applied;
+ c.cameraTrack={getSettings(){return settings;},getCapabilities(){return {focusMode:['continuous']};},async applyConstraints(v){applied=v;settings={pointsOfInterest:v.advanced[0].pointsOfInterest};}};
+ const rect={left:0,top:0,width:400,height:300};const video={videoWidth:1920,videoHeight:1080,getBoundingClientRect(){return rect;}};
+ c.document={getElementById(id){return id==='video'?video:{getBoundingClientRect(){return {left:100,top:100,width:200,height:100};}};}};
+ assert.equal(await c.requestBarcodeFocus(),true);assert.equal(applied.advanced[0].pointsOfInterest[0].x,.5);
+ console.log('PASS focus request works when initial settings omit pointsOfInterest');
+ c.cameraTrack.applyConstraints=async()=>{};settings={};assert.equal(await c.requestBarcodeFocus(),false);
+ console.log('PASS silently ignored focus requests do not claim success');
+ const r=c.getFrameROI(video,c.document.getElementById('scanFrame'));assert.ok(r.x>=0&&r.y>=0&&r.x+r.w<=1920&&r.y+r.h<=1080);
+ console.log('PASS object-cover ROI stays within source frame');
+})().catch(e=>{console.error(e);process.exitCode=1;});
