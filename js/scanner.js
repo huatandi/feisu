@@ -3,6 +3,41 @@ var enhancedDetector=null,enhancedDetectorPromise=null,enhancedDecodeBusy=false,
 var cameraDevices=[],selectedCameraId=localStorage.getItem('sanfei_camera_id')||'',cameraSwitching=false,cameraRestartTimer=null;
 var scanStartedAt=0,qualityUpgradeTimer=null,detectorWarmTimer=null,highQualityApplied=false;
 var focusKickTimers=[];
+var scannerPowerSave=false;
+try{scannerPowerSave=localStorage.getItem('sanfei_scanner_power')==='1';}catch(e){}
+var scannerRecoveryJob=null,scannerRecoveryLastAt=0,scannerRecoveryPhase=0,scannerRecoveryFrameTime=null,scannerEnhancedPhase=0;
+var scannerProfilePending=Promise.resolve();
+function scannerPowerProfile(){
+  if(enhanceMode)return {mode:'enhanced',saving:false,width:1920,height:1080,fps:24,maxFps:30,retry:80,recoveryGap:500,recoveryAge:600};
+  if(scannerPowerSave)return {mode:'saving',saving:true,width:1280,height:720,fps:15,maxFps:20,retry:180,recoveryGap:1000,recoveryAge:1200};
+  return {mode:'balanced',saving:false,width:1920,height:1080,fps:18,maxFps:24,retry:110,recoveryGap:650,recoveryAge:850};
+}
+function updateScanPowerUI(){
+  var profile=scannerPowerProfile(),button=document.getElementById('scanPowerBtn'),ui=document.getElementById('scanUI');
+  if(button){button.textContent=enhanceMode?'✨ 增强中':scannerPowerSave?'🔋 省电':'⚖️ 均衡';button.title=enhanceMode?'点击返回均衡模式':scannerPowerSave?'点击切换均衡模式':'点击切换省电模式';button.classList.toggle('active',profile.saving);button.setAttribute('aria-pressed',String(profile.saving));}
+  if(ui&&ui.classList)ui.classList.toggle('scanner-saving',profile.saving);
+  if(reader)reader.timeBetweenDecodingAttempts=profile.retry;
+}
+function applyScannerPowerProfile(){
+  updateScanPowerUI();var track=cameraTrack,token=scannerRecoveryEpoch;
+  if(!scanning||!track)return Promise.resolve(false);
+  scannerProfilePending=scannerProfilePending.catch(function(){}).then(async function(){
+    if(!scanning||track!==cameraTrack||token!==scannerRecoveryEpoch)return false;
+    var p=scannerPowerProfile();
+    try{await track.applyConstraints({width:{ideal:p.width},height:{ideal:p.height},frameRate:{ideal:p.fps,max:p.maxFps}});return true;}
+    catch(e){console.info('[Camera] power profile unsupported',e&&e.name);return false;}
+  });
+  return scannerProfilePending;
+}
+function toggleScannerPower(){
+  if(enhanceMode){scannerPowerSave=false;toggleEnhanceMode();}else{scannerPowerSave=!scannerPowerSave;applyScannerPowerProfile();}
+  try{localStorage.setItem('sanfei_scanner_power',scannerPowerSave?'1':'0');}catch(e){}
+  showToast(scannerPowerSave?'省电模式已开启：保留自动对焦；小条码可开启增强':'已恢复均衡模式：保留高清画面与自动对焦');
+}
+function stopScannerForBackground(){
+  if(scanning||cameraSwitching||cameraRestartTimer){stopScanning(true);return true;}
+  return false;
+}
 function stopScanningAndJump(i){pendingJump=i;stopScanning(true);var p=Math.floor(i/pageSize);if(p!==currentPage){currentPage=p;renderPage();}setTimeout(function(){jumpToRowAndFocusQty(i);pendingJump=null;},150);}
 function cap(t,n){try{var c=t&&t.getCapabilities?t.getCapabilities():null;return c&&c[n];}catch(e){return null;}}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
@@ -13,8 +48,18 @@ async function changeCameraZoom(d){var c=cap(cameraTrack,'zoom');if(!c){showToas
 async function requestFocusReset(event){if(!cameraTrack)return;if(await requestBarcodeFocus(event)){showToast("🎯 已请求条码区域对焦，请保持约半秒");return;}if(!scanning||!cameraTrack)return;var m=cap(cameraTrack,'focusMode');if(m&&Array.from(m).includes('continuous')){await safeApply(cameraTrack,[{focusMode:'continuous'}]);showToast('🎯 正在连续对焦，请保持约半秒');}else showToast('此设备由系统自动对焦');}
 function kickContinuousFocus(){if(!cameraTrack)return;var a=[],fm=cap(cameraTrack,'focusMode'),em=cap(cameraTrack,'exposureMode');if(fm&&Array.from(fm).includes('continuous'))a.push({focusMode:'continuous'});if(em&&Array.from(em).includes('continuous'))a.push({exposureMode:'continuous'});if(a.length)safeApply(cameraTrack,a);}
 function scheduleFocusKick(){focusKickTimers.forEach(clearTimeout);focusKickTimers=[80].map(function(ms){return setTimeout(function(){if(scanning)kickContinuousFocus();},ms);});}
-function setupCameraControls(t){cameraTrack=t||null;var b=document.getElementById('torchBtn'),tc=cap(t,'torch');if(b){b.hidden=!tc;b.classList.remove('active');b.textContent='🔦 补光';b.onclick=async function(e){e.stopPropagation();var on=!b.classList.contains('active');if(await safeApply(cameraTrack,[{torch:on}])){b.classList.toggle('active',on);b.textContent=on?'🔦 关补光':'🔦 补光';}};}var m=document.getElementById('zoomOutBtn'),p=document.getElementById('zoomInBtn'),cycle=document.getElementById('cameraCycleBtn');if(m)m.onclick=function(e){e.stopPropagation();changeCameraZoom(-1);};if(p)p.onclick=function(e){e.stopPropagation();changeCameraZoom(1);};if(cycle)cycle.onclick=function(e){e.stopPropagation();cycleCamera();};updateZoomUI(cap(t,'zoom'));refreshCameraDevices();detectorWarmTimer=setTimeout(function(){if(scanning)getEnhancedDetector();},900);if(isIPad)qualityUpgradeTimer=setTimeout(function(){if(scanning&&cameraTrack){highQualityApplied=true;safeApply(cameraTrack,[{width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:24,max:30}}]);}},2200);var box=document.querySelector('#scanUI .relative');if(box&&!box.dataset.focusBound){box.dataset.focusBound='1';box.addEventListener('click',function(e){if(!e.target.closest('button'))requestFocusReset(e);});}}
-function cameraConstraints(){var video={width:{ideal:isIPad?1280:1920,min:640},height:{ideal:isIPad?720:1080,min:480},frameRate:{ideal:24,min:15,max:30},aspectRatio:{ideal:16/9},advanced:[{focusMode:'continuous'},{exposureMode:'continuous'},{whiteBalanceMode:'continuous'}]};if(selectedCameraId)video.deviceId={ideal:selectedCameraId};else video.facingMode={ideal:'environment'};return {video:video,audio:false};}
+function setupCameraControls(t){cameraTrack=t||null;var b=document.getElementById('torchBtn'),tc=cap(t,'torch');if(b){b.hidden=!tc;b.classList.remove('active');b.textContent='🔦 补光';b.onclick=async function(e){e.stopPropagation();var on=!b.classList.contains('active');if(await safeApply(cameraTrack,[{torch:on}])){b.classList.toggle('active',on);b.textContent=on?'🔦 关补光':'🔦 补光';}};}var m=document.getElementById('zoomOutBtn'),p=document.getElementById('zoomInBtn'),cycle=document.getElementById('cameraCycleBtn');if(m)m.onclick=function(e){e.stopPropagation();changeCameraZoom(-1);};if(p)p.onclick=function(e){e.stopPropagation();changeCameraZoom(1);};if(cycle)cycle.onclick=function(e){e.stopPropagation();cycleCamera();};updateZoomUI(cap(t,'zoom'));refreshCameraDevices();detectorWarmTimer=setTimeout(function(){if(scanning&&enhanceMode)getEnhancedDetector();},1200);updateScanPowerUI();var box=document.querySelector('#scanUI .relative');if(box&&!box.dataset.focusBound){box.dataset.focusBound='1';box.addEventListener('click',function(e){if(!e.target.closest('button'))requestFocusReset(e);});}}
+function cameraConstraints(){var p=scannerPowerProfile(),video={width:{ideal:p.width,min:640},height:{ideal:p.height,min:480},frameRate:{ideal:p.fps,max:p.maxFps},aspectRatio:{ideal:16/9},advanced:[{focusMode:'continuous'},{exposureMode:'continuous'},{whiteBalanceMode:'continuous'}]};if(selectedCameraId)video.deviceId={ideal:selectedCameraId};else video.facingMode={ideal:'environment'};return {video:video,audio:false};}
+async function getScannerCameraStream(){
+  var constraints=cameraConstraints();
+  try{return await navigator.mediaDevices.getUserMedia(constraints);}
+  catch(e){
+    if(scannerPowerProfile().mode==='enhanced'||!e||e.name!=='OverconstrainedError')throw e;
+    // Some cameras expose only fixed frame rates: preserve scanning rather than fail to open.
+    delete constraints.video.frameRate.max;delete constraints.video.width.min;delete constraints.video.height.min;
+    return await navigator.mediaDevices.getUserMedia(constraints);
+  }
+}
 async function refreshCameraDevices(){try{var all=await navigator.mediaDevices.enumerateDevices();cameraDevices=all.filter(function(d){return d.kind==='videoinput';});var b=document.getElementById('cameraCycleBtn');if(b){var active=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings().deviceId:selectedCameraId;var i=cameraDevices.findIndex(function(d){return d.deviceId===active;});b.hidden=cameraDevices.length<2;b.textContent='📷 镜头 '+(Math.max(0,i)+1)+'/'+cameraDevices.length;}}catch(e){cameraDevices=[];}}
 async function cycleCamera(){
   if(!scanning||cameraSwitching)return;
@@ -39,25 +84,36 @@ function releaseCameraSession(sessionReader,stream,video){
   if(video&&video.srcObject!==stream)sessionReader.videoElement=null;
   try{sessionReader.reset();}catch(e){}
 }
-async function startScanning(){var sessionToken=scannerRecoveryEpoch,sessionReader=null,sessionStream=null;if(scanning){showToast('扫描器已在运行');return;}var f=document.getElementById('scanFrame'),v=document.getElementById('video');if(f)f.style.top=isIPad?'18%':'28%';document.getElementById('scanUI').style.display='flex';scanning=true;consecutiveFailures=0;if(reader){try{await reader.reset();}catch(e){}reader=null;}var badge=document.getElementById('enhanceBadge');if(badge)badge.classList.toggle('hidden',!enhanceMode);try{var h=new Map();h.set(ZXing.DecodeHintType.TRY_HARDER,true);h.set(ZXing.DecodeHintType.ALSO_INVERTED,true);h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_93,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.ITF,ZXing.BarcodeFormat.CODABAR]);sessionReader=new ZXing.BrowserMultiFormatReader(h);reader=sessionReader;reader.timeBetweenDecodingAttempts=60;sessionStream=await navigator.mediaDevices.getUserMedia(cameraConstraints());if(!scanning||sessionToken!==scannerRecoveryEpoch){releaseCameraSession(sessionReader,sessionStream,v);return;}await sessionReader.decodeFromStream(sessionStream,'video',async function(r){if(!scanning||sessionToken!==scannerRecoveryEpoch)return;if(r&&r.getText){acceptDecodedBarcode(r.getText(),r.getBarcodeFormat?String(r.getBarcodeFormat()):'ZXing-JS');return;}launchSupplementalRecovery(v,f);consecutiveFailures++;if((enhanceMode||consecutiveFailures>=8)&&Date.now()-lastEnhancedAttempt>220){lastEnhancedAttempt=Date.now();var x=await tryEnhancedDecode(v,f);if(x&&scanning&&sessionToken===scannerRecoveryEpoch)acceptDecodedBarcode(x,'WASM/Native ROI');}});if(!scanning||sessionToken!==scannerRecoveryEpoch){releaseCameraSession(sessionReader,sessionStream,v);return;}var t=v&&v.srcObject&&v.srcObject.getVideoTracks()[0];if(t){setupCameraControls(t);await applyCameraTuning(t);if(!scanning||sessionToken!==scannerRecoveryEpoch){releaseCameraSession(sessionReader,sessionStream,v);return;}console.info('[Camera] settings',t.getSettings?t.getSettings():{});}showToast('极速扫码已启动'+(enhanceMode?' · WASM增强':' · 自动对焦'));}catch(e){releaseCameraSession(sessionReader,sessionStream,v);if(sessionToken!==scannerRecoveryEpoch)return;console.error('相机错误:',e);var msg=e&&e.name==='NotAllowedError'?'摄像头权限被拒绝':e&&e.name==='NotFoundError'?'未找到后置摄像头':'无法启动摄像头';showToast(msg+'，请检查权限与 HTTPS',true);stopScanning(true);}}
-function acceptDecodedBarcode(v,f){if(!scanning)return;scannerRecoveryLastSuccess=Date.now();scannerRecoveryFocusRequested=false;var s=String(v||'').trim();if(!s)return;console.info('[Scanner] decoded:',{code:s,format:f,length:s.length});handleBarcode(s,true);consecutiveFailures=0;}
+async function startScanning(){var sessionToken=scannerRecoveryEpoch,sessionReader=null,sessionStream=null;if(scanning){showToast('扫描器已在运行');return;}var f=document.getElementById('scanFrame'),v=document.getElementById('video');if(f)f.style.top=isIPad?'18%':'28%';document.getElementById('scanUI').style.display='flex';scanning=true;consecutiveFailures=0;if(reader){try{await reader.reset();}catch(e){}reader=null;}var badge=document.getElementById('enhanceBadge');if(badge)badge.classList.toggle('hidden',!enhanceMode);try{var h=new Map();h.set(ZXing.DecodeHintType.TRY_HARDER,true);h.set(ZXing.DecodeHintType.ALSO_INVERTED,true);h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_93,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.ITF,ZXing.BarcodeFormat.CODABAR]);sessionReader=new ZXing.BrowserMultiFormatReader(h);reader=sessionReader;reader.timeBetweenDecodingAttempts=scannerPowerProfile().retry;updateScanPowerUI();sessionStream=await getScannerCameraStream();if(!scanning||sessionToken!==scannerRecoveryEpoch){releaseCameraSession(sessionReader,sessionStream,v);return;}await sessionReader.decodeFromStream(sessionStream,'video',async function(r){if(!scanning||sessionToken!==scannerRecoveryEpoch)return;if(r&&r.getText){acceptDecodedBarcode(r.getText(),r.getBarcodeFormat?String(r.getBarcodeFormat()):'ZXing-JS');return;}consecutiveFailures++;launchSupplementalRecovery(v,f).catch(function(e){console.info('[Scanner] recovery skipped',e&&e.name);});});if(!scanning||sessionToken!==scannerRecoveryEpoch){releaseCameraSession(sessionReader,sessionStream,v);return;}var t=v&&v.srcObject&&v.srcObject.getVideoTracks()[0];if(t){setupCameraControls(t);await applyScannerPowerProfile();await applyCameraTuning(t);if(!scanning||sessionToken!==scannerRecoveryEpoch){releaseCameraSession(sessionReader,sessionStream,v);return;}console.info('[Camera] settings',t.getSettings?t.getSettings():{});}showToast('极速扫码已启动'+(enhanceMode?' · WASM增强':' · 自动对焦'));}catch(e){releaseCameraSession(sessionReader,sessionStream,v);if(sessionToken!==scannerRecoveryEpoch)return;console.error('相机错误:',e);var msg=e&&e.name==='NotAllowedError'?'摄像头权限被拒绝':e&&e.name==='NotFoundError'?'未找到后置摄像头':'无法启动摄像头';showToast(msg+'，请检查权限与 HTTPS',true);stopScanning(true);}}
+function acceptDecodedBarcode(v,f){if(!scanning)return;scannerRecoveryLastSuccess=Date.now();scannerRecoveryFocusRequested=false;scannerRecoveryPhase=0;var s=String(v||'').trim();if(!s)return;console.info('[Scanner] decoded:',{code:s,format:f,length:s.length});handleBarcode(s,true);consecutiveFailures=0;}
 function stopScanning(){resetScannerRecovery();scanning=false;if(cameraRestartTimer){clearTimeout(cameraRestartTimer);cameraRestartTimer=null;}cameraSwitching=false;focusKickTimers.forEach(clearTimeout);focusKickTimers=[];if(focusResetTimer){clearTimeout(focusResetTimer);focusResetTimer=null;}if(qualityUpgradeTimer){clearTimeout(qualityUpgradeTimer);qualityUpgradeTimer=null;}if(detectorWarmTimer){clearTimeout(detectorWarmTimer);detectorWarmTimer=null;}if(reader){try{reader.reset();}catch(e){}reader=null;}var v=document.getElementById('video');if(v&&v.srcObject){v.srcObject.getTracks().forEach(function(t){t.stop();});v.srcObject=null;}document.getElementById('scanUI').style.display='none';cameraTrack=null;consecutiveFailures=0;enhancedDecodeBusy=false;highQualityApplied=false;}
-function toggleEnhanceMode(){enhanceMode=!enhanceMode;var b=document.getElementById('scanEnhanceBtn'),g=document.getElementById('enhanceBadge');if(b){b.classList.toggle('active',enhanceMode);b.textContent=enhanceMode?'✨ 增强开':'✨ 增强';}if(g)g.classList.toggle('hidden',!enhanceMode);showToast(enhanceMode?'增强模式已开启：ROI + WASM 后备':'增强模式已关闭');}
+function toggleEnhanceMode(){enhanceMode=!enhanceMode;var b=document.getElementById('scanEnhanceBtn'),g=document.getElementById('enhanceBadge');if(b){b.classList.toggle('active',enhanceMode);b.textContent=enhanceMode?'✨ 增强开':'✨ 增强';}if(g)g.classList.toggle('hidden',!enhanceMode);applyScannerPowerProfile();showToast(enhanceMode?'增强模式已开启：ROI + WASM 后备':'增强模式已关闭');}
 function getFrameROI(v,f){if(!v||!f||!v.videoWidth||!v.videoHeight)return null;var vw=v.videoWidth,vh=v.videoHeight,vr=v.getBoundingClientRect(),fr=f.getBoundingClientRect();if(!vr.width||!vr.height||!fr.width||!fr.height)return null;var va=vw/vh,ba=vr.width/vr.height,rw,rh,ox=0,oy=0;if(va>ba){rh=vr.height;rw=rh*va;ox=(rw-vr.width)/2;}else{rw=vr.width;rh=rw/va;oy=(rh-vr.height)/2;}var sx=vw/rw,sy=vh/rh,x=clamp(Math.floor((fr.left-vr.left+ox)*sx),0,vw-1),y=clamp(Math.floor((fr.top-vr.top+oy)*sy),0,vh-1),w=Math.min(vw-x,Math.floor(fr.width*sx)),h=Math.min(vh-y,Math.floor(fr.height*sy));return w>20&&h>20?{x:x,y:y,w:w,h:h}:null;}
 function captureROI(v,r,binary){var z=Math.min(1.6,1600/Math.max(r.w,1)),c=document.createElement('canvas');c.width=Math.round(r.w*z);c.height=Math.round(r.h*z);var x=c.getContext('2d',{willReadFrequently:!!binary});x.imageSmoothingEnabled=false;x.drawImage(v,r.x,r.y,r.w,r.h,0,0,c.width,c.height);if(binary==='local'){enhanceLocalBarcodeContrast(c);return c;}if(binary){var im=x.getImageData(0,0,c.width,c.height),d=im.data,lo=255,hi=0;for(var i=0;i<d.length;i+=4){var g=.299*d[i]+.587*d[i+1]+.114*d[i+2];d[i]=d[i+1]=d[i+2]=g;lo=Math.min(lo,g);hi=Math.max(hi,g);}var q=lo+(hi-lo)*.52;for(var j=0;j<d.length;j+=4){var a=d[j]>q?255:0;d[j]=d[j+1]=d[j+2]=a;}x.putImageData(im,0,0);}return c;}
 async function getEnhancedDetector(){if(enhancedDetector)return enhancedDetector;if(enhancedDetectorPromise)return enhancedDetectorPromise;enhancedDetectorPromise=(async function(){var f=['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar'];try{if('BarcodeDetector'in globalThis){var s=BarcodeDetector.getSupportedFormats?await BarcodeDetector.getSupportedFormats():f,u=f.filter(function(x){return s.includes(x);});if(u.length)return new BarcodeDetector({formats:u});}}catch(e){}try{var m=await import('https://esm.sh/barcode-detector@3.2.2/ponyfill');return new m.BarcodeDetector({formats:f});}catch(e){console.info('[Scanner] WASM unavailable; ZXing-JS remains active');return null;}})();enhancedDetector=await enhancedDetectorPromise;return enhancedDetector;}
-async function tryEnhancedDecode(v,f){if(!scanning||enhancedDecodeBusy||!v||v.readyState<2)return null;enhancedDecodeBusy=true;var token=scannerRecoveryEpoch;try{var r=getFrameROI(v,f);if(r)requestStallFocus();var d=await getEnhancedDetector();if(!r)return null;if(!d)return tryLocalTiltRecovery(v,r,token);var modes=(Date.now()-Math.max(scanStartedAt,scannerRecoveryLastSuccess)>1200)?[false,'local']:[false];for(var b of modes){var codes=await d.detect(captureROI(v,r,b));if(codes&&codes.length&&codes[0].rawValue)return token===scannerRecoveryEpoch&&scanning?String(codes[0].rawValue):null;}return await tryTiltRecovery(v,r,d,token);}catch(e){}finally{if(token===scannerRecoveryEpoch)enhancedDecodeBusy=false;}return null;}
+async function tryEnhancedDecode(v,f){
+  if(!scanning||enhancedDecodeBusy||!v||v.readyState<2)return null;
+  enhancedDecodeBusy=true;var token=scannerRecoveryEpoch;
+  try{
+    var r=getFrameROI(v,f);if(!r)return null;requestStallFocus();
+    // Never await a network module here: unavailable WASM must not hold the scheduler.
+    if(!enhancedDetector){getEnhancedDetector().catch(function(){});return tryLocalTiltRecovery(v,r,token);}
+    var phase=scannerEnhancedPhase++%3;
+    if(phase===2)return await tryTiltRecovery(v,r,enhancedDetector,token);
+    var codes=await enhancedDetector.detect(captureROI(v,r,phase===1?'local':false));
+    return scanning&&token===scannerRecoveryEpoch&&codes&&codes.length&&codes[0].rawValue?String(codes[0].rawValue):null;
+  }catch(e){return null;}finally{if(token===scannerRecoveryEpoch)enhancedDecodeBusy=false;}
+}
 
 /* Adaptive scheduler: fast first response, expensive recovery only after a stall. */
-var startScanningEnergyBase=startScanning,lastEnergyEnhancedAt=0,tryEnhancedDecodeEnergyBase=tryEnhancedDecode;
-startScanning=function(){if(scanning){showToast('扫描器已在运行');return Promise.resolve();}resetScannerRecovery();scanStartedAt=Date.now();highQualityApplied=false;var result=startScanningEnergyBase();setTimeout(function(){if(reader)reader.timeBetweenDecodingAttempts=70;},50);return result;};
-tryEnhancedDecode=async function(v,f){var now=Date.now(),age=now-scanStartedAt,minAge=enhanceMode?350:600,minGap=enhanceMode?240:360;if(age<minAge||now-lastEnergyEnhancedAt<minGap)return null;lastEnergyEnhancedAt=now;return tryEnhancedDecodeEnergyBase(v,f);};
+var startScanningEnergyBase=startScanning;
+startScanning=function(){if(scanning){showToast('扫描器已在运行');return Promise.resolve();}resetScannerRecovery();scanStartedAt=Date.now();highQualityApplied=false;return startScanningEnergyBase();};
 
 /* v5.0.0: bounded recovery, after unchanged native/WASM ROI attempts fail. */
 var scannerRecoveryEpoch=0,scannerRecoveryAngle=0,scannerRecoveryLastTiltAt=0;
 var scannerRecoveryFocusRequested=false,scannerRecoveryFocusBusy=false;
 var scannerRecoveryLastSuccess=0;
-function resetScannerRecovery(){if(typeof resetQuaggaRecovery==='function')resetQuaggaRecovery();if(typeof fragmentLastFrameTime!=='undefined')fragmentLastFrameTime=null;if(typeof fragmentEvidence!=='undefined')fragmentEvidence=null;if(typeof closeFragmentPanel==='function')closeFragmentPanel();scannerRecoveryEpoch++;localTiltLastAt=0;localTiltAngle=0;scannerRecoveryAngle=0;scannerRecoveryLastTiltAt=0;scannerRecoveryFocusRequested=false;scannerRecoveryFocusBusy=false;scannerRecoveryLastSuccess=Date.now();}
+function resetScannerRecovery(){if(typeof resetQuaggaRecovery==='function')resetQuaggaRecovery();if(typeof fragmentLastFrameTime!=='undefined')fragmentLastFrameTime=null;if(typeof fragmentEvidence!=='undefined')fragmentEvidence=null;if(typeof closeFragmentPanel==='function')closeFragmentPanel();scannerRecoveryEpoch++;scannerRecoveryLastAt=0;scannerRecoveryPhase=0;scannerRecoveryFrameTime=null;scannerEnhancedPhase=0;localTiltLastAt=0;localTiltAngle=0;scannerRecoveryAngle=0;scannerRecoveryLastTiltAt=0;scannerRecoveryFocusRequested=false;scannerRecoveryFocusBusy=false;scannerRecoveryLastSuccess=Date.now();}
 function barcodeFocusPoint(v,f,event){
   if(!v||!v.videoWidth||!v.videoHeight)return null;
   var vr=v.getBoundingClientRect();if(!vr.width||!vr.height)return null;
@@ -87,14 +143,23 @@ async function requestBarcodeFocus(event){
     return !!(ok&&points&&points.length&&Math.abs(points[0].x-point.x)<.05&&Math.abs(points[0].y-point.y)<.05);
   }catch(e){return false;}finally{if(token===scannerRecoveryEpoch)scannerRecoveryFocusBusy=false;}
 }
-function launchSupplementalRecovery(v,f){
-  if(!scanning||Date.now()-Math.max(scanStartedAt,scannerRecoveryLastSuccess)<600)return;
-  var token=scannerRecoveryEpoch,r=getFrameROI(v,f);if(!r)return;
+async function launchSupplementalRecovery(v,f){
+  var now=Date.now(),p=scannerPowerProfile();
+  if(!scanning||scannerRecoveryJob||!v||v.readyState<2||(typeof document.hidden==='boolean'&&document.hidden))return;
+  if(now-Math.max(scanStartedAt,scannerRecoveryLastSuccess)<p.recoveryAge||now-scannerRecoveryLastAt<p.recoveryGap)return;
+  if(Number.isFinite(v.currentTime)&&v.currentTime===scannerRecoveryFrameTime)return;
+  var r=getFrameROI(v,f);if(!r)return;
+  var token=scannerRecoveryEpoch,sequence=p.saving?['decode','quagga','quagga','fragment','fragment','fragment']:['decode','quagga','decode','quagga','fragment','decode','fragment','decode','fragment'];
+  var kind=sequence[scannerRecoveryPhase++%sequence.length],job={epoch:token,kind:kind};
+  scannerRecoveryJob=job;scannerRecoveryLastAt=now;scannerRecoveryFrameTime=v.currentTime;
   requestStallFocus();
-  if(!enhancedDetector&&Date.now()-Math.max(scanStartedAt,scannerRecoveryLastSuccess)>1200){var localCode=tryLocalTiltRecovery(v,r,token);if(localCode){acceptDecodedBarcode(localCode,'ZXing rotated ROI');return;}}
-  // Independent of the WASM loader: a delayed network import cannot block these fallbacks.
-  if(typeof tryQuaggaRecovery==='function')tryQuaggaRecovery(v,r,token).then(function(code){if(code&&scanning&&token===scannerRecoveryEpoch)acceptDecodedBarcode(code,'Quagga2 sheet-verified');}).catch(function(){});
-  if(typeof trySheetFragmentAssist==='function')trySheetFragmentAssist(v,r,token).catch(function(){});
+  try{
+    var code=null;
+    if(kind==='decode')code=await tryEnhancedDecode(v,f);
+    else if(kind==='quagga'&&typeof tryQuaggaRecovery==='function')code=await tryQuaggaRecovery(v,r,token);
+    else if(kind==='fragment'&&typeof trySheetFragmentAssist==='function')await trySheetFragmentAssist(v,r,token);
+    if(code&&scanning&&token===scannerRecoveryEpoch)acceptDecodedBarcode(code,'recovery '+kind);
+  }finally{if(scannerRecoveryJob===job)scannerRecoveryJob=null;}
 }
 function requestStallFocus(){if(scanning&&!scannerRecoveryFocusRequested&&Date.now()-Math.max(scanStartedAt,scannerRecoveryLastSuccess)>=1200){scannerRecoveryFocusRequested=true;requestBarcodeFocus().catch(function(){});}}
 function expandedBarcodeROI(v,r){
@@ -132,7 +197,7 @@ window.ScannerAdapter={
   setTorch:async function(on){return safeApply(cameraTrack,[{torch:!!on}]);},
   setZoom:async function(value){var c=cap(cameraTrack,'zoom');if(!c)return false;var next=clamp(Number(value)||1,c.min,c.max),ok=await safeApply(cameraTrack,[{zoom:next}]);if(ok){currentZoom=next;updateZoomUI(c);}return ok;},
   cycleCamera:cycleCamera,
-  getStatus:function(){return {running:scanning,engine:enhancedDetector?'native-or-wasm+zxing-js':'zxing-js',cameraCount:cameraDevices.length};}
+  getStatus:function(){return {running:scanning,engine:enhancedDetector?'native-or-wasm+zxing-js':'zxing-js',cameraCount:cameraDevices.length,powerSaving:scannerPowerProfile().saving};}
 };
 
 /* Tile-local contrast keeps faint bars under uneven packaging glare. No guessed digits. */

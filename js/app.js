@@ -33,8 +33,9 @@ function bindAppEvents(){
   scrollArea.addEventListener('touchmove',function(e){var y=e.touches[0].clientY;if(lastTouchY!==null&&y>lastTouchY)restoreBottomBar();lastTouchY=y;},{passive:true});
   document.getElementById('manualInput').addEventListener('focus',restoreBottomBar);
   window.addEventListener('resize',function(){setTimeout(function(){autoAdjustColumns();positionScanErrorToast();},100);});
-  window.addEventListener('beforeunload',function(){if(scanning)stopScanning(true);});
-  document.addEventListener('visibilitychange',function(){if(document.hidden&&scanning){stopScanning(true);showToast('摄像头已在后台自动关闭，节省电量');}});
+  window.addEventListener('beforeunload',stopScannerForBackground);
+  window.addEventListener('pagehide',stopScannerForBackground);
+  document.addEventListener('visibilitychange',function(){if(document.hidden&&stopScannerForBackground()){showToast('摄像头已在后台自动关闭，节省电量');}});
   document.addEventListener('touchstart',function(e){if(currentInputElement&&!e.target.closest('.qty-input')&&!e.target.closest('.price-input')&&!e.target.closest('#manualInput'))hideKeyboard();});
   document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!e.shiftKey){e.preventDefault();undoLastChange();}});
 }

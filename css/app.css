@@ -84,8 +84,8 @@
         #colModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(8px); }
         .modal-content { background: white; border-radius: 24px; max-width: 90%; width: 350px; max-height: 70vh; overflow: auto; }
         .scan-frame { position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%); width: 80%; height: 220px; border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.75); z-index: 10; pointer-events: none; background: rgba(0,0,0,0.1); }
-        .scan-line { position: absolute; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent); top: 0; animation: scanLineMove 1.2s infinite ease-in-out; box-shadow: 0 0 20px #3b82f6; }
-        @keyframes scanLineMove { 0%, 100% { top: 5%; } 50% { top: 95%; } }
+        .scan-line { position: absolute; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent); top: 5%; animation: scanLineMove 1.2s infinite ease-in-out; box-shadow: 0 0 20px #3b82f6; }
+        @keyframes scanLineMove { 0%, 100% { transform:translate3d(0,0,0); } 50% { transform:translate3d(0,190px,0); } }
         .col-item { background: white; margin-bottom: 8px; border-radius: 12px; border: 1px solid #e2e8f0; transition: all 0.2s; cursor: move; touch-action: none; }
         .col-item.dragging { opacity: 0.4; transform: scale(0.98); background: #dbeafe; }
         .version-badge { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 16px; font-size: 10px; font-weight: bold; }
@@ -292,3 +292,8 @@
 .inventory-switch-panel .inventory-switch-status{font-size:13px;color:#475569;margin:8px 0 0;overflow-wrap:anywhere}
 .inventory-switch-status:empty{display:none}
 @media(max-width:480px){.inventory-switch-panel{padding:20px}}
+
+/* R7: preserve the moving scan line; reduce repaint cost, not motion. */
+#scanUI.scanner-saving .scan-line{box-shadow:0 0 8px #3b82f6;}
+#scanUI.scanner-saving .focus-guide,#scanUI.scanner-saving .enhance-badge{backdrop-filter:none}
+@media(prefers-reduced-motion:reduce){.scan-line{animation-duration:3s}}
