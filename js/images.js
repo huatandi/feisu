@@ -33,7 +33,7 @@ async function importEmbeddedImages(data,parsed,sheetIndex){
     if(rowIndex===undefined)return;
     var media=wb.getImage(entry.imageId),ext=String(media.extension||'').toLowerCase();
     if(!/^(png|jpeg|jpg|gif)$/.test(ext))throw new Error('存在暂不支持的图片格式：'+ext);
-    var colIndex=Math.floor(anchor.nativeCol??anchor.col),col=parsed.headers[colIndex];
+    var colIndex=Math.floor(anchor.nativeCol??anchor.col),col=parsed.headers[colIndex-(parsed.sourceColumnOffset||0)];
     if(!col){col='图片';if(parsed.headers.indexOf(col)<0)parsed.headers.push(col);parsed.rows.forEach(function(r){if(!(col in r))r[col]='';});}
     var row=parsed.rows[rowIndex];if(!row.__feisuImages)row.__feisuImages={};
     if(!row.__feisuImages[col])row.__feisuImages[col]=[];
