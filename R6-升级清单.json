@@ -1,0 +1,123 @@
+{
+  "release": "FEISU v5.0.2 R6",
+  "basis": [
+    "uploaded R4",
+    "session-generated R5"
+  ],
+  "files": [
+    {
+      "path": "R5修复与验证说明.md",
+      "sha256": "06bff7a56d4dd5fe130cd4e591d6fd52b8c09c94ffc5efe8ca0c17bc6c677b88",
+      "r4_sha256": null,
+      "r5_sha256": "06bff7a56d4dd5fe130cd4e591d6fd52b8c09c94ffc5efe8ca0c17bc6c677b88"
+    },
+    {
+      "path": "R6修复与合并说明.md",
+      "sha256": "27e34d6b1d18fa737d8c6d61051ac44a0e06216fefe72f04b39a006b9a6a7ec2",
+      "r4_sha256": null,
+      "r5_sha256": null
+    },
+    {
+      "path": "index.html",
+      "sha256": "18554d697c27e3054b17e52aeeb181675620d0dc6702db8631ed015983745ebd",
+      "r4_sha256": "b2c3e09521045526ae639c3c3919bf4bdff2d188a86a2bb629c32e9295f03d8b",
+      "r5_sha256": "c942bd2b817984880b96efed45276f02225b05bb313c956698cce3f0400c9139"
+    },
+    {
+      "path": "install-r6.ps1",
+      "sha256": "aa57884ffc0b0fc7e3171f2c033f4b6c1b69b6d29454b0871c380553229754db",
+      "r4_sha256": null,
+      "r5_sha256": null
+    },
+    {
+      "path": "js/core.js",
+      "sha256": "547e5cd06378284940571b1c5061d69b0f387def57236d44ef0d536a05953ea1",
+      "r4_sha256": "26ce0e10c0bd035f4faf40c750ab11908536f800d1aa674e24b40388367b4edb",
+      "r5_sha256": "f56b5f9dd3c89e1179415d21f5dba40d6aa99e260c2dbb284c4cb75285630fb4"
+    },
+    {
+      "path": "js/images.js",
+      "sha256": "37e6d28dc9f8af567240c6636145ee165343d665024005b1751ebd816b686e47",
+      "r4_sha256": "bcd6cd4e39fa35e2e7a882c2e29b5172e8148795fac4d7b1a3af5ad10ffac6fd",
+      "r5_sha256": "bcd6cd4e39fa35e2e7a882c2e29b5172e8148795fac4d7b1a3af5ad10ffac6fd"
+    },
+    {
+      "path": "js/import-export.js",
+      "sha256": "43ec3ad057bfbeb1ae227dee88d7f45fba0b051801dd676e183fa3654a26990d",
+      "r4_sha256": "37145b227980922d8cc340bae2621a054c9b4eb1988049e619e2e449fcd4339a",
+      "r5_sha256": "e99815e81c60918bb0b2f30f5cde76213705985957d5329464d60671db5fe3a9"
+    },
+    {
+      "path": "js/scanner.js",
+      "sha256": "5de4a302cf9bb58772b887d875b3be4972549c0356d8bb95cde951ab18dfa3de",
+      "r4_sha256": "4f0813bd69b12e5a8b5635f3f7a0984fcf02183768609efd5eb1ae0ef08e45fc",
+      "r5_sha256": "7e4dd2393073b8c4854631ef8064b5ee991f3ffa212b855437034b93bbe99bb1"
+    },
+    {
+      "path": "local-server.cjs",
+      "sha256": "2eb1b3cc31ca0fbac3bf90a86301561a321e4baf26e40a3aea8d70c991e7cc17",
+      "r4_sha256": "14473fb9b2dca1f15597196cbc0e121736d08b8ec2326f7790e021c7778f41d4",
+      "r5_sha256": "613ab63f709d510ec2090219560083fb2346fa41aff575e1579df11b21c9f61c"
+    },
+    {
+      "path": "tests/import-scanner.cjs",
+      "sha256": "6e99b35d9980eef6623b0cbf931d6ace62e2f70f89302f5d0f0ede397fdaa603",
+      "r4_sha256": null,
+      "r5_sha256": "6e99b35d9980eef6623b0cbf931d6ace62e2f70f89302f5d0f0ede397fdaa603"
+    },
+    {
+      "path": "tests/local-server.cjs",
+      "sha256": "9aacd684a27112592cb49cf6c512fa9593f3186a75bd9912210435f4d75d641a",
+      "r4_sha256": null,
+      "r5_sha256": null
+    },
+    {
+      "path": "tests/release-r6.cjs",
+      "sha256": "69363e9d84b98c3ba3f24ce2f03cd2ae3b4c6295c256c1bdd9ab23e47748f1b5",
+      "r4_sha256": null,
+      "r5_sha256": null
+    },
+    {
+      "path": "vendor/papaparse-5.4.1.min.js",
+      "sha256": "b8e870c5d2b29772f10c9fa9a693c8b896aac8540ed6701e3cc6304c683febdb",
+      "r4_sha256": null,
+      "r5_sha256": "b8e870c5d2b29772f10c9fa9a693c8b896aac8540ed6701e3cc6304c683febdb"
+    },
+    {
+      "path": "vendor/papaparse-LICENSE.txt",
+      "sha256": "99aa68e4b42758b09828a46515f70369e5463458ab7a990189f641af2b8d9b4e",
+      "r4_sha256": null,
+      "r5_sha256": "99aa68e4b42758b09828a46515f70369e5463458ab7a990189f641af2b8d9b4e"
+    },
+    {
+      "path": "vendor/xlsx-js-style-1.2.0.min.js",
+      "sha256": "1c7abf2993ff2cd61e508f9268e9acda0098c9796f3925d2ba0d2579072653e2",
+      "r4_sha256": null,
+      "r5_sha256": "1c7abf2993ff2cd61e508f9268e9acda0098c9796f3925d2ba0d2579072653e2"
+    },
+    {
+      "path": "vendor/xlsx-js-style-LICENSE.txt",
+      "sha256": "4d2a38ac35cda06a555c84074a819d413339cd3691b822cae50f8f322fe01f64",
+      "r4_sha256": null,
+      "r5_sha256": "4d2a38ac35cda06a555c84074a819d413339cd3691b822cae50f8f322fe01f64"
+    },
+    {
+      "path": "vendor/zxing-0.19.1.min.js",
+      "sha256": "c5837e4858a3775173bab09ee36e6052545c7880c9d7452e2f464770c6e642ce",
+      "r4_sha256": null,
+      "r5_sha256": "c5837e4858a3775173bab09ee36e6052545c7880c9d7452e2f464770c6e642ce"
+    },
+    {
+      "path": "vendor/zxing-LICENSE.txt",
+      "sha256": "4c26c3077daa7ce4d56ad91f279fafc395bf33c3a0f1ba9ab8cf511bad148ea5",
+      "r4_sha256": null,
+      "r5_sha256": "4c26c3077daa7ce4d56ad91f279fafc395bf33c3a0f1ba9ab8cf511bad148ea5"
+    },
+    {
+      "path": "应用R6到仓库.cmd",
+      "sha256": "8c610d87a9d7fe6b0a5bf741780a1c2a9fbb93cadbc8ed8b77c9ce75026d7885",
+      "r4_sha256": null,
+      "r5_sha256": null
+    }
+  ]
+}
