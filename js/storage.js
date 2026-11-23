@@ -17,7 +17,13 @@ function localRequest(url,method,data){return usesLocalServer()?serverRequest(ur
 
 function writeSession(data){return queueStorage(function(){return localRequest('/api/session','POST',data);});}
 async function persistSession(){try{await writeSession(sessionSnapshot());return true;}catch(e){console.warn('自动保存失败',e);showToast(db.length?'❌ 盘点保存失败：'+e.message+'；请文件备份，勿关闭页面':'❌ 自动保存不可用：'+e.message,true);return false;}}
-function scheduleAutoSave(){if(saveTimer)clearTimeout(saveTimer);saveTimer=setTimeout(function(){saveTimer=null;persistSession();},500);}
+/* v5.0.3 省电：连扫时每件都会触发保存，而每次保存都是整单全量 JSON.stringify + 写盘。
+   扫描期间把防抖放宽到 2 秒（最多丢 2 秒操作），退出扫描后恢复 500ms。 */
+function scheduleAutoSave(){
+  var delay=(typeof scanning!=='undefined'&&scanning)?2000:500;
+  if(saveTimer)clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){saveTimer=null;persistSession();},delay);
+}
 async function saveBeforeInventorySwitch(){if(saveTimer){clearTimeout(saveTimer);saveTimer=null;}return persistSession();}
 function applySavedSession(data){inventorySessionId=data.id||newInventorySessionId();db=data.db;columns=Array.isArray(data.columns)?data.columns:[];currentPage=Number.isFinite(data.currentPage)?data.currentPage:0;currentInventoryFilter=data.filter||'all';unknownBarcodes=data.unknownBarcodes||{};currentImportFileName=data.currentImportFileName||'';sourceQtyColumn=data.sourceQtyColumn||detectSourceQtyColumn(columns,db);undoStack=[];normalizeSpecialColumns();rebuildSearchIndex();renderPage();}
 async function readInventorySessions(){await storageQueue;var result=await localRequest('/api/history');var entries=result.records.map(function(data){return {key:data.id,data:data};});if(result.current)entries.push({key:STORAGE_KEY,data:result.current});return entries;}

@@ -89,7 +89,7 @@
            和“参与解码的框内区域”是同一个矩形，不再出现竖屏里被压窄的竖条取景。 */
         .scan-stage { position: relative; flex: 1 1 auto; min-height: 0; background: #000; overflow: hidden; }
         .scanner-video { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 80%); height: var(--scan-view-h, 220px); object-fit: cover; background: #000; border-radius: 20px; z-index: 5; }
-        .scan-frame { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 80%); height: var(--scan-view-h, 220px); border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.78); z-index: 10; pointer-events: none; }
+        .scan-frame { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 80%); height: var(--scan-view-h, 220px); border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 1px rgba(59,130,246,0.35), 0 10px 30px rgba(0,0,0,0.45); z-index: 10; pointer-events: none; }
         .scan-line { position: absolute; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent); top: 5%; animation: scanLineMove 1.2s infinite ease-in-out; box-shadow: 0 0 20px #3b82f6; }
         @keyframes scanLineMove { 0%, 100% { transform:translate3d(0,0,0); } 50% { transform:translate3d(0,var(--scan-line-travel,190px),0); } }
         /* Tailwind 若因门店断网未加载，扫描页仍必须全屏可用。 */
@@ -111,7 +111,7 @@
         .scan-enhance-btn { background: #10b981; color: white; border: 2px solid white; border-radius: 50px; padding: 12px 24px; font-size: 18px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.5); transition: 0.1s; }
         .scan-enhance-btn.active { background: #f59e0b; }
         .scan-success { animation: flash 0.2s ease; }
-        @keyframes flash { 0%, 100% { border-color: #3b82f6; } 50% { border-color: #10b981; box-shadow: 0 0 0 2000px rgba(16,185,129,0.3); } }
+        @keyframes flash { 0%, 100% { border-color: #3b82f6; } 50% { border-color: #10b981; box-shadow: 0 0 0 6px rgba(16,185,129,0.45), 0 10px 30px rgba(0,0,0,0.45); } }
         #manualInput { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 16px; font-weight: bold; outline: none; }
         #manualInput:focus { border-color: #3b82f6; }
         @media (max-width: 640px) {
@@ -133,7 +133,7 @@
 .zoom-label { display:inline-block; min-width:54px; margin:0 5px; padding:7px 8px; border-radius:999px; background:rgba(0,0,0,.72); color:white; font-weight:900; }
 .scan-controls button { min-width:44px; min-height:40px; margin:0 3px; }
 .col-item.col-hidden { opacity:.62; background:#e2e8f0; }
-        .focus-guide { position: absolute; top: 10px; left: 0; right: 0; text-align: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); padding: 6px 12px; border-radius: 20px; width: fit-content; margin: 0 auto; font-size: 11px; color: #fff; z-index: 20; pointer-events: none; }
+        .focus-guide { position: absolute; top: 10px; left: 0; right: 0; text-align: center; background: rgba(0,0,0,0.72); backdrop-filter: none; padding: 6px 12px; border-radius: 20px; width: fit-content; margin: 0 auto; font-size: 11px; color: #fff; z-index: 20; pointer-events: none; }
         .enhance-badge { position: absolute; bottom: 80px; right: 10px; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: 20px; font-size: 10px; color: #fbbf24; font-weight: bold; pointer-events: none; z-index: 15; }
 
         #progressArea {
@@ -331,3 +331,7 @@
 }
 /* v5.0.3：连扫计数标签（与“本次 N 件”计数器） */
 .scan-count-label{display:inline-block;min-width:78px;margin:0 4px;padding:6px 8px;border-radius:999px;background:rgba(0,0,0,.72);color:#fbbf24;font-weight:900;font-size:12px;white-space:nowrap}
+/* v5.0.3 省电：扫描时全部去掉 backdrop-filter / 大范围阴影。
+   这两类效果都压在“每帧都在变化的视频”上，手机 GPU 要逐帧重算模糊与混合。 */
+.scan-controls > div:first-child{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;background:rgba(0,0,0,.72) !important}
+#toast.scan-error-toast{backdrop-filter:none !important;-webkit-backdrop-filter:none !important}

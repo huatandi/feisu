@@ -1,5 +1,5 @@
 'use strict';
-/* v5.0.3 回归：摄像头识别走严格匹配（不再跳到别的商品）；连扫计数模式。 */
+/* v5.0.3 回归：摄像头识别走严格索引（不再跳到别的商品）；连扫计数模式；导入保留已盘数量。 */
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 
 function env(rows){
@@ -26,6 +26,7 @@ function env(rows){
     filteredRowIndexes(){return c.db.map(function(_,i){return i;});}
   });
   c.__calls=calls;
+  c.rebuildSearchIndex();
   return c;
 }
 const rows=()=>[
@@ -36,7 +37,7 @@ const rows=()=>[
 
 test('camera scan never falls back to a name/price substring hit',()=>{
   const c=env(rows());
-  assert.equal(c.handleBarcode('750123',true),false,'a 6-digit fragment must not jump to a row');
+  assert.equal(c.handleBarcode('750123',true),false,'a short fragment must not jump to a row');
   assert.equal(c.__calls.notFound.length,1);
   assert.equal(c.__calls.jump.length,0);
   assert.equal(c.__calls.stop.length,0);
@@ -48,10 +49,11 @@ test('the same fuzzy text still works from the manual input box',()=>{
   assert.deepEqual(c.__calls.jump,[2]);
 });
 
-test('a unique 8+ digit fragment inside a barcode column is accepted',()=>{
+test('a unique 8+ digit fragment is NOT auto-matched by the camera any more',()=>{
   const c=env(rows());
-  assert.equal(c.handleBarcode('12345678',true),true);
-  assert.deepEqual(c.__calls.jump,[0]);
+  assert.equal(c.handleBarcode('12345678',true),false,'partial reads must be confirmed by hand');
+  assert.equal(c.__calls.jump.length,0);
+  assert.equal(c.__calls.notFound.length,1);
 });
 
 test('an ambiguous fragment is rejected instead of guessing',()=>{
@@ -71,6 +73,31 @@ test('exact barcode still jumps and stops the camera in the default mode',()=>{
   assert.deepEqual(c.__calls.jump,[0]);
 });
 
+test('a 13-digit code and its 12-digit truncation are different products, not a match',()=>{
+  const c=env([{'条码':'7501234567890','商品名称':'A','实际数量':''}]);
+  /* 旧实现会把“去前导零/截断”当成同一码；摄像头路径必须拒绝 */
+  assert.equal(c.findStrictBarcodeRow('750123456789'),-1);
+  assert.equal(c.handleBarcode('750123456789',true),false);
+  assert.equal(c.__calls.jump.length,0);
+});
+
+test('UPC-A 12 digits and EAN-13 with a leading zero remain the same physical code',()=>{
+  const c=env([{'条码':'0123456789012','商品名称':'UPC 商品','实际数量':''}]);
+  assert.equal(c.handleBarcode('123456789012',true),true,'UPC-A read of the same package');
+  assert.deepEqual(c.__calls.jump,[0]);
+  const c2=env([{'条码':'123456789012','商品名称':'UPC 商品','实际数量':''}]);
+  assert.equal(c2.handleBarcode('0123456789012',true),true,'EAN-13 read of the same package');
+  assert.deepEqual(c2.__calls.jump,[0]);
+});
+
+test('alphanumeric codes match only by exact string',()=>{
+  const c=env([{'条码':'ABC-123','商品名称':'自编码商品','实际数量':''}]);
+  assert.equal(c.handleBarcode('ABC-123',true),true);
+  assert.deepEqual(c.__calls.jump,[0]);
+  const c2=env([{'条码':'ABC-123','商品名称':'自编码商品','实际数量':''}]);
+  assert.equal(c2.handleBarcode('ABC-12',true),false);
+});
+
 test('continuous mode increments once and keeps the camera open',()=>{
   const c=env(rows());c.scanCountMode=true;c.scanSessionCount=0;
   assert.equal(c.handleBarcode('7501234567890',true),true);
@@ -84,19 +111,19 @@ test('continuous mode increments once and keeps the camera open',()=>{
 test('repeat within the cooldown is ignored, not treated as a new item',()=>{
   const c=env(rows());c.scanCountMode=true;
   c.handleBarcode('7501234567890',true);
-  c.handleBarcode('7501234567',true);          /* 同一行的另一种读法 */
+  c.handleBarcode('7501234567890',true);
   assert.equal(c.db[0]['实际数量'],1);
   c.handleBarcode('7509876543210',true);
   assert.equal(c.db[1]['实际数量'],1,'a different barcode still counts');
   assert.equal(c.scanSessionCount,2);
 });
 
-test('continuous mode still hands non-exact matches to manual confirmation',()=>{
+test('continuous mode never auto-counts a non-exact read',()=>{
   const c=env(rows());c.scanCountMode=true;
-  /* 唯一条码片段（非精确相等）→ 计数模式下不直接 +1，而是跳行人工确认 */
-  assert.equal(c.handleBarcode('12345678',true),true);
+  assert.equal(c.handleBarcode('12345678',true),false);
   assert.equal(c.db[0]['实际数量'],'');
-  assert.deepEqual(c.__calls.stop,[0]);
+  assert.equal(c.__calls.jump.length,0);
+  assert.equal(c.__calls.stop.length,0,'camera must not close on an unconfirmed read either');
 });
 
 test('import keeps an already counted 实际数量 so a saved sheet can be resumed',()=>{

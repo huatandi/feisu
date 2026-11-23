@@ -55,19 +55,19 @@
     },
     {
       "path": "R9框内识别与视场对齐说明.md",
-      "sha256": "552e6f7d10c768ae7b4bdd095bd4f0140714ecb430d0667c10ca703c403d6621",
+      "sha256": "7625f7de2d0365d4c936da207e99f95043277e2c2ae39b0191e41267c9832425",
       "r4_sha256": null,
       "r7_sha256": null
     },
     {
       "path": "README.md",
-      "sha256": "61028a2772b29307f5d4474ccde8ea0ccdf827fe3f1f766ac693486f9d0069e6",
+      "sha256": "6c8e459ee313ca53efa32343e8ce1b812118927746ae7c4ced6a04fb5c035293",
       "r4_sha256": null,
       "r7_sha256": null
     },
     {
       "path": "_m.cjs",
-      "sha256": "f8f8646d9872021a0676c6de41460fd9397ca4fd62983fffd66acb957f93de04",
+      "sha256": "c5b7d21220505da6ed49b05568ad754fd0145d7bb15b4823622e1ed5f26c5f1a",
       "r4_sha256": null,
       "r7_sha256": null
     },
@@ -85,7 +85,7 @@
     },
     {
       "path": "css/app.css",
-      "sha256": "bfd8c4138ee13a8652720e9e4575c755e9cea50d83c3444a33af0bd912c17ead",
+      "sha256": "e89030a6dc71ecd6e58bb2823c2998f6545d68c22461a31289a591c1b342e639",
       "r4_sha256": "d4efc82c7a76d198f86bca9ca034673ddea21611681f1c1bbb9253838afe4837",
       "r7_sha256": "e158ccc5e90fcd00f4ddf91141cf0a835cbbedece8bf8474b37605948dadc86c"
     },
@@ -145,7 +145,7 @@
     },
     {
       "path": "js/core.js",
-      "sha256": "46cab29ca2d99e526ffd284c6001962366c914b5f4ad0016bbd7dc9ec99425cd",
+      "sha256": "43678d644a0a8727c26e6699871e966dbdc0bd00974ef401afa506d3fdd798b0",
       "r4_sha256": "26ce0e10c0bd035f4faf40c750ab11908536f800d1aa674e24b40388367b4edb",
       "r7_sha256": "0f5eed69ca610c411db9de712e761533646725fc8d6a642d97dbcec29a073590"
     },
@@ -193,7 +193,7 @@
     },
     {
       "path": "js/search.js",
-      "sha256": "1161604239d565fe08e391cec2d6dcaec0a0106e27191dd52aa519a5a8599479",
+      "sha256": "79e2a66ea57600e6593bf5744dc3c4f5463297ae4770a44eb8b2c2467c35ac2a",
       "r4_sha256": null,
       "r7_sha256": null
     },
@@ -205,7 +205,7 @@
     },
     {
       "path": "js/storage.js",
-      "sha256": "bf5bd3d14aa6276766894842fa1aca4b9138ade54af098fe3945ec107e51b82b",
+      "sha256": "07011945a77d77b22d2eac55c6d337db17a2f4297b5315e6fe84c689f6e9118c",
       "r4_sha256": null,
       "r7_sha256": null
     },
@@ -271,7 +271,7 @@
     },
     {
       "path": "tests/scan-gate-r9.cjs",
-      "sha256": "ff1c8d6b3c493d3c372ec9c2918333fbaaafae85a82e0b0feab328a1ea6c9a13",
+      "sha256": "5e3e482cd67bb7718b96eccce2fac141f1b9eb615f78df0a0051f073a5ae7023",
       "r4_sha256": null,
       "r7_sha256": null
     },
@@ -368,6 +368,18 @@
     {
       "path": "盘点引擎分析与整改建议.md",
       "sha256": "8d836ce7f7514c56e4c9a65083dd28d028ec2c54d71d4c3a452a24d130d7d469",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "耗电审计-v5.0.3.md",
+      "sha256": "e97062ccac8c0531440061a6e6452b8949abfb9d10f621ac2abce306b2a601ff",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "验收报告-v5.0.3.md",
+      "sha256": "33ae0036640b9f2b8c03f670e335c42fc7248720fb229806f054b5e13d72bcf5",
       "r4_sha256": null,
       "r7_sha256": null
     }

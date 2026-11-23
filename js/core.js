@@ -262,9 +262,22 @@ function markRowNotFound(rowIndex){
   showToast(wasNotFound?'已取消“实物未找到”':'实物未找到 · 实际数量已记为 0');
 }
 function markRowReviewed(rowIndex){if(!db[rowIndex])return;db[rowIndex].__feisuReviewed=true;renderPage();scheduleAutoSave();showToast('✅ 已复盘确认');}
+/* v5.0.3+：只承认“完全相等”或“UPC-A(12) ↔ EAN-13(13，前导 0)”两种等价。
+   不再使用 exactMatch 的模糊候选（前缀/去前导零），避免把 A 的数量记到 B 上。 */
 function isExactBarcodeForRow(row,code){
-  var names=['条码','Código Barras','Codigo Barras','barcode','Barcode','商品条码','EAN','UPC'];
-  for(var i=0;i<names.length;i++){if(row&&Object.prototype.hasOwnProperty.call(row,names[i])&&exactMatch(code,row[names[i]]))return true;}
+  if(!row)return false;
+  var raw=String(code==null?'':code).trim();if(!raw)return false;
+  var keys=(typeof barcodeColumnKeys==='function')?barcodeColumnKeys():[];
+  if(!keys.length)keys=['条码','Código Barras','Codigo Barras','barcode','Barcode','商品条码','EAN','UPC'];
+  var digitsOnly=/^\d{6,}$/.test(raw),key=digitsOnly&&typeof strictBarcodeKey==='function'?strictBarcodeKey(raw):'';
+  for(var i=0;i<keys.length;i++){
+    var k=keys[i];
+    if(!Object.prototype.hasOwnProperty.call(row,k))continue;
+    var v=String(row[k]==null?'':row[k]).trim();
+    if(!v)continue;
+    if(v===raw)return true;
+    if(key&&/^\d+$/.test(v)&&strictBarcodeKey(v)===key)return true;
+  }
   return false;
 }
 function incrementScannedQty(rowIndex,code){
