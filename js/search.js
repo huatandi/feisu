@@ -93,6 +93,41 @@ function isSearchIgnoredColumn(key){
   return false;
 }
 
+/* v5.0.3：摄像头识别专用。只接受
+   1) 精确条码（含前导零/12↔13 位归一）；
+   2) 位于“条码类”列、且全库唯一的片段匹配（供残缺码/局部识别使用，至少 8 位数字）。
+   不再退回“任意列 startsWith / 任意列包含”，避免扫到 A 跳到 B。 */
+function isBarcodeLikeKey(key){
+  if(String(key||'').indexOf('__feisu')===0) return false;
+  var n=String(typeof displayColumnName==='function'?displayColumnName(key):key).toUpperCase().replace(/[\s._\-\/\\:：()（）]+/g,'');
+  return /^(条码|商品条码|BARCODE|CODIGOBARRAS|CÓDIGOBARRAS|EAN|EAN13|EAN8|UPC|UPCA)$/.test(n);
+}
+function barcodeColumnKeys(){
+  var out=[];
+  var first=db&&db[0]?db[0]:null;
+  if(first)for(var key in first){if(Object.prototype.hasOwnProperty.call(first,key)&&isBarcodeLikeKey(key))out.push(key);}
+  if(!out.length&&typeof columns!=='undefined'&&columns)out=columns.filter(isBarcodeLikeKey);
+  return out;
+}
+function findStrictBarcodeRow(code){
+  var fast=findBarcodeRowFast(code);
+  if(fast!==-1) return fast;
+  var digits=String(code==null?'':code).replace(/[^\d]/g,'');
+  if(digits.length<8||!db||!db.length) return -1;
+  var keys=barcodeColumnKeys();
+  if(!keys.length) return -1;
+  var hit=-1,count=0;
+  for(var i=0;i<db.length;i++){
+    var row=db[i]||{},matched=false;
+    for(var k=0;k<keys.length;k++){
+      var v=String(row[keys[k]]==null?'':row[keys[k]]).replace(/[^\d]/g,'');
+      if(v.length>=digits.length&&v.indexOf(digits)!==-1){matched=true;break;}
+    }
+    if(matched){count++;hit=i;if(count>1)return -1;}   /* 多命中即判为不确定，交给人工 */
+  }
+  return count===1?hit:-1;
+}
+
 function rebuildSearchIndex(){
   searchIndex=new Map();
   searchableRows=new Array(db.length);

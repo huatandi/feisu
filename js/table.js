@@ -40,10 +40,58 @@ function updatePrice(rowIndex,value){if(db[rowIndex]){pushUndo({type:'cell',rowI
 function updateCell(rowIndex,col,value){if(db[rowIndex]){pushUndo({type:'cell',rowIndex:rowIndex,col:col,oldValue:db[rowIndex][col],newValue:value});db[rowIndex][col]=value;if(col===sourceQtyColumn)db[rowIndex].__feisuReviewed=false;rebuildSearchIndex();renderPage();scheduleAutoSave();}}
 function autoAdjustColumns(){var table=document.getElementById('mainTable');if(!table)return;var visible=columns.length;if(!visible)return;var headers=table.querySelectorAll('thead th'),rows=table.querySelectorAll('tbody tr'),widths=new Array(visible).fill(0);headers.forEach(function(th,idx){if(idx<visible)widths[idx]=Math.max(widths[idx],Math.min((th.textContent||'').length*14+40,220));});rows.forEach(function(row){row.querySelectorAll('td').forEach(function(cell,idx){if(idx>=visible)return;var input=cell.querySelector('input'),text=input?(input.value||input.placeholder||''):(cell.textContent||''),w=Math.max(80,Math.min(260,text.length*10+30));if(w>widths[idx])widths[idx]=w;});});headers.forEach(function(th,idx){if(widths[idx]>0){th.style.width=widths[idx]+'px';th.style.minWidth=widths[idx]+'px';}});}
 function jumpToRowAndFocusQty(foundIndex){var rowEl=document.getElementById('row-'+foundIndex);if(!rowEl){currentInventoryFilter='all';pendingJump=foundIndex;renderPage();return false;}document.querySelectorAll('#mainTable tbody tr').forEach(function(tr){tr.classList.remove('row-focus');});rowEl.classList.add('row-focus');rowEl.scrollIntoView({behavior:'smooth',block:'center'});var qty=document.getElementById('qty-'+foundIndex);if(qty){currentInputElement=qty;setTimeout(function(){qty.focus();qty.select();},100);}return true;}
+/* v5.0.3 连扫计数（可选，默认关）：
+   扫码命中即 +1、相机不关闭、不重建整张表；非精确匹配仍退回人工确认。 */
+function flashScanFrame(){var frame=document.getElementById('scanFrame');if(!frame)return;frame.classList.add('scan-success');setTimeout(function(){frame.classList.remove('scan-success');},200);}
+function updateScanCountLabel(){
+  var b=document.getElementById('scanCountBtn'),l=document.getElementById('scanCountLabel');
+  if(b){b.classList.toggle('active',!!scanCountMode);b.textContent=scanCountMode?'⚡ 连扫中':'⚡ 连扫计数';b.setAttribute('aria-pressed',String(!!scanCountMode));}
+  if(l){l.hidden=!scanCountMode;l.textContent='本次 '+scanSessionCount+' 件';}
+}
+function toggleScanCountMode(){
+  scanCountMode=!scanCountMode;
+  try{localStorage.setItem('sanfei_scan_count',scanCountMode?'1':'0');}catch(e){}
+  if(!scanCountMode)scanSessionCount=0;
+  updateScanCountLabel();
+  showToast(scanCountMode?'⚡ 连扫计数已开启：扫码即 +1、不关相机；再点一次可退出':'已关闭连扫：扫码后跳行，等你输入数量');
+}
 function handleBarcode(code,fromCamera){
-  if(!code)return false;var now=Date.now(),codeStr=String(code).trim();if(!codeStr)return false;clearPreviousBarcodeNotFoundOnNextScan(codeStr);if(codeStr===lastCode&&(now-lastTime)<200)return false;lastCode=codeStr;lastTime=now;
-  var idx=findBestMatchRowIndex(codeStr);if(idx===-1){playBeep(false,codeStr);showBarcodeNotFoundToast(codeStr);consecutiveFailures++;return false;}
-  clearBarcodeNotFoundState();consecutiveFailures=0;playBeep(true,codeStr);var productName=db[idx]['名称']||db[idx]['商品名称']||db[idx]['Descripción']||codeStr;showToast('✅ '+productName+' · 请盘点实际数量');
-  var frame=document.getElementById('scanFrame');if(frame){frame.classList.add('scan-success');setTimeout(function(){frame.classList.remove('scan-success');},200);}currentInventoryFilter='all';var idxs=filteredRowIndexes(),pos=idxs.indexOf(idx),p=pos<0?0:Math.floor(pos/pageSize);if(p!==currentPage){currentPage=p;renderPage();}else renderPage();jumpToRowAndFocusQty(idx);if(fromCamera)stopScanningAndJump(idx);return true;
+  if(!code)return false;
+  var now=Date.now(),codeStr=String(code).trim();
+  if(!codeStr)return false;
+  clearPreviousBarcodeNotFoundOnNextScan(codeStr);
+  if(codeStr===lastCode&&(now-lastTime)<200)return false;
+  lastCode=codeStr;lastTime=now;
+  /* 摄像头走严格匹配（精确码或唯一条码列片段）；模糊匹配只留给手动输入。
+     这样“扫到 A 跳到 B”不会再发生：认不出就明确报“条码不存在”。 */
+  var idx=fromCamera?findStrictBarcodeRow(codeStr):findBestMatchRowIndex(codeStr);
+  if(idx===-1){playBeep(false,codeStr);showBarcodeNotFoundToast(codeStr);consecutiveFailures++;return false;}
+  clearBarcodeNotFoundState();consecutiveFailures=0;
+  var product=typeof extractProduct==='function'?extractProduct(db[idx]):null;
+  var productName=(product&&product.name)||db[idx]['名称']||db[idx]['商品名称']||db[idx]['Descripción']||codeStr;
+  if(fromCamera&&scanCountMode&&isExactBarcodeForRow(db[idx],codeStr)){
+    if(incrementScannedQty(idx,codeStr)){
+      scanSessionCount++;
+      var qty=db[idx]['实际数量'],input=document.getElementById('qty-'+idx);
+      if(input)input.value=qty;
+      playBeep(true,codeStr);
+      flashScanFrame();
+      updateScanCountLabel();
+      renderDashboard();
+      showToast('✅ '+productName+' ×'+qty);
+    }
+    return true;                    /* 冷却期内的重复命中直接忽略，相机和表格都不动 */
+  }
+  playBeep(true,codeStr);
+  showToast('✅ '+productName+' · 请盘点实际数量');
+  var frame=document.getElementById('scanFrame');
+  if(frame){frame.classList.add('scan-success');setTimeout(function(){frame.classList.remove('scan-success');},200);}
+  currentInventoryFilter='all';
+  var idxs=filteredRowIndexes(),pos=idxs.indexOf(idx),p=pos<0?0:Math.floor(pos/pageSize);
+  if(p!==currentPage)currentPage=p;
+  renderPage();
+  jumpToRowAndFocusQty(idx);
+  if(fromCamera)stopScanningAndJump(idx);
+  return true;
 }
 function render(){renderPage();}

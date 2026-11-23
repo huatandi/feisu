@@ -1,4 +1,5 @@
 * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        [hidden] { display: none !important; }
         body { 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -83,9 +84,17 @@
         #toast.scan-error-toast .toast-copy, #toast.scan-error-toast .toast-close { flex:0 0 auto; margin-left:0; padding:3px 7px; min-height:26px; line-height:1; }
         #colModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(8px); }
         .modal-content { background: white; border-radius: 24px; max-width: 90%; width: 350px; max-height: 70vh; overflow: auto; }
-        .scan-frame { position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%); width: 80%; height: 220px; border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.75); z-index: 10; pointer-events: none; background: rgba(0,0,0,0.1); }
+        /* R9 视场对齐：预览画面就是取景框。视频元素与 .scan-frame 使用同一组
+           由 JS 计算的自定义属性（--scan-view-w/h/center），因此“看得见的画面”
+           和“参与解码的框内区域”是同一个矩形，不再出现竖屏里被压窄的竖条取景。 */
+        .scan-stage { position: relative; flex: 1 1 auto; min-height: 0; background: #000; overflow: hidden; }
+        .scanner-video { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 80%); height: var(--scan-view-h, 220px); object-fit: cover; background: #000; border-radius: 20px; z-index: 5; }
+        .scan-frame { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 80%); height: var(--scan-view-h, 220px); border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.78); z-index: 10; pointer-events: none; }
         .scan-line { position: absolute; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent); top: 5%; animation: scanLineMove 1.2s infinite ease-in-out; box-shadow: 0 0 20px #3b82f6; }
-        @keyframes scanLineMove { 0%, 100% { transform:translate3d(0,0,0); } 50% { transform:translate3d(0,190px,0); } }
+        @keyframes scanLineMove { 0%, 100% { transform:translate3d(0,0,0); } 50% { transform:translate3d(0,var(--scan-line-travel,190px),0); } }
+        /* Tailwind 若因门店断网未加载，扫描页仍必须全屏可用。 */
+        #scanUI { position: fixed; inset: 0; background: #000; z-index: 999; display: none; flex-direction: column; }
+        .scan-controls { position: absolute; left: 0; right: 0; bottom: 32px; text-align: center; z-index: 30; }
         .col-item { background: white; margin-bottom: 8px; border-radius: 12px; border: 1px solid #e2e8f0; transition: all 0.2s; cursor: move; touch-action: none; }
         .col-item.dragging { opacity: 0.4; transform: scale(0.98); background: #dbeafe; }
         .version-badge { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 16px; font-size: 10px; font-weight: bold; }
@@ -297,3 +306,28 @@
 #scanUI.scanner-saving .scan-line{box-shadow:0 0 8px #3b82f6;}
 #scanUI.scanner-saving .focus-guide,#scanUI.scanner-saving .enhance-badge{backdrop-filter:none}
 @media(prefers-reduced-motion:reduce){.scan-line{animation-duration:3s}}
+
+/* R9b: 手机竖屏下扫描页标题栏原来会折成 2–3 行，吃掉本就不多的纵向空间。
+   窄屏压缩字号与内边距，保证一行放下“极速条码引擎 / 增强 / 音效 / 关闭扫描”。 */
+@media(max-width:480px){
+  .scan-header{padding:8px 10px;border-bottom-width:2px}
+  .scan-header-left{flex:1 1 auto;min-width:0;gap:6px;flex-wrap:nowrap}
+  .scan-header-left > .font-bold{font-size:13px;line-height:1.2;white-space:nowrap;flex:0 0 auto}
+  .scan-enhance-btn{padding:8px 12px;font-size:13px;flex:0 0 auto}
+  .scan-sound-btn{padding:8px 10px;font-size:12px;flex:0 0 auto}
+  .scan-header .close-scan-btn{padding:9px 12px;font-size:13px;white-space:nowrap;flex:0 0 auto}
+}
+/* R9c: 横屏手机可用高度很少时，工具条本身会吃掉 140px+，把取景框挤成小方块。
+   横屏下压缩底部工具区（隐藏那行说明、缩小按钮），把高度还给取景。 */
+@media(max-height:560px) and (orientation:landscape){
+  .scan-controls{bottom:6px}
+  .scan-controls > div:first-child{display:none}
+  .scan-controls .mt-3{margin-top:2px}
+  .scan-tool-btn{padding:5px 9px;font-size:11px}
+  .scan-controls button{min-height:32px;min-width:38px;margin:0 2px}
+  .zoom-label{padding:5px 6px;min-width:46px}
+  .enhance-badge{display:none}
+  .focus-guide{top:4px;font-size:10px;padding:3px 8px}
+}
+/* v5.0.3：连扫计数标签（与“本次 N 件”计数器） */
+.scan-count-label{display:inline-block;min-width:78px;margin:0 4px;padding:6px 8px;border-radius:999px;background:rgba(0,0,0,.72);color:#fbbf24;font-weight:900;font-size:12px;white-space:nowrap}

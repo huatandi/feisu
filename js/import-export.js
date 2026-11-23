@@ -119,7 +119,11 @@ function buildImportedRow(rawRow,allColumns){
   var row=rawRow||{},product=extractProduct(row),newRow={};
   for(var key in row){if(Object.prototype.hasOwnProperty.call(row,key)){newRow[key]=row[key];if(key!=='__feisuImages')allColumns.add(key);}}
   /* FEISU semantic aliases stay internal. Never add/rename supplier 条码/名称 columns. */
-  newRow['实际数量']='';newRow['实际价格']=product.price||'';newRow.__feisuStatus='';newRow.__feisuReviewed=false;
+  /* v5.0.3：导入的电子单若已含“实际数量”（典型场景：把上次导出表拿来续盘），
+     保留已有数量而不是清零。 */
+  var carriedQty=Object.prototype.hasOwnProperty.call(row,'实际数量')?row['实际数量']:'';
+  newRow['实际数量']=comparableNumber(carriedQty)===null?'':carriedQty;
+  newRow['实际价格']=product.price||'';newRow.__feisuStatus='';newRow.__feisuReviewed=false;
   return {row:newRow,valid:product.valid};
 }
 function finalizeColumns(allColumns,rows){

@@ -51,10 +51,13 @@ async function exportPictureData(pic){
 async function writeWorkbookWithImages(source,name){
   var pictures=[];
   db.forEach(function(row,r){columns.forEach(function(col,c){getRowPictures(row,col).forEach(function(pic){pictures.push({r:r,c:c,pic:pic});});});});
-  if(!pictures.length){XLSX.writeFile(source,name);return;}
-  showToast('正在导出图片，请稍候…');
+  /* v5.0.3：ws['!freeze'] 会被 xlsx-js-style 静默忽略（解包实测无 <pane>），
+     所以无图片时也走 ExcelJS，让“冻结前两行”真正生效。
+     超大表仍保留旧快路径，避免内存翻倍。 */
+  if(!pictures.length&&db.length>8000){XLSX.writeFile(source,name);return;}
+  if(pictures.length)showToast('正在导出图片，请稍候…');
   var wb=new ExcelJS.Workbook();await wb.xlsx.load(XLSX.write(source,{bookType:'xlsx',type:'array'}));
-  var sheet=wb.worksheets[0];sheet.views=[{state:'frozen',ySplit:2}];
+  var sheet=wb.worksheets[0];sheet.views=[{state:'frozen',xSplit:0,ySplit:2}];
   for(var i=0;i<pictures.length;i++){
     var item=pictures[i],data=await exportPictureData(item.pic),ext=data.slice(11,data.indexOf(';')).replace('jpg','jpeg');
     if(ext==='webp')throw new Error('WebP 图片需转换为 PNG/JPEG 后导出');

@@ -1,6 +1,6 @@
 'use strict';
 
-var VERSION = 'FEISU v5.0.2 · R8';
+var VERSION = 'FEISU v5.0.3 · R9';
 var db = [];
 var columns = [];
 var currentPage = 0;
@@ -39,6 +39,10 @@ var sourceQtyColumn = null;
 var SCAN_INCREMENT_COOLDOWN = 650;
 var lastIncrementCode = '';
 var lastIncrementAt = 0;
+/* v5.0.3 连扫计数模式（默认关，记忆在本地） */
+var scanCountMode = false;
+var scanSessionCount = 0;
+try{ scanCountMode = localStorage.getItem('sanfei_scan_count')==='1'; }catch(e){ scanCountMode = false; }
 
 var isAndroid = /Android/i.test(navigator.userAgent);
 var isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
@@ -98,8 +102,12 @@ function positionScanErrorToast(){
   var toast=document.getElementById('toast'),frame=document.getElementById('scanFrame'),header=document.querySelector('#scanUI .scan-header');
   if(!toast||!frame||!header||!toast.classList.contains('scan-error-toast'))return;
   var saved=getToastGeometry(); if(saved){Object.assign(toast.style,{left:Math.max(0,Math.min(saved.left,window.innerWidth-80))+'px',top:Math.max(0,Math.min(saved.top,window.innerHeight-50))+'px',width:Math.min(saved.width,window.innerWidth-12)+'px',height:saved.height?Math.min(saved.height,window.innerHeight-20)+'px':'auto',maxWidth:'96vw',maxHeight:'70vh',transform:'none'});return;}
-  var fr=frame.getBoundingClientRect(),hr=header.getBoundingClientRect(),gap=6,available=Math.max(34,fr.top-hr.bottom-gap*2);
-  Object.assign(toast.style,{left:fr.left+'px',top:(hr.bottom+gap)+'px',width:fr.width+'px',maxWidth:fr.width+'px',maxHeight:available+'px',transform:'none'});
+  var fr=frame.getBoundingClientRect(),hr=header.getBoundingClientRect(),gap=6;
+  /* v5.0.3：提示条原来会盖住顶部“保持稳定等待自动对焦”那行，改为从提示行下方开始。 */
+  var guide=document.querySelector('#scanUI .focus-guide'),gr=guide?guide.getBoundingClientRect():null;
+  var top=Math.max(hr.bottom+gap,gr&&gr.height?gr.bottom+gap:0);
+  var available=Math.max(34,fr.top-top-gap);
+  Object.assign(toast.style,{left:fr.left+'px',top:top+'px',width:fr.width+'px',maxWidth:fr.width+'px',maxHeight:available+'px',transform:'none'});
 }
 
 function clearPreviousBarcodeNotFoundOnNextScan(nextCode){
