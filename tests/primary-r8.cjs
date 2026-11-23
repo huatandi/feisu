@@ -8,17 +8,19 @@ function env(){let wall=10000,work=0,spent=20,fail=false;const draws=[];const ct
 test('primary decoder crops before decoding and reuses a native-resolution canvas',()=>{
  const e=env();assert.equal(e.target.decode(e.video),'roi');assert.equal(e.draws.length,1);const a=e.draws[0];assert.equal(a[3],a[7]);assert.equal(a[4],a[8]);assert.ok(a[3]*a[4]<1920*1080);const d=e.c.scannerDiagnostics();assert.equal(d.roiFrames,1);assert.equal(d.fullFrames,0);assert.equal(d.meanDecodeMs,20);
 });
-test('periodic full-frame scan remains available without replacing every ROI attempt',()=>{
- const e=env();assert.equal(e.target.decode(e.video),'roi');e.advance(3500);assert.equal(e.target.decode(e.video),'full');assert.equal(e.target.decode(e.video),'roi');assert.equal(e.c.scannerDiagnostics().fullFrames,1);
+test('no periodic full-frame pass while the ROI is available (it would decode pixels nobody sees)',()=>{
+ const e=env();assert.equal(e.target.decode(e.video),'roi');e.advance(3500);assert.equal(e.target.decode(e.video),'roi');e.advance(5000);assert.equal(e.target.decode(e.video),'roi');
+ assert.equal(e.c.scannerDiagnostics().fullFrames,0);
 });
 test('slow failed decodes increase the retry wait and still record their cost',()=>{
  const e=env();e.cost(150);e.fail();assert.throws(()=>e.target.decode(e.video));assert.ok(e.target.timeBetweenDecodingAttempts>=278);assert.equal(e.c.scannerDiagnostics().meanDecodeMs,150);
 });
-test('ordinary mode removes TRY_HARDER; explicit enhancement restores it without losing other hints',()=>{
- const e=env();e.target.__scannerHints.set('formats','oneD');e.c.configurePrimaryScanHints(e.target);assert.equal(e.target.reader.hints.get('harder'),undefined);e.c.enhanceMode=true;e.c.configurePrimaryScanHints(e.target);assert.equal(e.target.reader.hints.get('harder'),true);assert.equal(e.target.reader.hints.get('formats'),'oneD');e.c.enhanceMode=false;e.c.configurePrimaryScanHints(e.target);assert.equal(e.target.reader.hints.has('harder'),false);
+test('primary ROI path always keeps TRY_HARDER for tilted barcodes; other hints preserved',()=>{
+ const e=env();e.target.__scannerHints.set('formats','oneD');e.c.configurePrimaryScanHints(e.target);assert.equal(e.target.reader.hints.get('harder'),true);e.c.enhanceMode=true;e.c.configurePrimaryScanHints(e.target);assert.equal(e.target.reader.hints.get('harder'),true);assert.equal(e.target.reader.hints.get('formats'),'oneD');e.c.enhanceMode=false;e.c.configurePrimaryScanHints(e.target);assert.equal(e.target.reader.hints.has('harder'),true);
 });
-test('full-frame fallback invalidates ZXing capture cache after camera size changes',()=>{
- const e=env();let reset=0;e.target.captureCanvas={width:1280,height:720};e.target._destroyCaptureCanvas=()=>reset++;e.advance(3500);e.target.decode(e.video);assert.equal(reset,1);
+test('full-frame path still invalidates the ZXing capture cache when no ROI is available',()=>{
+ const e=env();let reset=0;e.c.getFrameROI=()=>null;e.target.captureCanvas={width:1280,height:720};e.target._destroyCaptureCanvas=()=>reset++;
+ assert.equal(e.target.decode(e.video),'full');assert.equal(reset,1);
 });
 test('diagnostics contain measured timings and actual camera settings without barcode data',()=>{
  const e=env();e.c.cameraTrack={getSettings(){return {width:1920,height:1080,frameRate:18,deviceId:'DO-NOT-COPY',torch:false};}};e.target.decode(e.video);e.advance(1000);const d=e.c.scannerDiagnostics();assert.equal(d.camera.width,1920);assert.equal(d.camera.fps,18);assert.equal(d.primaryTimeShare,2);assert.doesNotMatch(JSON.stringify(d),/DO-NOT-COPY/);

@@ -1,5 +1,5 @@
 {
-  "release": "FEISU v5.0.3 R9",
+  "release": "FEISU v5.0.4 R10",
   "basis": [
     "uploaded R4",
     "session-generated R7"
@@ -18,56 +18,14 @@
       "r7_sha256": null
     },
     {
-      "path": "R4-兼容与iPhone候选修复说明.md",
-      "sha256": "6edc5598aa55098933c2732b45270f9fde4270893c1def0ef1cb32a7deb13664",
-      "r4_sha256": null,
-      "r7_sha256": null
-    },
-    {
-      "path": "R4修复说明.md",
-      "sha256": "63ba01c9d19bba2b4bf9cc9780f27c8df8ccfffa9a6518c48a45ae64d527fcdb",
-      "r4_sha256": null,
-      "r7_sha256": null
-    },
-    {
-      "path": "R5修复与验证说明.md",
-      "sha256": "06bff7a56d4dd5fe130cd4e591d6fd52b8c09c94ffc5efe8ca0c17bc6c677b88",
-      "r4_sha256": null,
-      "r7_sha256": "06bff7a56d4dd5fe130cd4e591d6fd52b8c09c94ffc5efe8ca0c17bc6c677b88"
-    },
-    {
-      "path": "R6修复与合并说明.md",
-      "sha256": "97c14ce6bc39ecf8e4401177f5bd439994232746c85f86022d58ad6556c0c899",
-      "r4_sha256": null,
-      "r7_sha256": "97c14ce6bc39ecf8e4401177f5bd439994232746c85f86022d58ad6556c0c899"
-    },
-    {
-      "path": "R7均衡优化与验证说明.md",
-      "sha256": "9779288da417de1e166bdc7c4482c956cac28966f2bc8c2dca06488a1fb36c66",
-      "r4_sha256": null,
-      "r7_sha256": "9f0616a959fa8688e431b8e7d8c548abd9f785a6b217f39c2039b91eb338f51e"
-    },
-    {
-      "path": "R8框内识别与诊断说明.md",
-      "sha256": "1b56b5f8d0c81a7157573f53a27a503291339bfd44b2727abebd9bd53ceb1606",
-      "r4_sha256": null,
-      "r7_sha256": null
-    },
-    {
-      "path": "R9框内识别与视场对齐说明.md",
-      "sha256": "7625f7de2d0365d4c936da207e99f95043277e2c2ae39b0191e41267c9832425",
-      "r4_sha256": null,
-      "r7_sha256": null
-    },
-    {
       "path": "README.md",
-      "sha256": "6c8e459ee313ca53efa32343e8ce1b812118927746ae7c4ced6a04fb5c035293",
+      "sha256": "f8bdf24eb65a22fd46bd32c351460a89fffece2561a0ef5cb183af685a75822f",
       "r4_sha256": null,
       "r7_sha256": null
     },
     {
       "path": "_m.cjs",
-      "sha256": "c5b7d21220505da6ed49b05568ad754fd0145d7bb15b4823622e1ed5f26c5f1a",
+      "sha256": "ebcc0f3a7113bc9fb6361ed5acd62c39ce1b244620df9b035a47f0615bc12fe6",
       "r4_sha256": null,
       "r7_sha256": null
     },
@@ -85,7 +43,7 @@
     },
     {
       "path": "css/app.css",
-      "sha256": "e89030a6dc71ecd6e58bb2823c2998f6545d68c22461a31289a591c1b342e639",
+      "sha256": "8a048eab531bbbf14baf400141d023b7aa1fb96cf8bb9585c555eab1dbe71211",
       "r4_sha256": "d4efc82c7a76d198f86bca9ca034673ddea21611681f1c1bbb9253838afe4837",
       "r7_sha256": "e158ccc5e90fcd00f4ddf91141cf0a835cbbedece8bf8474b37605948dadc86c"
     },
@@ -114,26 +72,20 @@
       "r7_sha256": null
     },
     {
-      "path": "iPad使用说明.md",
-      "sha256": "150af579d7d6d1d487c8a8001290c8c9b8d60a18b6b12fd139bbac3c9804e8f5",
-      "r4_sha256": null,
-      "r7_sha256": null
-    },
-    {
       "path": "index.html",
-      "sha256": "4768747c176c2fc43e359c3cca75a40dc28d9bf9295537d59eac1f5e85b9cc98",
+      "sha256": "7ed1c26634ada0000b702723c5d71f4320c809baf04417953ef4c72deb3d0f78",
       "r4_sha256": "b2c3e09521045526ae639c3c3919bf4bdff2d188a86a2bb629c32e9295f03d8b",
       "r7_sha256": "d685e77c453e802448d3e10f57fc5be940faa8991f1a6a50fccdbfe47ba9cadc"
     },
     {
-      "path": "install-v503.ps1",
-      "sha256": "5032375153eca7b8d6ec9041e45525de51efab5335f9748a1afbfe5e2b1da02f",
+      "path": "install-v504.ps1",
+      "sha256": "02b1400c8ee1468fff3f5206121a329a40d0d933880094de84e8a6352a377ede",
       "r4_sha256": null,
       "r7_sha256": null
     },
     {
       "path": "js/app.js",
-      "sha256": "4251f88cd929c903c800e08a370458c59d2bd10bbe29852fd106a304ae540c33",
+      "sha256": "3a906687038dd4deea28cd0242a5bddef4f52cd023cd8614a3baa78dbf4cb4c0",
       "r4_sha256": "d9d43b1fd955496a7be7fd28057d4e62bfec9ba51f32e49118b2e4d9ef32f6e1",
       "r7_sha256": "85070f09ec6921614ab2091e1e471b7a51c564d9023379f9835d425bc335fdd2"
     },
@@ -145,7 +97,7 @@
     },
     {
       "path": "js/core.js",
-      "sha256": "43678d644a0a8727c26e6699871e966dbdc0bd00974ef401afa506d3fdd798b0",
+      "sha256": "e9cbc5764f042ee8768c8f209b0155901fff918131fe58e0185113c5a7f647b2",
       "r4_sha256": "26ce0e10c0bd035f4faf40c750ab11908536f800d1aa674e24b40388367b4edb",
       "r7_sha256": "0f5eed69ca610c411db9de712e761533646725fc8d6a642d97dbcec29a073590"
     },
@@ -187,13 +139,13 @@
     },
     {
       "path": "js/scanner.js",
-      "sha256": "e04e04797efb961c45a3cdce3ebf6133c39487eaffddaa793c82426c2eb8916d",
+      "sha256": "68d860ed3c06336d2c614d15669bd99f34fea2b6ddb04e54addabd28689a7480",
       "r4_sha256": "4f0813bd69b12e5a8b5635f3f7a0984fcf02183768609efd5eb1ae0ef08e45fc",
       "r7_sha256": "f1a3ed0321ff00a6cc59b7fd578835a3048935edcd91b9c73cbedfd487679383"
     },
     {
       "path": "js/search.js",
-      "sha256": "79e2a66ea57600e6593bf5744dc3c4f5463297ae4770a44eb8b2c2467c35ac2a",
+      "sha256": "87f100f97d1b6909a3767964f03bdbde00792778d5201e6bde7e5debda91b2b3",
       "r4_sha256": null,
       "r7_sha256": null
     },
@@ -211,7 +163,7 @@
     },
     {
       "path": "js/table.js",
-      "sha256": "c0898117c169f2d7a1ddff09f4c83bf6280760aab1786b57a8ea336eabf2a4d9",
+      "sha256": "b1be96c78cdcf3b518b87c1d4b4cdb05c7c2862aaf7dfbf9feb494050414a92c",
       "r4_sha256": null,
       "r7_sha256": null
     },
@@ -241,7 +193,7 @@
     },
     {
       "path": "tests/local-server.cjs",
-      "sha256": "3acb1674b128e9010b56e531f6559e6c81c3485691015fcf6c1ff440e271d6fb",
+      "sha256": "a8242c135961073b5eb889c799bbc5e7b08b85ab4f7a51f63b449b2ca9d48417",
       "r4_sha256": null,
       "r7_sha256": "13277b1d5dbf002c1693698441c429bddc962be65b599dad53f1a7f05e5ed72f"
     },
@@ -253,13 +205,13 @@
     },
     {
       "path": "tests/primary-r8.cjs",
-      "sha256": "1f2f8922b802a8ca103b1306d7303a6e45984b219697dccda3259048b4e6c047",
+      "sha256": "8277ccaf3ca0f98165bf198e29c3ef11a2ac6b9e910a7b0b7979ef2fb8b318ce",
       "r4_sha256": null,
       "r7_sha256": null
     },
     {
       "path": "tests/release-r6.cjs",
-      "sha256": "4d0618cfbc70b633a0b4cda8584648ee71566860a063213b3da6a6f4e7048380",
+      "sha256": "18e4bb15f9653b5641c89edb5f751bc4ce9c78fae25c9b9198dbb5d3803bd4da",
       "r4_sha256": null,
       "r7_sha256": "eb236db473961df29a5e9ba912c75cd7680400381772f37ec5d766e41e774053"
     },
@@ -271,13 +223,13 @@
     },
     {
       "path": "tests/scan-gate-r9.cjs",
-      "sha256": "5e3e482cd67bb7718b96eccce2fac141f1b9eb615f78df0a0051f073a5ae7023",
+      "sha256": "538b324681266d3ec88c7cf5bc7c1d27283d5cd87a0ddf6776d2d6e7365a3cbf",
       "r4_sha256": null,
       "r7_sha256": null
     },
     {
       "path": "tests/viewport-r9.cjs",
-      "sha256": "a3c467698f1cca6ad39ff4335483aec1c6987c486754a49f8fc3323c53e040dd",
+      "sha256": "b54c393224dc7e75b6c6bcc30f57f9f9629cbcdb205cb7b226098831586cf694",
       "r4_sha256": null,
       "r7_sha256": null
     },
@@ -348,20 +300,62 @@
       "r7_sha256": null
     },
     {
-      "path": "应用v5.0.3到仓库.cmd",
-      "sha256": "9023fbc1cd2ad76ad8b83475e08d5b7a0c0c6bc60ef4e4748b00c9a4da16e61c",
+      "path": "应用v5.0.4到仓库.cmd",
+      "sha256": "6249d6d1d8d9154c5539eacb554ae2d29f95833404bda6c2901c28de98fc662b",
       "r4_sha256": null,
       "r7_sha256": null
     },
     {
-      "path": "扫描增强说明.md",
+      "path": "文档/使用说明/iPad使用说明.md",
+      "sha256": "150af579d7d6d1d487c8a8001290c8c9b8d60a18b6b12fd139bbac3c9804e8f5",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/使用说明/扫描增强说明.md",
       "sha256": "572e7c3d376ab1d8e1ebd7119a174d70d17d302e0ff7e66d541052ae2cca937e",
       "r4_sha256": null,
       "r7_sha256": null
     },
     {
-      "path": "本地历史使用说明.md",
+      "path": "文档/使用说明/本地历史使用说明.md",
       "sha256": "2a76f14eec867afdfa0c5235466544d048335305b867050409a1b12509121c25",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/历史版本/R4-兼容与iPhone候选修复说明.md",
+      "sha256": "6edc5598aa55098933c2732b45270f9fde4270893c1def0ef1cb32a7deb13664",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/历史版本/R4修复说明.md",
+      "sha256": "63ba01c9d19bba2b4bf9cc9780f27c8df8ccfffa9a6518c48a45ae64d527fcdb",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/历史版本/R5修复与验证说明.md",
+      "sha256": "06bff7a56d4dd5fe130cd4e591d6fd52b8c09c94ffc5efe8ca0c17bc6c677b88",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/历史版本/R6修复与合并说明.md",
+      "sha256": "97c14ce6bc39ecf8e4401177f5bd439994232746c85f86022d58ad6556c0c899",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/历史版本/R7均衡优化与验证说明.md",
+      "sha256": "9779288da417de1e166bdc7c4482c956cac28966f2bc8c2dca06488a1fb36c66",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/历史版本/R8框内识别与诊断说明.md",
+      "sha256": "1b56b5f8d0c81a7157573f53a27a503291339bfd44b2727abebd9bd53ceb1606",
       "r4_sha256": null,
       "r7_sha256": null
     },
@@ -372,14 +366,20 @@
       "r7_sha256": null
     },
     {
-      "path": "耗电审计-v5.0.3.md",
-      "sha256": "e97062ccac8c0531440061a6e6452b8949abfb9d10f621ac2abce306b2a601ff",
+      "path": "耗电审计-v5.0.4.md",
+      "sha256": "b396c9c1a5220a41f60de497f4d35daf73a6164d520ef18f3e20dcb26aadc93f",
       "r4_sha256": null,
       "r7_sha256": null
     },
     {
-      "path": "验收报告-v5.0.3.md",
-      "sha256": "33ae0036640b9f2b8c03f670e335c42fc7248720fb229806f054b5e13d72bcf5",
+      "path": "说明-R10-框内识别与视场对齐.md",
+      "sha256": "b9acb9125160f26057d4c7e04047d380b301da7bec7897f6770c2e2e1294deea",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "验收报告-v5.0.4.md",
+      "sha256": "9a2cb894adf6fd6e19fb6830fb1df80d8047d9f7665f877164fe24485f2d0ce9",
       "r4_sha256": null,
       "r7_sha256": null
     }

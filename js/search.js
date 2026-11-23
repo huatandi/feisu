@@ -117,6 +117,34 @@ function rebuildStrictBarcodeIndex(){
     }
   }
 }
+/* v5.0.4：残缺条码的分级匹配。只用于“定位商品”，永不用于自动计数。
+   A 级（自动定位）：片段 ≥10 位数字，且全库只在条码列唯一命中；
+   B 级（候选列表）：片段 8–9 位，或命中 2–10 个，交人工点选；
+   C 级：其余一律不做。 */
+function findFragmentBarcodeRow(fragment){
+  var raw=String(fragment==null?'':fragment).replace(/[^\d]/g,'');
+  if(raw.length<8) return null;
+  var keys=barcodeColumnKeys();
+  if(!keys.length) return null;
+  var hits=[],seen={};
+  for(var i=0;i<db.length;i++){
+    var row=db[i]||{};
+    for(var k=0;k<keys.length;k++){
+      var code=String(row[keys[k]]==null?'':row[keys[k]]).trim();
+      if(!/^\d{8,14}$/.test(code)) continue;
+      var at=code.indexOf(raw);
+      if(at<0) continue;
+      if(seen[code]) break;
+      seen[code]=1;
+      hits.push({row:i,code:code,where:at===0?'prefix':(at===code.length-raw.length?'suffix':'inner')});
+      break;
+    }
+  }
+  if(!hits.length) return null;
+  if(hits.length===1&&raw.length>=10) return {tier:'auto',row:hits[0].row,code:hits[0].code,fragment:raw,where:hits[0].where};
+  if(hits.length<=10) return {tier:'candidates',candidates:hits,fragment:raw};
+  return {tier:'none',count:hits.length};
+}
 function isBarcodeLikeKey(key){
   if(String(key||'').indexOf('__feisu')===0) return false;
   var n=String(typeof displayColumnName==='function'?displayColumnName(key):key).toUpperCase().replace(/[\s._\-\/\\:：()（）]+/g,'');

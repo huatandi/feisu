@@ -335,3 +335,6 @@
    这两类效果都压在“每帧都在变化的视频”上，手机 GPU 要逐帧重算模糊与混合。 */
 .scan-controls > div:first-child{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;background:rgba(0,0,0,.72) !important}
 #toast.scan-error-toast{backdrop-filter:none !important;-webkit-backdrop-filter:none !important}
+/* v5.0.4：摄像头首帧尚未到位时给出明确提示，而不是一块黑框。 */
+.scan-boot{position:absolute;left:50%;top:var(--scan-view-center,30%);transform:translate(-50%,-50%);width:88%;text-align:center;color:#cbd5e1;font-size:13px;font-weight:800;line-height:1.6;z-index:8;pointer-events:none;text-shadow:0 1px 4px #000}
+.scan-boot[hidden]{display:none !important}

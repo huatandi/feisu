@@ -62,11 +62,33 @@ function handleBarcode(code,fromCamera){
   clearPreviousBarcodeNotFoundOnNextScan(codeStr);
   if(codeStr===lastCode&&(now-lastTime)<200)return false;
   lastCode=codeStr;lastTime=now;
-  /* 摄像头走严格匹配（精确码或唯一条码列片段）；模糊匹配只留给手动输入。
-     这样“扫到 A 跳到 B”不会再发生：认不出就明确报“条码不存在”。 */
+  /* 摄像头先走严格匹配；未命中再走“残缺条码分级匹配”（只定位、不计数）。 */
   var idx=fromCamera?findStrictBarcodeRow(codeStr):findBestMatchRowIndex(codeStr);
+  var fragmentHit=null;
+  if(idx===-1&&fromCamera&&scanFragmentMatch){
+    var fm=typeof findFragmentBarcodeRow==='function'?findFragmentBarcodeRow(codeStr):null;
+    if(fm&&fm.tier==='auto'){idx=fm.row;fragmentHit=fm;}
+    else if(fm&&fm.tier==='candidates'){
+      if(typeof showFragmentCandidates==='function')showFragmentCandidates(fm.candidates,'残缺条码 '+fm.fragment+'：请点选正确商品');
+      else showToast('残缺条码命中 '+fm.candidates.length+' 个候选，请用「🔢 数字片段」确认',true);
+      consecutiveFailures=0;return false;
+    }
+  }
   if(idx===-1){playBeep(false,codeStr);showBarcodeNotFoundToast(codeStr);consecutiveFailures++;return false;}
   clearBarcodeNotFoundState();consecutiveFailures=0;
+  /* A 级片段命中：只定位 + 明确警示，绝不自动加数量。 */
+  if(fragmentHit){
+    playBeep(true,codeStr);
+    showToast('⚠️ 片段匹配：'+fragmentHit.fragment+' → '+fragmentHit.code+'，请核对商品再填数量',true);
+    currentInventoryFilter='all';
+    var fIdxAll=filteredRowIndexes(),fPos=fIdxAll.indexOf(idx),fPage=fPos<0?0:Math.floor(fPos/pageSize);
+    if(fPage!==currentPage)currentPage=fPage;
+    renderPage();
+    var fRow=document.getElementById('row-'+idx);if(fRow)fRow.classList.add('prefix-hit');
+    jumpToRowAndFocusQty(idx);
+    if(fromCamera)stopScanningAndJump(idx);
+    return true;
+  }
   var product=typeof extractProduct==='function'?extractProduct(db[idx]):null;
   var productName=(product&&product.name)||db[idx]['名称']||db[idx]['商品名称']||db[idx]['Descripción']||codeStr;
   if(fromCamera&&scanCountMode&&isExactBarcodeForRow(db[idx],codeStr)){
@@ -95,3 +117,15 @@ function handleBarcode(code,fromCamera){
   return true;
 }
 function render(){renderPage();}
+
+/* v5.0.4：残缺条码分级匹配开关（默认开：只定位、不计数） */
+function updateFragmentMatchUI(){
+  var b=document.getElementById('fragmentMatchBtn');
+  if(b)b.textContent=(typeof scanFragmentMatch!=='undefined'&&scanFragmentMatch)?'🔗 片段匹配：开':'🔗 片段匹配：关';
+}
+function toggleFragmentMatchMode(){
+  scanFragmentMatch=!scanFragmentMatch;
+  try{localStorage.setItem('sanfei_fragment_match',scanFragmentMatch?'1':'0');}catch(e){}
+  updateFragmentMatchUI();
+  showToast(scanFragmentMatch?'残缺条码可自动定位（唯一命中且≥10 位）；多命中只列候选，不会自动计数':'已关闭：只接受完整条码精确匹配');
+}

@@ -4,8 +4,8 @@ try {
     if (-not $Target) { $Target = Read-Host '输入发生冲突的仓库根目录完整路径' }
     $Target = (Resolve-Path -LiteralPath $Target.Trim('"')).Path
     if (-not (Test-Path -LiteralPath (Join-Path $Target '.git'))) { throw '目标目录不是 Git 仓库根目录，未复制任何文件。' }
-    if ($Target -eq $PSScriptRoot) { throw '请把 R6 解压到仓库外的新文件夹，再运行此脚本。' }
-    $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'R6-升级清单.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($Target -eq $PSScriptRoot) { throw '请把 v5.0.4 解压到仓库外的新文件夹，再运行此脚本。' }
+    $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot '升级清单-v5.0.4.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     foreach ($entry in $manifest.files) {
         $relative = [string]$entry.path
         if ($relative -match '(^|/)\.\.?(/|$)|^/|:|(^|/)\.git(/|$)') { throw '升级清单存在无效路径。' }
@@ -13,7 +13,7 @@ try {
         if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.sha256) { throw ('源文件校验失败: ' + $relative) }
     }
     $parent = Split-Path -Parent $Target
-    $backup = Join-Path $parent ('FEISU-R6-Backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+    $backup = Join-Path $parent ('FEISU-v5.0.4-Backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
     New-Item -ItemType Directory -Path $backup | Out-Null
     # Complete every backup before replacing any target file.
     foreach ($entry in $manifest.files) {

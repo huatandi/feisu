@@ -49,11 +49,11 @@ test('the same fuzzy text still works from the manual input box',()=>{
   assert.deepEqual(c.__calls.jump,[2]);
 });
 
-test('a unique 8+ digit fragment is NOT auto-matched by the camera any more',()=>{
+test('an 8-9 digit fragment offers candidates instead of jumping',()=>{
   const c=env(rows());
-  assert.equal(c.handleBarcode('12345678',true),false,'partial reads must be confirmed by hand');
+  assert.equal(c.handleBarcode('12345678',true),false,'short partial reads must be confirmed by hand');
   assert.equal(c.__calls.jump.length,0);
-  assert.equal(c.__calls.notFound.length,1);
+  assert.equal(c.__calls.notFound.length,0,'it is a candidate, not a "not found"');
 });
 
 test('an ambiguous fragment is rejected instead of guessing',()=>{
@@ -63,7 +63,7 @@ test('an ambiguous fragment is rejected instead of guessing',()=>{
   ]);
   assert.equal(c.handleBarcode('12345678',true),false);
   assert.equal(c.__calls.jump.length,0);
-  assert.equal(c.__calls.notFound.length,1);
+  assert.equal(c.__calls.notFound.length,0,'ambiguous fragments become a candidate list');
 });
 
 test('exact barcode still jumps and stops the camera in the default mode',()=>{
@@ -73,12 +73,13 @@ test('exact barcode still jumps and stops the camera in the default mode',()=>{
   assert.deepEqual(c.__calls.jump,[0]);
 });
 
-test('a 13-digit code and its 12-digit truncation are different products, not a match',()=>{
+test('a 12-of-13 truncation is only LOCATED by fragment matching, never treated as exact',()=>{
   const c=env([{'条码':'7501234567890','商品名称':'A','实际数量':''}]);
-  /* 旧实现会把“去前导零/截断”当成同一码；摄像头路径必须拒绝 */
-  assert.equal(c.findStrictBarcodeRow('750123456789'),-1);
-  assert.equal(c.handleBarcode('750123456789',true),false);
-  assert.equal(c.__calls.jump.length,0);
+  assert.equal(c.findStrictBarcodeRow('750123456789'),-1,'strict index must not equate a truncation');
+  assert.equal(c.handleBarcode('750123456789',true),true,'but the tiered locator may jump to it');
+  assert.deepEqual(c.__calls.jump,[0]);
+  assert.equal(c.db[0]['实际数量'],'','locating never records a quantity');
+  assert.match(c.__calls.toast.join(' '),/片段匹配/);
 });
 
 test('UPC-A 12 digits and EAN-13 with a leading zero remain the same physical code',()=>{
@@ -135,4 +136,46 @@ test('import keeps an already counted 实际数量 so a saved sheet can be resum
   assert.equal(built.row['实际数量'],7);
   const blank=c.buildImportedRow({'条码':'7501234567890','商品名称':'A','数量':10,'实际数量':''},new Set());
   assert.equal(blank.row['实际数量'],'');
+});
+
+test('a 10+ digit unique fragment auto-locates the row but never counts',()=>{
+  const c=env([{'条码':'7501234567890','商品名称':'A','实际数量':''},{'条码':'7509876543210','商品名称':'B','实际数量':''}]);
+  c.scanCountMode=true;
+  assert.equal(c.handleBarcode('7501234567',true),true,'unique 10-digit prefix should locate');
+  assert.deepEqual(c.__calls.jump,[0]);
+  assert.equal(c.db[0]['实际数量'],'','fragment match must never change quantity');
+  assert.equal(c.scanSessionCount,0);
+  assert.equal(c.__calls.stop.length,1);
+  assert.match(c.__calls.toast.join(' '),/片段匹配/);
+});
+
+test('a 9-digit fragment offers candidates instead of jumping',()=>{
+  const c=env([{'条码':'7501234567890','商品名称':'A','实际数量':''},{'条码':'7509876543210','商品名称':'B','实际数量':''}]);
+  assert.equal(c.handleBarcode('750123456',true),false,'short fragments must be confirmed by hand');
+  assert.equal(c.__calls.jump.length,0);
+});
+
+test('two rows sharing a 10-digit fragment stay ambiguous',()=>{
+  const c=env([{'条码':'7501234567890','商品名称':'A','实际数量':''},{'条码':'7501234567891','商品名称':'B','实际数量':''}]);
+  assert.equal(c.handleBarcode('75012345678',true),false);
+  assert.equal(c.__calls.jump.length,0);
+});
+
+test('fragments shorter than 8 digits are never matched',()=>{
+  const c=env([{'条码':'7501234567890','商品名称':'A','实际数量':''}]);
+  assert.equal(c.handleBarcode('7501234',true),false);
+  assert.equal(c.__calls.notFound.length,1);
+});
+
+test('turning fragment matching off restores strict-only behaviour',()=>{
+  const c=env([{'条码':'7501234567890','商品名称':'A','实际数量':''}]);
+  c.scanFragmentMatch=false;
+  assert.equal(c.handleBarcode('7501234567',true),false);
+  assert.equal(c.__calls.jump.length,0);
+});
+
+test('a full code still wins over any fragment logic',()=>{
+  const c=env([{'条码':'7501234567890','商品名称':'A','实际数量':''}]);
+  assert.equal(c.handleBarcode('7501234567890',true),true);
+  assert.doesNotMatch(c.__calls.toast.join(' '),/片段匹配/);
 });

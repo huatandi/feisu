@@ -1,6 +1,6 @@
 'use strict';
 
-var VERSION = 'FEISU v5.0.3 · R9';
+var VERSION = 'FEISU v5.0.4 · R10';
 var db = [];
 var columns = [];
 var currentPage = 0;
@@ -43,6 +43,9 @@ var lastIncrementAt = 0;
 var scanCountMode = false;
 var scanSessionCount = 0;
 try{ scanCountMode = localStorage.getItem('sanfei_scan_count')==='1'; }catch(e){ scanCountMode = false; }
+/* v5.0.4 残缺条码分级匹配：只用于“定位商品”，永不自动计数；显式关闭则只走精确匹配。 */
+var scanFragmentMatch = true;
+try{ if(localStorage.getItem('sanfei_fragment_match')==='0') scanFragmentMatch=false; }catch(e){}
 
 var isAndroid = /Android/i.test(navigator.userAgent);
 var isIPad = /iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;

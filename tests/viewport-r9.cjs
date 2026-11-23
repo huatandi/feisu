@@ -90,10 +90,10 @@ test('full-width frame skips the redundant periodic full-frame decode',()=>{
   assert.equal(e.c.scannerDiagnostics().roiFrames,2);
 });
 
-test('a narrow ROI still keeps the periodic full-frame recovery pass',()=>{
+test('no periodic full-frame pass even for a narrow ROI',()=>{
   const e=decoderEnv({x:300,y:300,w:400,h:300});
   assert.equal(e.target.decode(e.video),'roi');
   e.advance(6000);
-  assert.equal(e.target.decode(e.video),'full');
-  assert.equal(e.c.scannerDiagnostics().fullFrames,1);
+  assert.equal(e.target.decode(e.video),'roi');
+  assert.equal(e.c.scannerDiagnostics().fullFrames,0);
 });
