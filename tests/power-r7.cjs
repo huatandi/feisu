@@ -20,7 +20,7 @@ test('same frame and cooldown do not create extra recovery work',async()=>{
 });
 test('recovery rotation preserves close-in-time Quagga pairs and fragment triples',async()=>{
  const e=environment(),calls=[];e.c.scannerPowerSave=true;e.c.tryEnhancedDecode=async()=>{calls.push('decode');return null;};e.c.tryQuaggaRecovery=async()=>{calls.push('quagga');return null;};e.c.trySheetFragmentAssist=async()=>{calls.push('fragment');};
- for(let i=0;i<6;i++){await e.c.launchSupplementalRecovery(e.video,{});e.advance(1000);e.video.currentTime++;}
+ for(let i=0;i<6;i++){await e.c.launchSupplementalRecovery(e.video,{});e.c.scannerRecoveryMisses=0;e.advance(1000);e.video.currentTime++;}
  assert.deepEqual(calls,['decode','quagga','quagga','fragment','fragment','fragment']);
 });
 test('hung WASM loader cannot block local rotated fallback',async()=>{
@@ -49,6 +49,15 @@ test('scan line keeps moving in power-saving mode and uses transform animation',
 
 test('balanced recovery preserves Quagga double-check and three fragment observations within their evidence windows',async()=>{
  const e=environment(),quaggaTimes=[],fragmentTimes=[];e.c.tryEnhancedDecode=async()=>null;e.c.tryQuaggaRecovery=async()=>{quaggaTimes.push(e.c.Date.now());return null;};e.c.trySheetFragmentAssist=async()=>{fragmentTimes.push(e.c.Date.now());};
- for(let i=0;i<9;i++){await e.c.launchSupplementalRecovery(e.video,{});e.advance(650);e.video.currentTime++;}
+ for(let i=0;i<9;i++){await e.c.launchSupplementalRecovery(e.video,{});e.c.scannerRecoveryMisses=0;e.advance(650);e.video.currentTime++;}
  assert.equal(quaggaTimes.length,2);assert.ok(quaggaTimes[1]-quaggaTimes[0]<2500);assert.equal(fragmentTimes.length,3);assert.ok(fragmentTimes[1]-fragmentTimes[0]<1800);assert.ok(fragmentTimes[2]-fragmentTimes[1]<1800);
+});
+
+test('recovery gap backs off after sustained misses and resets on success',()=>{
+ const e=environment();
+ assert.equal(e.c.scannerRecoveryGap(),650);
+ e.c.scannerRecoveryMisses=3;assert.equal(e.c.scannerRecoveryGap(),1300);
+ e.c.scannerRecoveryMisses=6;assert.equal(e.c.scannerRecoveryGap(),1950);
+ e.c.scannerRecoveryMisses=12;assert.equal(e.c.scannerRecoveryGap(),3250);
+ e.c.scannerRecoveryMisses=0;assert.equal(e.c.scannerRecoveryGap(),650);
 });

@@ -15,8 +15,13 @@ test('no periodic full-frame pass while the ROI is available (it would decode pi
 test('slow failed decodes increase the retry wait and still record their cost',()=>{
  const e=env();e.cost(150);e.fail();assert.throws(()=>e.target.decode(e.video));assert.ok(e.target.timeBetweenDecodingAttempts>=278);assert.equal(e.c.scannerDiagnostics().meanDecodeMs,150);
 });
-test('primary ROI path always keeps TRY_HARDER for tilted barcodes; other hints preserved',()=>{
- const e=env();e.target.__scannerHints.set('formats','oneD');e.c.configurePrimaryScanHints(e.target);assert.equal(e.target.reader.hints.get('harder'),true);e.c.enhanceMode=true;e.c.configurePrimaryScanHints(e.target);assert.equal(e.target.reader.hints.get('harder'),true);assert.equal(e.target.reader.hints.get('formats'),'oneD');e.c.enhanceMode=false;e.c.configurePrimaryScanHints(e.target);assert.equal(e.target.reader.hints.has('harder'),true);
+test('primary path keeps TRY_HARDER off (15 rows) and preserves other hints',()=>{
+ const e=env();e.target.__scannerHints.set('formats','oneD');
+ e.c.configurePrimaryScanHints(e.target);
+ assert.equal(e.target.reader.hints.has('harder'),false,'full-row scanning measured 3.8x slower on device');
+ assert.equal(e.target.reader.hints.get('formats'),'oneD');
+ e.c.enhanceMode=true;e.c.configurePrimaryScanHints(e.target);assert.equal(e.target.reader.hints.has('harder'),false);
+ e.c.enhanceMode=false;e.c.configurePrimaryScanHints(e.target);assert.equal(e.target.reader.hints.has('harder'),false);
 });
 test('full-frame path still invalidates the ZXing capture cache when no ROI is available',()=>{
  const e=env();let reset=0;e.c.getFrameROI=()=>null;e.target.captureCanvas={width:1280,height:720};e.target._destroyCaptureCanvas=()=>reset++;
