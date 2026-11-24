@@ -103,17 +103,25 @@ function strictBarcodeKey(value){
   if(d.length===12) return '0'+d;      /* UPC-A ↔ EAN-13 的唯一合法等价 */
   return d;
 }
+function strictKeyOf(value){
+  var s=String(value==null?'':value).trim();
+  if(!s) return null;
+  return /^\d+$/.test(s)?strictBarcodeKey(s):'#'+s.toUpperCase();
+}
 function rebuildStrictBarcodeIndex(){
   strictBarcodeIndex=new Map();
-  var keys=barcodeColumnKeys();
-  if(!keys.length) return;
+  var bkeys=barcodeColumnKeys(),mkeys=modelColumnKeys();
+  if(!bkeys.length&&!mkeys.length) return;
   for(var i=0;i<db.length;i++){
-    var row=db[i]||{};
-    for(var k=0;k<keys.length;k++){
-      var raw=String(row[keys[k]]==null?'':row[keys[k]]).trim();
-      if(!raw) continue;
-      var key=/^\d+$/.test(raw)?strictBarcodeKey(raw):'#'+raw;
-      if(!strictBarcodeIndex.has(key)) strictBarcodeIndex.set(key,i);
+    var row=db[i]||{},found=false;
+    for(var k=0;k<bkeys.length;k++){
+      var key=strictKeyOf(row[bkeys[k]]);
+      if(key){found=true;if(!strictBarcodeIndex.has(key))strictBarcodeIndex.set(key,i);}
+    }
+    /* 该行条码列全空时，才允许用型号列兜底，避免遮蔽真正的条码 */
+    if(!found)for(var m=0;m<mkeys.length;m++){
+      var key2=strictKeyOf(row[mkeys[m]]);
+      if(key2&&!strictBarcodeIndex.has(key2))strictBarcodeIndex.set(key2,i);
     }
   }
 }
@@ -145,10 +153,25 @@ function findFragmentBarcodeRow(fragment){
   if(hits.length<=10) return {tier:'candidates',candidates:hits,fragment:raw};
   return {tier:'none',count:hits.length};
 }
+function normColumnKey(key){
+  return String(typeof displayColumnName==='function'?displayColumnName(key):key).toUpperCase().replace(/[\s._\-\/\\:：()（）]+/g,'');
+}
+/* v5.1：列名识别。供应商常见的"条形码CODIGO DE BARRA"以前完全认不出来，
+   导致整个文件被当成"没有条码列"，扫什么都提示不存在。 */
 function isBarcodeLikeKey(key){
   if(String(key||'').indexOf('__feisu')===0) return false;
-  var n=String(typeof displayColumnName==='function'?displayColumnName(key):key).toUpperCase().replace(/[\s._\-\/\\:：()（）]+/g,'');
-  return /^(条码|商品条码|BARCODE|CODIGOBARRAS|CÓDIGOBARRAS|EAN|EAN13|EAN8|UPC|UPCA)$/.test(n);
+  var n=normColumnKey(key);
+  if(!n) return false;
+  if(/^(条码|条形码|条型码|商品条码|条码号|内部条码|BARCODE|CODIGOBARRA|CODIGODEBARRA|CODIGOBARRAS|CODIGODEBARRAS|EAN|EAN13|EAN8|UPC|UPCA)$/.test(n)) return true;
+  return /(条形码|条型码|条码|BARCODE|CODIGODEBARRA)/.test(n);
+}
+/* 型号/货号列：条码列空着的单据，Code 128 里编的就是型号本身，可作精确匹配的次级键。 */
+function isModelLikeKey(key){
+  if(String(key||'').indexOf('__feisu')===0) return false;
+  if(isBarcodeLikeKey(key)) return false;
+  var n=normColumnKey(key);
+  if(!n) return false;
+  return /(型号|货号|貨號|商品编码|货品编码|CODIGO|MODELO|MODEL|SKU|REF|ITEM)/.test(n);
 }
 function barcodeColumnKeys(){
   var out=[];
@@ -157,26 +180,46 @@ function barcodeColumnKeys(){
   if(!out.length&&typeof columns!=='undefined'&&columns)out=columns.filter(isBarcodeLikeKey);
   return out;
 }
+function modelColumnKeys(){
+  var out=[];
+  var first=db&&db[0]?db[0]:null;
+  if(first)for(var key in first){if(Object.prototype.hasOwnProperty.call(first,key)&&isModelLikeKey(key))out.push(key);}
+  if(!out.length&&typeof columns!=='undefined'&&columns)out=columns.filter(isModelLikeKey);
+  return out;
+}
+function rowHasBarcodeValue(row,bkeys){
+  for(var i=0;i<bkeys.length;i++){if(String(row[bkeys[i]]==null?'':row[bkeys[i]]).trim())return true;}
+  return false;
+}
+function sameCodeValue(value,raw,digitsOnly){
+  var s=String(value==null?'':value).trim();
+  if(!s) return false;
+  if(digitsOnly&&/^\d+$/.test(s)) return strictBarcodeKey(s)===strictBarcodeKey(raw);
+  return s.toUpperCase()===raw.toUpperCase();          /* 字母码：忽略大小写，仍要求全等 */
+}
 function findStrictBarcodeRow(code){
   var raw=String(code==null?'':code).trim();
   if(!raw) return -1;
   var digitsOnly=/^\d{6,}$/.test(raw);
-  var key=digitsOnly?strictBarcodeKey(raw):'#'+raw;
+  var key=digitsOnly?strictBarcodeKey(raw):'#'+raw.toUpperCase();
   if(strictBarcodeIndex.has(key)) return strictBarcodeIndex.get(key);
-  /* 索引可能尚未重建（刚改过表头）：按同一规则现算一次 */
-  var keys=barcodeColumnKeys();
-  if(!keys.length) return -1;
+  var bkeys=barcodeColumnKeys(),mkeys=modelColumnKeys();
+  if(!bkeys.length&&!mkeys.length) return -1;
+  /* 一轮：只比条码列（含仅某些行有值的情况） */
   for(var i=0;i<db.length;i++){
     var row=db[i]||{};
-    for(var k=0;k<keys.length;k++){
-      var v=String(row[keys[k]]==null?'':row[keys[k]]).trim();
-      if(!v) continue;
-      if(v===raw) return i;
-      if(digitsOnly&&/^\d+$/.test(v)&&strictBarcodeKey(v)===key) return i;
+    for(var k=0;k<bkeys.length;k++){
+      if(sameCodeValue(row[bkeys[k]],raw,digitsOnly)) return i;
     }
   }
-  /* 摄像头只做精确匹配：残缺/局部条码不再“猜”。
-     需要按片段找商品时用“数字片段”按钮，它会列候选并等人工点选。 */
+  /* 二轮：条码列空的行，用型号列做精确匹配（Code 128 编型号的那种单据） */
+  for(var j=0;j<db.length;j++){
+    var r2=db[j]||{};
+    if(rowHasBarcodeValue(r2,bkeys)) continue;
+    for(var m=0;m<mkeys.length;m++){
+      if(sameCodeValue(r2[mkeys[m]],raw,digitsOnly)) return j;
+    }
+  }
   return -1;
 }
 

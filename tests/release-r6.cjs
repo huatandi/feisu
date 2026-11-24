@@ -55,5 +55,5 @@ test('all local HTML dependencies exist; all project JS compiles; no merge marke
  const {execFileSync}=require('node:child_process');const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  for(const match of html.matchAll(/(?:src|href)="\.\/([^"?]+)(?:\?[^"]*)?"/g))assert.ok(fs.existsSync(path.join(root,match[1])),match[1]);
  for(const dir of ['js','tests'])for(const f of fs.readdirSync(path.join(root,dir))){if(!/\.(js|cjs)$/.test(f))continue;const p=path.join(root,dir,f);assert.doesNotMatch(fs.readFileSync(p,'utf8'),/^(?:<{7}|={7}|>{7})(?: |$)/m,p);execFileSync(process.execPath,['--check',p]);}
- assert.match(html,/v5\.0\.8 · 框内识别版 R14/);assert.match(fs.readFileSync(path.join(root,'js/core.js'),'utf8'),/v5\.0\.8 · R14/);
+ assert.match(html,/v5\.1\.0 · 框内识别版 R16/);assert.match(fs.readFileSync(path.join(root,'js/core.js'),'utf8'),/v5\.1\.0 · R16/);
 });

@@ -1,6 +1,6 @@
 'use strict';
 
-var VERSION = 'FEISU v5.0.8 · R14';
+var VERSION = 'FEISU v5.1.0 · R16';
 var db = [];
 var columns = [];
 var currentPage = 0;
@@ -269,18 +269,24 @@ function markRowReviewed(rowIndex){if(!db[rowIndex])return;db[rowIndex].__feisuR
    不再使用 exactMatch 的模糊候选（前缀/去前导零），避免把 A 的数量记到 B 上。 */
 function isExactBarcodeForRow(row,code){
   if(!row)return false;
-  var raw=String(code==null?'':code).trim();if(!raw)return false;
-  var keys=(typeof barcodeColumnKeys==='function')?barcodeColumnKeys():[];
-  if(!keys.length)keys=['条码','Código Barras','Codigo Barras','barcode','Barcode','商品条码','EAN','UPC'];
-  var digitsOnly=/^\d{6,}$/.test(raw),key=digitsOnly&&typeof strictBarcodeKey==='function'?strictBarcodeKey(raw):'';
-  for(var i=0;i<keys.length;i++){
-    var k=keys[i];
-    if(!Object.prototype.hasOwnProperty.call(row,k))continue;
-    var v=String(row[k]==null?'':row[k]).trim();
-    if(!v)continue;
-    if(v===raw)return true;
-    if(key&&/^\d+$/.test(v)&&strictBarcodeKey(v)===key)return true;
+  var raw=String(code==null?'':code).trim();
+  if(!raw)return false;
+  var digitsOnly=/^\d{6,}$/.test(raw);
+  function same(v){
+    var s=String(v==null?'':v).trim();
+    if(!s)return false;
+    if(digitsOnly&&/^\d+$/.test(s))return strictBarcodeKey(s)===strictBarcodeKey(raw);
+    return s.toUpperCase()===raw.toUpperCase();
   }
+  var bkeys=(typeof barcodeColumnKeys==='function')?barcodeColumnKeys():[];
+  var mkeys=(typeof modelColumnKeys==='function')?modelColumnKeys():[];
+  var hasBar=false;
+  for(var i=0;i<bkeys.length;i++){
+    var v=row[bkeys[i]];
+    if(String(v==null?'':v).trim()){hasBar=true;if(same(v))return true;}
+  }
+  if(hasBar)return false;
+  for(var j=0;j<mkeys.length;j++){if(same(row[mkeys[j]]))return true;}
   return false;
 }
 function incrementScannedQty(rowIndex,code){

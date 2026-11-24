@@ -35,7 +35,7 @@ function primaryBandROI(v,f){
   var padX=Math.round(r.w*.02);
   var y0=r.y,h0=r.h;
   var band=SCAN_BANDS[scanBandIndex++%SCAN_BANDS.length];
-  var bh=Math.max(64,Math.round(h0*.42));
+  var bh=Math.max(64,Math.round(h0*.56));   /* v5.1：42%→56%，靠边条码少等一轮 */
   if(h0<=bh*1.2){                                  /* 框本来就很矮：不值得切 */
     var xw=Math.max(0,r.x-padX);
     return {x:xw,y:y0,w:Math.min(v.videoWidth,r.x+r.w+padX)-xw,h:h0,band:-1};
@@ -74,6 +74,21 @@ function installPrimaryROIDecoder(target,v,f){
       if('imageSmoothingQuality' in ctx)ctx.imageSmoothingQuality='high';
       ctx.drawImage(v,r.x,r.y,r.w,r.h,0,0,cw,ch);
       stats.roiFrames++;pixels=cw*ch;stats.lastScope='roi';stats.band=r.band===undefined?-1:r.band;stats.scale=Math.round(scale*100)/100;
+      /* v5.1 格式分级：现场基本只有 Code 128（供应商）和 EAN-13（零售包装）。
+         9 种码制全部参与 15 行匹配，大半算力花在不会出现的码制上。
+         常规尝试只给常用 5 种，每第 3 次给全 9 种兜底。 */
+      try{
+        if(target.reader&&typeof target.reader.setHints==='function'&&target.__scannerHints&&typeof ZXing!=='undefined'&&ZXing&&ZXing.BarcodeFormat){
+          var bf=ZXing.BarcodeFormat,useFull=(stats.frames%3===2),hintBase=target.__scannerHints,
+              fm=[bf.EAN_13,bf.EAN_8,bf.UPC_A,bf.UPC_E,bf.CODE_128];
+          if(useFull)fm=[bf.EAN_13,bf.EAN_8,bf.UPC_A,bf.UPC_E,bf.CODE_39,bf.CODE_93,bf.CODE_128,bf.ITF,bf.CODABAR];
+          var fmtHints=new Map(hintBase);
+          fmtHints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,fm);
+          target.reader.setHints(fmtHints);restoreHints=hintBase;
+          if(useFull)stats.fullFormatFrames=(stats.fullFormatFrames||0)+1;
+          else stats.fastFrames=(stats.fastFrames||0)+1;
+        }
+      }catch(e){}
       return target.decodeBitmap(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(canvas))));
     }finally{
       if(restoreHints)target.reader.setHints(restoreHints);
@@ -95,7 +110,7 @@ function scanViewDiagnostics(){
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R14':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap()};
+  return {version:typeof VERSION==='undefined'?'R16':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,full:s.fullFormatFrames||0}:null};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -186,9 +201,10 @@ function releaseCameraSession(sessionReader,stream,video){
    宽度取满屏宽的约 97%，高度按真实视频流比例，竖屏里上下留黑，而不是压缩左右。 */
 var scanViewAspect=16/9,scanViewBox=null;
 function scanViewHost(v){
-  if(v&&v.parentElement)return v.parentElement;
-  if(typeof document.querySelector!=='function')return null;
-  return document.querySelector('#scanUI .scan-stage')||document.querySelector('#scanUI .relative')||null;
+  /* 视频现在包在 .scan-viewport 里，布局必须相对 .scan-stage 量，不能取 parentElement。 */
+  if(typeof document.querySelector==='function'){var st=document.querySelector('#scanUI .scan-stage');if(st)return st;}
+  if(v&&v.parentElement&&v.parentElement.parentElement)return v.parentElement.parentElement;
+  return (v&&v.parentElement)||null;
 }
 function scanViewInsets(host){
   /* 用真实 DOM 量上下两条固定浮层，而不是写死像素：320 宽的机器上工具条会折成 3–4 行。 */
@@ -208,7 +224,9 @@ function scanViewLayout(){
   var host=scanViewHost(v);
   var availW=(host&&host.clientWidth)||window.innerWidth||0,availH=(host&&host.clientHeight)||window.innerHeight||0;
   if(!(availW>90)||!(availH>140))return null;
-  var vw=v.videoWidth||0,vh=v.videoHeight||0,ar=vw>0&&vh>0?vw/vh:scanViewAspect;
+  var vw=v.videoWidth||0,vh=v.videoHeight||0,rawAr=vw>0&&vh>0?vw/vh:scanViewAspect;
+  if(!isFinite(rawAr)||rawAr<=0)rawAr=16/9;
+  var ar=rawAr;   /* ar 之后会被归一化成“框”的形状；rawAr 保留真实流比例 */
   if(!isFinite(ar)||ar<=0)ar=16/9;
   /* 竖屏/方屏视频流不改横向框：object-fit:cover 会裁掉上下，横向仍是传感器全宽——
      条码最需要的正是水平分辨率。 */
@@ -225,6 +243,11 @@ function scanViewLayout(){
   ui.style.setProperty('--scan-view-h',Math.round(h)+'px');
   ui.style.setProperty('--scan-view-center',center+'px');
   ui.style.setProperty('--scan-line-travel',Math.max(12,Math.round(h-26))+'px');
+  /* 覆盖尺寸：视频元素比框大，多出来的部分由 .scan-viewport 裁掉 */
+  var coverW=w,coverH=h;
+  if(rawAr>=w/h){coverH=h;coverW=Math.round(h*rawAr);}else{coverW=w;coverH=Math.round(w/rawAr);}
+  ui.style.setProperty('--scan-video-w',coverW+'px');
+  ui.style.setProperty('--scan-video-h',coverH+'px');
   scanViewBox={w:Math.round(w),h:Math.round(h),center:center,aspect:ar};
   return scanViewBox;
 }
