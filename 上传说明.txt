@@ -1,65 +1,22 @@
-FEISU v5.1.2 R18 —— 上传专用包（只含网站运行文件）
+FEISU v5.1.3 R19 —— 上传专用（只含网站运行文件）
 
-════════════════════════
-三步搞定
-════════════════════════
+三步：
+1) 解压到桌面 → 直接看到 index.html、css、js、vendor、assets、migration.html
+2) 进到文件夹里面，Ctrl+A 全选，Ctrl+C
+3) 打开 https://github.com/huatandi/feisu → Add file → Upload files → 粘贴进去 → Commit changes
 
-1) 解压到桌面。
-   解压后应该直接看到这些（没有外层文件夹）：
-   index.html   css   js   vendor   assets   migration.html
+确认：打开 https://huatandi.github.io/feisu/js/core.js
+      第一行应是 var VERSION = 'FEISU v5.1.3 · R19';
 
-2) 进到这个文件夹里面，按 Ctrl+A 全选，再 Ctrl+C。
-   （一定要进到“里面”再全选。拖外层文件夹会变成子目录，网站就打不开了）
+R19 改了什么（相对 R18）
+- 精度档从“每第 8 次 + 原生宽度 + TRY_HARDER”改成“每第 12 次 + 宽度上限 1000 + 全格式，不开 TRY_HARDER”。
+  实测精度档单次最高 117–171ms，是 maxDecodeMs 的主因，还把 meanDecodeMs 拉高 30%。
+- 增强模式在平板上也降到 1280×720（原来 enhanced 忽略平板规则，等于 2MP@24fps）。
+- 取景框整体上移（最多 72px，约 2cm）。
+- 视频元素内联强制 object-fit:cover（不再依赖样式表）。
+- 诊断新增 elemW：视频元素的真实渲染尺寸，用来确认“黑罩”到底是不是取景元素尺寸不对。
 
-3) 浏览器打开：
-   https://github.com/huatandi/feisu
-   点 【Add file】 → 【Upload files】
-   把刚才复制的全部粘/拖进去 → 页面下方 【Commit changes】
-
-等 1 分钟，分支发布会自动重建。
-
-════════════════════════
-怎么确认成功
-════════════════════════
-
-打开：
-https://huatandi.github.io/feisu/js/core.js
-
-第一行应该是：
-var VERSION = 'FEISU v5.1.2 · R18';
-
-看到 R18 → 成功，去验收。
-还是 R16 → 上传没落地（多半拖成了子目录），检查仓库根目录下有没有多出一层文件夹。
-
-════════════════════════
-验收三条
-════════════════════════
-
-1. 打开 https://huatandi.github.io/feisu/ ，角标应为
-   「FEISU v5.1.2 · 框内识别版 R18」
-2. iPad：取景框宽度约屏宽 60%（不再铺满），打开扫码立刻铺满、无黑边
-3. iPad 点「📊 复制诊断」：
-   - camera.width 应为 1280（平板 720p 生效）
-   - stagedFormats 应有 {fast, full, precise} 三个计数
-   - view.roiShare 横屏约 100%、竖屏约 31%
-
-════════════════════════
-可选：清掉那个红叉的工作流
-════════════════════════
-
-现在网站由“分支发布”托管，Actions 里的 Deploy 工作流已经没用，
-每提交一次就红一次。删掉它不影响网站：
-仓库 → .github/workflows/deploy.yml → 右上角垃圾桶 → Commit
-
-════════════════════════
-本版改了什么（相对线上 R16）
-════════════════════════
-
-R17：
-- iPad 取景框宽度封顶 620px（原来铺到 744px）
-- 视频按“覆盖尺寸”渲染并同时写内联样式，每 20 次解码自愈复核几何
-  → 修 iPhone「框内黑边 / 必须拿远」
-
-R18：
-- 平板档（屏宽≥700px）请求 1280×720，像素降 56% → iPad 解得更快
-- 每第 8 次解码升到精度档：原生宽度 + TRY_HARDER + 全 9 种格式
+怎么判断黑罩有没有修好
+打开扫码后点「📊 复制诊断」，看 view.elemW 与 view.frameW：
+- elemW 若明显比 frameW 高（例如 frameW 416x234、elemW 416x740）→ 覆盖尺寸正常，画面必须是铺满的；
+- elemW 若等于 frameW（416x234）→ 说明内联尺寸没生效，把这两个数发我。

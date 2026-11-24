@@ -26,7 +26,7 @@ function configurePrimaryScanHints(target){
   target.__scannerHints.delete(ZXing.DecodeHintType.TRY_HARDER);
   target.reader.setHints(target.__scannerHints);target.__scannerHarder=false;
 }
-var SCAN_ROI_MAX_WIDTH=800,SCAN_MAX_WIDTH_WIDE=620,scanBandIndex=0;
+var SCAN_ROI_MAX_WIDTH=800,SCAN_ROI_MAX_WIDTH_HI=1000,SCAN_MAX_WIDTH_WIDE=620,scanBandIndex=0;
 /* 段序：中→上→中→下（条码多数居中，中心权重加倍）。段高约框高的 42%，带重叠避免切断条码。 */
 var SCAN_BANDS=[1,0,1,2],SCAN_BAND_COUNT=3;
 function primaryBandROI(v,f){
@@ -69,8 +69,10 @@ function installPrimaryROIDecoder(target,v,f){
          条码占框 60% 时仍有 ~4.5 px/模块（可靠下限约 2）。缩小时用双线性，避免窄条锯齿。 */
       /* v5.1.2 精度升级：每第 8 次不缩小、开 TRY_HARDER、全格式。
          难读的条码（磨损/低对比/更远）走这一档，常规则保持便宜。 */
-      var precise=(stats.frames%8===7);
-      var scale=precise?1:Math.min(1,SCAN_ROI_MAX_WIDTH/r.w);
+      /* v5.1.3：精度档改为“每第 12 次 + 上限 1000 + 全格式”，不再用原生宽度与 TRY_HARDER。
+         实测精度档 171ms 是 maxDecodeMs 的来源，且拉高 meanDecodeMs。 */
+      var precise=(stats.frames%12===11);
+      var scale=Math.min(1,(precise?SCAN_ROI_MAX_WIDTH_HI:SCAN_ROI_MAX_WIDTH)/r.w);
       var cw=Math.max(1,Math.round(r.w*scale)),ch=Math.max(1,Math.round(r.h*scale));
       if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
       ctx.imageSmoothingEnabled=scale<1;
@@ -87,7 +89,6 @@ function installPrimaryROIDecoder(target,v,f){
           if(useFull)fm=[bf.EAN_13,bf.EAN_8,bf.UPC_A,bf.UPC_E,bf.CODE_39,bf.CODE_93,bf.CODE_128,bf.ITF,bf.CODABAR];
           var fmtHints=new Map(hintBase);
           fmtHints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,fm);
-          if(precise)fmtHints.set(ZXing.DecodeHintType.TRY_HARDER,true);
           target.reader.setHints(fmtHints);restoreHints=hintBase;
           if(precise)stats.preciseFrames=(stats.preciseFrames||0)+1;
           if(useFull)stats.fullFormatFrames=(stats.fullFormatFrames||0)+1;
@@ -112,12 +113,12 @@ function scanViewDiagnostics(){
     var v=document.getElementById('video'),f=document.getElementById('scanFrame');
     if(!v||!f||!v.videoWidth||!v.videoHeight)return null;
     var r=getFrameROI(v,f);
-    return {readyState:v.readyState,frameW:scanViewBox?scanViewBox.w:null,frameH:scanViewBox?scanViewBox.h:null,sensorW:v.videoWidth,sensorH:v.videoHeight,roiW:r?r.w:null,roiH:r?r.h:null,roiShare:r?Math.round(r.w*r.h/(v.videoWidth*v.videoHeight)*1000)/10:null};
+    return {readyState:v.readyState,elemW:(function(){try{var b=v.getBoundingClientRect();return Math.round(b.width)+'x'+Math.round(b.height);}catch(e){return null;}})(),frameW:scanViewBox?scanViewBox.w:null,frameH:scanViewBox?scanViewBox.h:null,sensorW:v.videoWidth,sensorH:v.videoHeight,roiW:r?r.w:null,roiH:r?r.h:null,roiShare:r?Math.round(r.w*r.h/(v.videoWidth*v.videoHeight)*1000)/10:null};
   }catch(e){return null;}
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R18':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,full:s.fullFormatFrames||0,precise:s.preciseFrames||0}:null};
+  return {version:typeof VERSION==='undefined'?'R19':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,full:s.fullFormatFrames||0,precise:s.preciseFrames||0}:null};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -126,7 +127,9 @@ async function copyScannerDiagnostics(){
 }
 function scannerPowerProfile(){
   var tablet=(typeof window!=='undefined'&&window.innerWidth>=700);
-  if(enhanceMode)return {mode:'enhanced',saving:false,width:1920,height:1080,fps:24,maxFps:30,retry:80,recoveryGap:500,recoveryAge:600};
+  if(enhanceMode)return tablet
+    ? {mode:'enhanced',saving:false,width:1280,height:720,fps:24,maxFps:30,retry:80,recoveryGap:500,recoveryAge:600}
+    : {mode:'enhanced',saving:false,width:1920,height:1080,fps:24,maxFps:30,retry:80,recoveryGap:500,recoveryAge:600};
   if(scannerPowerSave)return {mode:'saving',saving:true,width:1280,height:720,fps:15,maxFps:20,retry:180,recoveryGap:1000,recoveryAge:1200};
   /* v5.1.2：平板屏大 → 框映射到整个传感器，1920x1080 等于每次解 2MP。
      改请求 720p：像素降 56%，条码仍有足够模块像素。 */
@@ -250,7 +253,9 @@ function scanViewLayout(){
   var bandTop=insets.top,bandBottom=Math.max(bandTop+120,availH-insets.bottom);
   var bandH=bandBottom-bandTop,h=w/ar;
   if(h>bandH){h=bandH;w=h*ar;}                         /* 横屏/平板按可用高度回退，绝不超出屏幕 */
-  var center=Math.round(bandTop+bandH/2);
+  /* v5.1.3：整体上移，最多 72px（约 2cm），让框更接近视线中心 */
+  var shiftUp=Math.min(72,Math.round(availH*0.05));
+  var center=Math.max(bandTop+Math.round(h/2)+4,Math.round(bandTop+bandH/2)-shiftUp);
   ui.style.setProperty('--scan-view-w',Math.round(w)+'px');
   ui.style.setProperty('--scan-view-h',Math.round(h)+'px');
   ui.style.setProperty('--scan-view-center',center+'px');
@@ -263,7 +268,7 @@ function scanViewLayout(){
   /* 双保险：直接写内联样式。某些 iOS 版本上自定义属性在 <video> 上不生效，
      元素会退回“与框同尺寸”，此时 object-fit:cover 又会裁掉两侧 → 画面被放大、
      条码必须拿远才能进框（用户报的“框内有黑罩/要放远”）。 */
-  if(v&&v.style){v.style.width=coverW+'px';v.style.height=coverH+'px';}
+  if(v&&v.style){v.style.width=coverW+'px';v.style.height=coverH+'px';v.style.objectFit='cover';v.style.webkitObjectFit='cover';}
   scanViewBox={w:Math.round(w),h:Math.round(h),center:center,aspect:ar};
   return scanViewBox;
 }
