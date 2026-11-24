@@ -96,7 +96,7 @@
         .scan-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: #000; z-index: 2; }
         .scanner-video { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: var(--scan-video-w, 100%); height: var(--scan-video-h, 100%); object-fit: cover; background: #000; }
         .scan-frame { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 96%); height: var(--scan-view-h, min(56.25vw, 240px)); border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 1px rgba(59,130,246,0.35), 0 10px 30px rgba(0,0,0,0.45); z-index: 10; pointer-events: none; }
-        .scan-line { position: absolute; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent); top: 5%; animation: scanLineMove 0.9s infinite ease-in-out; box-shadow: 0 0 20px #3b82f6; }
+        .scan-line { position: absolute; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent); top: 5%; animation: scanLineMove 0.6s infinite ease-in-out; box-shadow: 0 0 20px #3b82f6; }
         @keyframes scanLineMove { 0%, 100% { transform:translate3d(0,0,0); } 50% { transform:translate3d(0,var(--scan-line-travel,190px),0); } }
         /* Tailwind 若因门店断网未加载，扫描页仍必须全屏可用。 */
         #scanUI { position: fixed; inset: 0; background: #000; z-index: 999; display: none; flex-direction: column; }

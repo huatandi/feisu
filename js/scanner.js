@@ -98,7 +98,18 @@ function installPrimaryROIDecoder(target,v,f){
           else stats.fastFrames=(stats.fastFrames||0)+1;
         }
       }catch(e){}
-      return target.decodeBitmap(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(canvas))));
+      var lumSrc=new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+      if(hard){try{if(stretchContrast(lumSrc))stats.contrastFrames=(stats.contrastFrames||0)+1;}catch(e){}}
+      var bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lumSrc));
+      try{
+        return target.decodeBitmap(bitmap);
+      }catch(err){
+        /* 硬档兜底：换个二值化算法再试一次（同一块像素，不额外采集） */
+        if(hard&&ZXing.GlobalHistogramBinarizer){
+          try{return target.decodeBitmap(new ZXing.BinaryBitmap(new ZXing.GlobalHistogramBinarizer(lumSrc)));}catch(e2){}
+        }
+        throw err;
+      }
     }finally{
       if(restoreHints)target.reader.setHints(restoreHints);
       var ms=Math.max(0,scannerClock()-started);stats.frames++;stats.totalMs+=ms;stats.maxMs=Math.max(stats.maxMs,ms);stats.lastMs=ms;stats.pixels+=pixels;
@@ -121,7 +132,7 @@ function scanViewDiagnostics(){
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R22':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0}:null};
+  return {version:typeof VERSION==='undefined'?'R23':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -292,6 +303,22 @@ function kickVideoPlayback(v){
 }/* v5.1.4 预览：把“取景框对应的那一块传感器画面”画进 canvas。
    这样显示的就是解码用的同一块像素，不存在 object-fit / 元素缩放差异。 */
 var scanPreviewRAF=null,scanPreviewLast=0;
+/* v5.1.7：低对比条码（打印浅、磨损、反光）靠“灰度满幅拉伸”救回来。
+   做法：取这块 ROI 的灰度矩阵，按 min..max 线性映射到 0..255，
+   再交给自适应二值化（HybridBinarizer）——黑白不分明时这一下差别很大。
+   只在硬档（每第 4 次）执行，避免拖慢日常。 */
+function stretchContrast(src){
+  var m=src&&src.getMatrix&&src.getMatrix();
+  if(!m||!m.luminances||!m.width)return false;
+  var L=m.luminances,n=m.width*m.height,i,v,min=255,max=0;
+  for(i=0;i<n;i+=3){v=L[i];if(v<min)min=v;if(v>max)max=v;}   /* 抽样 1/3，够准且快 */
+  if(max-min<20)return false;          /* 几乎纯色，拉伸也没意义 */
+  if(min<=10&&max>=245)return false;   /* 已经满幅，不必再动 */
+  var span=max-min,lut=new Uint8Array(256);
+  for(i=0;i<256;i++){v=Math.round((i-min)*255/span);lut[i]=v<0?0:(v>255?255:v);}
+  for(i=0;i<n;i++)L[i]=lut[L[i]];
+  return true;
+}
 function stopScanPreview(){
   if(scanPreviewRAF){cancelAnimationFrame(scanPreviewRAF);scanPreviewRAF=null;}
 }
