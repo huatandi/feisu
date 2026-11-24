@@ -5,8 +5,14 @@ function env(){let wall=10000,work=0,spent=20,fail=false;const draws=[];const ct
  const video={videoWidth:1920,videoHeight:1080},target={__scannerHints:new Map(),reader:{setHints(h){this.hints=h;}},decode(){work+=spent;return 'full';},decodeBitmap(bitmap){work+=spent;if(fail)throw Error('not found');return 'roi';}};
  c.installPrimaryROIDecoder(target,video,{});return {c,target,video,draws,advance(ms){wall+=ms;},cost(ms){spent=ms;},fail(){fail=true;}};
 }
-test('primary decoder crops before decoding and reuses a native-resolution canvas',()=>{
- const e=env();assert.equal(e.target.decode(e.video),'roi');assert.equal(e.draws.length,1);const a=e.draws[0];assert.equal(a[3],a[7]);assert.equal(a[4],a[8]);assert.ok(a[3]*a[4]<1920*1080);const d=e.c.scannerDiagnostics();assert.equal(d.roiFrames,1);assert.equal(d.fullFrames,0);assert.equal(d.meanDecodeMs,20);
+test('primary decoder crops, caps the segment width at 800 and keeps the aspect',()=>{
+ const e=env();assert.equal(e.target.decode(e.video),'roi');assert.equal(e.draws.length,1);
+ const a=e.draws[0];                                  // [v,sx,sy,sw,sh,dx,dy,dw,dh]
+ assert.ok(a[7]<=800,'segment width must be capped');
+ assert.ok(Math.abs(a[4]/a[3]-a[8]/a[7])<0.02,'no distortion');
+ assert.ok(a[3]*a[4]<1920*1080,'crop smaller than the full frame');
+ const d=e.c.scannerDiagnostics();assert.equal(d.roiFrames,1);assert.equal(d.fullFrames,0);assert.equal(d.meanDecodeMs,20);
+ assert.ok(d.roiScale<=1);
 });
 test('no periodic full-frame pass while the ROI is available (it would decode pixels nobody sees)',()=>{
  const e=env();assert.equal(e.target.decode(e.video),'roi');e.advance(3500);assert.equal(e.target.decode(e.video),'roi');e.advance(5000);assert.equal(e.target.decode(e.video),'roi');

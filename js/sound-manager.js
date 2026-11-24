@@ -118,7 +118,7 @@ var SoundManager = (function(){
         var master=ctx.createGain(), compressor=ctx.createDynamicsCompressor();
         compressor.threshold.value=-8;compressor.knee.value=6;compressor.ratio.value=20;compressor.attack.value=.002;compressor.release.value=.12;
         master.gain.setValueAtTime(0.0001,now);
-        master.gain.exponentialRampToValueAtTime(1,now+0.004);
+        master.gain.exponentialRampToValueAtTime(1.5,now+0.004);
         master.gain.exponentialRampToValueAtTime(0.0001,now+0.30);
         master.connect(compressor);compressor.connect(ctx.destination);
 

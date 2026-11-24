@@ -44,7 +44,7 @@ test('scan line keeps moving in power-saving mode and uses transform animation',
  const css=fs.readFileSync(path.join(__dirname,'../css/app.css'),'utf8');
  assert.match(css,/@keyframes scanLineMove[^\n]*translate3d/);
  assert.doesNotMatch(css,/(?:\.scan-line|scanner-saving \.scan-line)\s*\{[^}]*animation\s*:\s*none/);
- assert.match(css,/animation: scanLineMove 1\.2s infinite/);
+ assert.match(css,/animation: scanLineMove 0\.9s infinite/);
 });
 
 test('balanced recovery preserves Quagga double-check and three fragment observations within their evidence windows',async()=>{

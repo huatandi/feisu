@@ -88,9 +88,9 @@
            由 JS 计算的自定义属性（--scan-view-w/h/center），因此“看得见的画面”
            和“参与解码的框内区域”是同一个矩形，不再出现竖屏里被压窄的竖条取景。 */
         .scan-stage { position: relative; flex: 1 1 auto; min-height: 0; background: #000; overflow: hidden; }
-        .scanner-video { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 80%); height: var(--scan-view-h, 220px); object-fit: cover; background: #000; border-radius: 20px; z-index: 5; }
-        .scan-frame { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 80%); height: var(--scan-view-h, 220px); border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 1px rgba(59,130,246,0.35), 0 10px 30px rgba(0,0,0,0.45); z-index: 10; pointer-events: none; }
-        .scan-line { position: absolute; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent); top: 5%; animation: scanLineMove 1.2s infinite ease-in-out; box-shadow: 0 0 20px #3b82f6; }
+        .scanner-video { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 96%); height: var(--scan-view-h, min(56.25vw, 240px)); object-fit: cover; background: #000; border-radius: 20px; z-index: 5; }
+        .scan-frame { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 96%); height: var(--scan-view-h, min(56.25vw, 240px)); border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 1px rgba(59,130,246,0.35), 0 10px 30px rgba(0,0,0,0.45); z-index: 10; pointer-events: none; }
+        .scan-line { position: absolute; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent); top: 5%; animation: scanLineMove 0.9s infinite ease-in-out; box-shadow: 0 0 20px #3b82f6; }
         @keyframes scanLineMove { 0%, 100% { transform:translate3d(0,0,0); } 50% { transform:translate3d(0,var(--scan-line-travel,190px),0); } }
         /* Tailwind 若因门店断网未加载，扫描页仍必须全屏可用。 */
         #scanUI { position: fixed; inset: 0; background: #000; z-index: 999; display: none; flex-direction: column; }
@@ -305,7 +305,7 @@
 /* R7: preserve the moving scan line; reduce repaint cost, not motion. */
 #scanUI.scanner-saving .scan-line{box-shadow:0 0 8px #3b82f6;}
 #scanUI.scanner-saving .focus-guide,#scanUI.scanner-saving .enhance-badge{backdrop-filter:none}
-@media(prefers-reduced-motion:reduce){.scan-line{animation-duration:3s}}
+@media(prefers-reduced-motion:reduce){.scan-line{animation-duration:2.4s}}
 
 /* R9b: 手机竖屏下扫描页标题栏原来会折成 2–3 行，吃掉本就不多的纵向空间。
    窄屏压缩字号与内边距，保证一行放下“极速条码引擎 / 增强 / 音效 / 关闭扫描”。 */
