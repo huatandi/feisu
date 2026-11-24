@@ -1,22 +1,30 @@
-FEISU v5.1.3 R19 —— 上传专用（只含网站运行文件）
+FEISU v5.1.6 R22 —— 上传专用（只含网站运行文件）
 
 三步：
-1) 解压到桌面 → 直接看到 index.html、css、js、vendor、assets、migration.html
-2) 进到文件夹里面，Ctrl+A 全选，Ctrl+C
-3) 打开 https://github.com/huatandi/feisu → Add file → Upload files → 粘贴进去 → Commit changes
+1) 解压到桌面 → 进到文件夹里面，Ctrl+A 全选，Ctrl+C
+2) https://github.com/huatandi/feisu → Add file → Upload files → 粘贴进去 → Commit changes
+3) 等 1 分钟，打开 https://huatandi.github.io/feisu/js/core.js
+   第一行应是 var VERSION = 'FEISU v5.1.6 · R22';
 
-确认：打开 https://huatandi.github.io/feisu/js/core.js
-      第一行应是 var VERSION = 'FEISU v5.1.3 · R19';
+R22：按你“可以多一点耗电，但要更能读”的要求，四处加强
+1) 解码占空比提高：均衡 35% → 50%（省电 22% → 30%，增强 50% → 65%）
+   → 同样时间内尝试次数更多，能读出的机会更多。
+2) 重试等待 110ms → 90ms → 单帧失败后更快再试。
+3) 扫描段更高：56% → 62%，段序改为 中 → 上 → 下 → 中
+   → 条码靠近框边缘时少等一轮；段内行距更密，斜码更易被切中。
+4) 每第 4 次进“硬档”：全 9 种码制 + TRY_HARDER + 段宽上限 1000
+   → 磨损/低对比/稍远的条码有更强的兜底；其余 3 次走便宜档，不影响日常速度。
 
-R19 改了什么（相对 R18）
-- 精度档从“每第 8 次 + 原生宽度 + TRY_HARDER”改成“每第 12 次 + 宽度上限 1000 + 全格式，不开 TRY_HARDER”。
-  实测精度档单次最高 117–171ms，是 maxDecodeMs 的主因，还把 meanDecodeMs 拉高 30%。
-- 增强模式在平板上也降到 1280×720（原来 enhanced 忽略平板规则，等于 2MP@24fps）。
-- 取景框整体上移（最多 72px，约 2cm）。
-- 视频元素内联强制 object-fit:cover（不再依赖样式表）。
-- 诊断新增 elemW：视频元素的真实渲染尺寸，用来确认“黑罩”到底是不是取景元素尺寸不对。
+预期诊断变化（可按这个核对）
+- decodeFps：从 6–7 升到 8–10
+- primaryTimeShare：从 23–28% 升到 40–55%（这就是"多用一点电"的部分）
+- meanDecodeMs：约 30ms；maxDecodeMs 会出现 80–120ms 的尖峰（那是硬档）
+- stagedFormats：{fast, hard} 两个数，比例约 3:1
 
-怎么判断黑罩有没有修好
-打开扫码后点「📊 复制诊断」，看 view.elemW 与 view.frameW：
-- elemW 若明显比 frameW 高（例如 frameW 416x234、elemW 416x740）→ 覆盖尺寸正常，画面必须是铺满的；
-- elemW 若等于 frameW（416x234）→ 说明内联尺寸没生效，把这两个数发我。
+包含 R21/R20：
+- iPad 取景框按 11% 上移（最多 160px）；诊断新增 view.frameY
+- 取景框内为 canvas 绘制：所见即所解，不再有左右黑边
+- 增强模式在平板也走 720p
+
+如果觉得太耗电：扫码界面点「⚖️ 均衡」→ 切到「🔋 省电」，占空比会降到 30%。
+如果想再强：告诉我，我把硬档从 1/4 提到 1/3，或把占空比再提到 60%。

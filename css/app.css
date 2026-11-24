@@ -91,6 +91,9 @@
         /* v5.1：视频元素＝覆盖尺寸，外层裁剪成框。彻底不依赖 object-fit
    （iOS 上 cover 失效时画面会按 contain 缩成中间一条竖带＝“窄屏”）。 */
         .scan-viewport { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 96%); height: var(--scan-view-h, min(56.25vw, 240px)); overflow: hidden; border-radius: 20px; background: #000; z-index: 5; }
+        /* v5.1.4：预览改为 canvas 绘制，视频元素只作为解码源留在下层。
+   iOS 上 <video> 的缩放/object-fit 不可靠，canvas 画的像素等于最终显示。 */
+        .scan-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: #000; z-index: 2; }
         .scanner-video { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: var(--scan-video-w, 100%); height: var(--scan-video-h, 100%); object-fit: cover; background: #000; }
         .scan-frame { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 96%); height: var(--scan-view-h, min(56.25vw, 240px)); border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 1px rgba(59,130,246,0.35), 0 10px 30px rgba(0,0,0,0.45); z-index: 10; pointer-events: none; }
         .scan-line { position: absolute; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent); top: 5%; animation: scanLineMove 0.9s infinite ease-in-out; box-shadow: 0 0 20px #3b82f6; }
