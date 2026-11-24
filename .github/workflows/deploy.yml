@@ -2,16 +2,43 @@ name: Deploy
 on:
   push:
     branches: ["main"]
+  workflow_dispatch:
+
 permissions:
   contents: read
   pages: write
   id-token: write
+
+# 同一条分支同时只允许一次部署；新 push 直接取代旧的，避免并发冲突导致的
+# "Deployment failed, try again later"。
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
-  build:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # 只发布运行所需的文件：测试、文档、构建脚本、历史记录都不上公网。
+      - name: Stage runtime files
+        run: |
+          set -e
+          mkdir -p _site
+          for p in index.html css js vendor assets migration.html; do
+            if [ -e "$p" ]; then cp -r "$p" _site/; fi
+          done
+          touch _site/.nojekyll
+          echo "--- staged ---"
+          ls -A _site
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
-      - uses: actions/deploy-pages@v4
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

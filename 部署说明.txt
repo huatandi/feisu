@@ -1,0 +1,25 @@
+﻿FEISU v5.0.8 R14 —— GitHub Pages 部署包（只含运行文件）
+
+## 包里有什么
+index.html / css / js / vendor / assets / migration.html / .github/workflows/deploy.yml
+
+## 怎么用
+1. GitHub Desktop → Repository → Show in Explorer，打开**仓库根目录**（不是桌面）。
+2. 把本包的 index.html、css、js、vendor、assets、migration.html、.github 覆盖进去。
+3. 回 GitHub Desktop，左侧应出现几十个文件的改动。
+   若仍是 "0 changed files"，说明打开的不是同一个仓库 —— 看窗口标题栏的路径。
+4. Summary 填「v5.0.8 R14 扫描线加速 + 提示音增强」→ Commit to main → Push origin。
+5. Actions 里应出现新的 Deploy 运行并变绿；打开站点 Ctrl+F5 强刷，角标应为
+   「FEISU v5.0.8 · 框内识别版 R14」。
+
+## 为什么换了 deploy.yml
+旧版 path: '.' 会把整个仓库上传（tests/文档/docs 全部公开），且没有 concurrency，
+连续两次 push 时两次部署互相打断，典型报错：
+"Deployment failed, try again later" / "Cancelled"。
+新版只拷运行文件、加 concurrency 与 environment，产物限定在 _site/。
+
+## 新运行仍失败时，按顺序查
+1. Settings → Pages → Source 必须是 **GitHub Actions**（不能是 Deploy from a branch）。
+2. Settings → Actions → General → Workflow permissions 选 **Read and write**。
+3. 等 1 分钟点 "Re-run jobs"（并发冲突多为瞬时）。
+4. 还不行：Actions → 失败运行 → job → 把**第一个红叉步骤**的名字 + 最后 20 行日志发我。
