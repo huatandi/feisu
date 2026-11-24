@@ -98,6 +98,23 @@ function installPrimaryROIDecoder(target,v,f){
           else stats.fastFrames=(stats.fastFrames||0)+1;
         }
       }catch(e){}
+      /* ---- 优先：交给后台线程解码（主线程不再被 30–100ms 的解码卡住） ---- */
+      var wk=ensureDecodeWorker();
+      if(wk){
+        if(scanWorkerResult){var wr=scanWorkerResult;scanWorkerResult=null;stats.workerHits=(stats.workerHits||0)+1;return wr;}
+        if(scanWorkerBusy&&Date.now()-scanWorkerSentAt>1500){scanWorkerBusy=false;scanWorkerFails+=2;}
+        if(!scanWorkerBusy){
+          try{
+            var idata=ctx.getImageData(0,0,cw,ch);
+            scanWorkerBusy=true;scanWorkerSentAt=Date.now();scanWorkerSeq++;
+            wk.postMessage({id:scanWorkerSeq,w:cw,h:ch,buf:idata.data.buffer,
+              formats:(typeof fm!=='undefined'&&fm)?fm:null,harder:!!hard},[idata.data.buffer]);
+            stats.workerFrames=(stats.workerFrames||0)+1;
+          }catch(e){scanDecodeWorker=null;scanWorkerBusy=false;}
+        }
+        /* 本轮还没有结果：按“未命中”处理，让 ZXing 继续轮询，下一轮来取 */
+        throw new ZXing.NotFoundException();
+      }
       var lumSrc=new ZXing.HTMLCanvasElementLuminanceSource(canvas);
       if(hard){try{if(stretchContrast(lumSrc))stats.contrastFrames=(stats.contrastFrames||0)+1;}catch(e){}}
       var bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lumSrc));
@@ -132,7 +149,7 @@ function scanViewDiagnostics(){
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R24':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null};
+  return {version:typeof VERSION==='undefined'?'R25':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker}:null};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -302,6 +319,39 @@ function kickVideoPlayback(v){
   try{var pr=v.play();if(pr&&pr.then)pr.catch(function(){});}catch(e){}
 }/* v5.1.4 预览：把“取景框对应的那一块传感器画面”画进 canvas。
    这样显示的就是解码用的同一块像素，不存在 object-fit / 元素缩放差异。 */
+/* v5.1.9：把 ZXing 识别挪到 Web Worker，主线程只负责“画一帧 + 取出像素 + 发过去”。
+   解码不再占用主线程，相机预览不卡；识别能力不变（同一份 ZXing、同样 hints）。
+   取结果的方式：worker 算完先暂存，下一次 ZXing 轮询时直接返回 —— 对外契约不变。 */
+var scanDecodeWorker=null,scanWorkerTried=false,scanWorkerBusy=false,scanWorkerSeq=0,
+    scanWorkerSentAt=0,scanWorkerFails=0,scanWorkerResult=null,scanWorkerUnsupported=false;
+function ensureDecodeWorker(){
+  if(scanWorkerTried)return scanDecodeWorker;
+  scanWorkerTried=true;
+  if(typeof Worker!=='function')return null;
+  try{
+    scanDecodeWorker=new Worker('js/decode-worker.js');
+    scanDecodeWorker.onmessage=function(ev){
+      scanWorkerBusy=false;
+      var d=(ev&&ev.data)||{};
+      if(d.unsupported){scanWorkerUnsupported=true;scanDecodeWorker=null;return;}
+      if(d.text){
+        scanWorkerFails=0;
+        scanWorkerResult={
+          getText:function(){return d.text;},
+          getBarcodeFormat:function(){return d.format;},
+          getResultMetadata:function(){return null;},
+          getResultPoints:function(){return null;},
+          getTimestamp:function(){return Date.now();}
+        };
+      }else if(d.error){
+        scanWorkerFails++;
+        if(scanWorkerFails>=30)scanDecodeWorker=null;   /* 连续失败 → 永久退回主线程 */
+      }
+    };
+    scanDecodeWorker.onerror=function(){scanDecodeWorker=null;scanWorkerBusy=false;};
+  }catch(e){scanDecodeWorker=null;}
+  return scanDecodeWorker;
+}
 var scanPreviewRAF=null,scanPreviewLast=0;
 /* v5.1.7：低对比条码（打印浅、磨损、反光）靠“灰度满幅拉伸”救回来。
    做法：取这块 ROI 的灰度矩阵，按 min..max 线性映射到 0..255，
