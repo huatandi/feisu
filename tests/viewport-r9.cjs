@@ -97,3 +97,18 @@ test('no periodic full-frame pass even for a narrow ROI',()=>{
   assert.equal(e.target.decode(e.video),'roi');
   assert.equal(e.c.scannerDiagnostics().fullFrames,0);
 });
+
+test('iPad 视口下取景框收窄到 620px 以内',()=>{
+  const e=layoutEnv({w:1024,h:900});
+  const box=e.c.scanViewLayout();
+  assert.ok(box.w<=620,'tablet aiming window must be capped');
+  assert.ok(box.w>=400,'but still usable');
+});
+
+test('竖屏流时视频元素按覆盖尺寸放大（高于取景框），用于消除黑边',()=>{
+  const e=layoutEnv({vw:1080,vh:1920});
+  e.c.scanViewLayout();
+  const fh=parseFloat(e.props['--scan-view-h']), vh=parseFloat(e.props['--scan-video-h']);
+  assert.ok(vh>fh*1.5,'video element must be taller than the frame for a portrait stream');
+  assert.equal(parseFloat(e.props['--scan-video-w']),parseFloat(e.props['--scan-view-w']),'width stays with the frame');
+});

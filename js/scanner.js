@@ -26,7 +26,7 @@ function configurePrimaryScanHints(target){
   target.__scannerHints.delete(ZXing.DecodeHintType.TRY_HARDER);
   target.reader.setHints(target.__scannerHints);target.__scannerHarder=false;
 }
-var SCAN_ROI_MAX_WIDTH=800,scanBandIndex=0;
+var SCAN_ROI_MAX_WIDTH=800,SCAN_MAX_WIDTH_WIDE=620,scanBandIndex=0;
 /* 段序：中→上→中→下（条码多数居中，中心权重加倍）。段高约框高的 42%，带重叠避免切断条码。 */
 var SCAN_BANDS=[1,0,1,2],SCAN_BAND_COUNT=3;
 function primaryBandROI(v,f){
@@ -67,7 +67,10 @@ function installPrimaryROIDecoder(target,v,f){
       /* v5.0.6：单次成本 ≈ (getImageData+灰度转换) + 15行×9格式×宽度，两条都与“宽度”成正比。
          真机 1080 宽段实测 34.5ms；段内宽压到 ≤800 后像素约 45%、行宽降 26%，
          条码占框 60% 时仍有 ~4.5 px/模块（可靠下限约 2）。缩小时用双线性，避免窄条锯齿。 */
-      var scale=Math.min(1,SCAN_ROI_MAX_WIDTH/r.w);
+      /* v5.1.2 精度升级：每第 8 次不缩小、开 TRY_HARDER、全格式。
+         难读的条码（磨损/低对比/更远）走这一档，常规则保持便宜。 */
+      var precise=(stats.frames%8===7);
+      var scale=precise?1:Math.min(1,SCAN_ROI_MAX_WIDTH/r.w);
       var cw=Math.max(1,Math.round(r.w*scale)),ch=Math.max(1,Math.round(r.h*scale));
       if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
       ctx.imageSmoothingEnabled=scale<1;
@@ -79,12 +82,14 @@ function installPrimaryROIDecoder(target,v,f){
          常规尝试只给常用 5 种，每第 3 次给全 9 种兜底。 */
       try{
         if(target.reader&&typeof target.reader.setHints==='function'&&target.__scannerHints&&typeof ZXing!=='undefined'&&ZXing&&ZXing.BarcodeFormat){
-          var bf=ZXing.BarcodeFormat,useFull=(stats.frames%3===2),hintBase=target.__scannerHints,
+          var bf=ZXing.BarcodeFormat,useFull=(stats.frames%3===2)||precise,hintBase=target.__scannerHints,
               fm=[bf.EAN_13,bf.EAN_8,bf.UPC_A,bf.UPC_E,bf.CODE_128];
           if(useFull)fm=[bf.EAN_13,bf.EAN_8,bf.UPC_A,bf.UPC_E,bf.CODE_39,bf.CODE_93,bf.CODE_128,bf.ITF,bf.CODABAR];
           var fmtHints=new Map(hintBase);
           fmtHints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,fm);
+          if(precise)fmtHints.set(ZXing.DecodeHintType.TRY_HARDER,true);
           target.reader.setHints(fmtHints);restoreHints=hintBase;
+          if(precise)stats.preciseFrames=(stats.preciseFrames||0)+1;
           if(useFull)stats.fullFormatFrames=(stats.fullFormatFrames||0)+1;
           else stats.fastFrames=(stats.fastFrames||0)+1;
         }
@@ -93,6 +98,8 @@ function installPrimaryROIDecoder(target,v,f){
     }finally{
       if(restoreHints)target.reader.setHints(restoreHints);
       var ms=Math.max(0,scannerClock()-started);stats.frames++;stats.totalMs+=ms;stats.maxMs=Math.max(stats.maxMs,ms);stats.lastMs=ms;stats.pixels+=pixels;
+      /* v5.1.1 自愈：每 20 次解码复核一次取景几何（元数据晚到 / 屏幕旋转后都能纠正） */
+      if(stats.frames%20===0&&typeof scanViewLayout==='function'){try{scanViewLayout();}catch(e){}}
       // Adapt the wait to observed synchronous work; do not confuse requested FPS with CPU load.
       var duty=enhanceMode ? .5 : p.saving ? .22 : .35;
       target.timeBetweenDecodingAttempts=Math.max(p.retry,Math.ceil(ms*(1/duty-1)));
@@ -110,7 +117,7 @@ function scanViewDiagnostics(){
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R16':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,full:s.fullFormatFrames||0}:null};
+  return {version:typeof VERSION==='undefined'?'R18':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,full:s.fullFormatFrames||0,precise:s.preciseFrames||0}:null};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -118,8 +125,12 @@ async function copyScannerDiagnostics(){
   catch(e){showToast(text,false,true);}
 }
 function scannerPowerProfile(){
+  var tablet=(typeof window!=='undefined'&&window.innerWidth>=700);
   if(enhanceMode)return {mode:'enhanced',saving:false,width:1920,height:1080,fps:24,maxFps:30,retry:80,recoveryGap:500,recoveryAge:600};
   if(scannerPowerSave)return {mode:'saving',saving:true,width:1280,height:720,fps:15,maxFps:20,retry:180,recoveryGap:1000,recoveryAge:1200};
+  /* v5.1.2：平板屏大 → 框映射到整个传感器，1920x1080 等于每次解 2MP。
+     改请求 720p：像素降 56%，条码仍有足够模块像素。 */
+  if(tablet)return {mode:'balanced',saving:false,width:1280,height:720,fps:20,maxFps:24,retry:110,recoveryGap:650,recoveryAge:850};
   return {mode:'balanced',saving:false,width:1920,height:1080,fps:18,maxFps:24,retry:110,recoveryGap:650,recoveryAge:850};
 }
 function updateScanPowerUI(){
@@ -234,6 +245,7 @@ function scanViewLayout(){
   scanViewAspect=ar;
   var padX=Math.max(6,Math.round(availW*0.015));       /* 只留窄安全边，左右尽量吃满 */
   var w=Math.min(availW-padX*2,1200);
+  if(availW>=700)w=Math.min(w,SCAN_MAX_WIDTH_WIDE);   /* v5.1.1：iPad 上框太大，收窄到 620 */
   var insets=scanViewInsets(host);
   var bandTop=insets.top,bandBottom=Math.max(bandTop+120,availH-insets.bottom);
   var bandH=bandBottom-bandTop,h=w/ar;
@@ -248,6 +260,10 @@ function scanViewLayout(){
   if(rawAr>=w/h){coverH=h;coverW=Math.round(h*rawAr);}else{coverW=w;coverH=Math.round(w/rawAr);}
   ui.style.setProperty('--scan-video-w',coverW+'px');
   ui.style.setProperty('--scan-video-h',coverH+'px');
+  /* 双保险：直接写内联样式。某些 iOS 版本上自定义属性在 <video> 上不生效，
+     元素会退回“与框同尺寸”，此时 object-fit:cover 又会裁掉两侧 → 画面被放大、
+     条码必须拿远才能进框（用户报的“框内有黑罩/要放远”）。 */
+  if(v&&v.style){v.style.width=coverW+'px';v.style.height=coverH+'px';}
   scanViewBox={w:Math.round(w),h:Math.round(h),center:center,aspect:ar};
   return scanViewBox;
 }

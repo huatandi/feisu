@@ -1,0 +1,399 @@
+{
+  "release": "FEISU v5.1.2 R18",
+  "basis": [
+    "uploaded R4",
+    "session-generated R7"
+  ],
+  "files": [
+    {
+      "path": ".github/workflows/deploy.yml",
+      "sha256": "51cb3ecf6cb18dec0717700200f9cc71a109f05d2a4ac1fde3e7c40c3552f404",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": ".github/workflows/static.yml",
+      "sha256": "cf7ee447c88971ac88efedd9c6c3838c9d6cd070a63c2b99b6ccf5d592b97057",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "README.md",
+      "sha256": "c8eb16bc21ed210001abf6998710ca42d2180e57674cba586f6d84e4d0679b83",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "_pkg4.cjs",
+      "sha256": "7601d541660d3c33208e35a4b4bc9ebb457067f45fe08603267f1583511606be",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "assets/audio/scan-error.wav",
+      "sha256": "bf59b4390e3865351f9f7ecde27b1954d869a773193fd1cc7373aa2993567d7c",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "assets/audio/scan-success.wav",
+      "sha256": "2739dc6c5cf72cc9b71a2c9b0a0a87ac5abe6accc3cb1fd601478a57e7ab58aa",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "css/app.css",
+      "sha256": "19d469b3e41adb5f1c4a3268551b4eb01ad4cbdaed95f847324e86fe6aaffce3",
+      "r4_sha256": "d4efc82c7a76d198f86bca9ca034673ddea21611681f1c1bbb9253838afe4837",
+      "r7_sha256": "e158ccc5e90fcd00f4ddf91141cf0a835cbbedece8bf8474b37605948dadc86c"
+    },
+    {
+      "path": "docs/取景-手机横屏R9.png",
+      "sha256": "186537f4dabb5e4ef3c1fb68b17a536a093eeeb68a934236856259f211848c61",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "docs/取景对比-修复后R9.png",
+      "sha256": "cf2298a2cf5174e0635bcc7b8bbdf2bb89fe4b1de72049537bd59a5040925fb1",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "docs/取景对比-旧版R8.png",
+      "sha256": "2cdaa35f0b27a38bbe65593dd3737b77e36c19f6149b75253eac92d2334e3340",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "docs/验收-连扫计数与提示条R9.png",
+      "sha256": "e109395d5eb54e777fb01fe3e6de4bd032a9ccdd240dc17811297aad296043eb",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "index.html",
+      "sha256": "cd8d468a85347cce6552dc3a4b822c63933bd69747f893b7c592720e6a8ccf83",
+      "r4_sha256": "b2c3e09521045526ae639c3c3919bf4bdff2d188a86a2bb629c32e9295f03d8b",
+      "r7_sha256": "d685e77c453e802448d3e10f57fc5be940faa8991f1a6a50fccdbfe47ba9cadc"
+    },
+    {
+      "path": "install-v512.ps1",
+      "sha256": "9b254a40121eec6b115ff402b59fd9865e65d5cd8a26b14be6194c5067ac5dad",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "js/app.js",
+      "sha256": "3a906687038dd4deea28cd0242a5bddef4f52cd023cd8614a3baa78dbf4cb4c0",
+      "r4_sha256": "d9d43b1fd955496a7be7fd28057d4e62bfec9ba51f32e49118b2e4d9ef32f6e1",
+      "r7_sha256": "85070f09ec6921614ab2091e1e471b7a51c564d9023379f9835d425bc335fdd2"
+    },
+    {
+      "path": "js/columns.js",
+      "sha256": "33c3c5be98b5fb8207130754342bc7f75b9722f0627c515013f8a98dd43a348c",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "js/core.js",
+      "sha256": "e777d849b17006c0ebebe9914c2d551fa87e37f2b059354f8066f794d87bd009",
+      "r4_sha256": "26ce0e10c0bd035f4faf40c750ab11908536f800d1aa674e24b40388367b4edb",
+      "r7_sha256": "0f5eed69ca610c411db9de712e761533646725fc8d6a642d97dbcec29a073590"
+    },
+    {
+      "path": "js/file-backup.js",
+      "sha256": "78291eeb46c82602b0a89867f2ae25a0c0affd56fb30e2db35f28241d5a98be8",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "js/fragment-assist.js",
+      "sha256": "e563a510d6ae5cb19d85220c2228b2802e7e3ea15f067595c6a52f7a48929602",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "js/images.js",
+      "sha256": "a99481105cb185d4512aa0715d45a2904feb8fd83df674412253dbfe84be3f83",
+      "r4_sha256": "bcd6cd4e39fa35e2e7a882c2e29b5172e8148795fac4d7b1a3af5ad10ffac6fd",
+      "r7_sha256": "37e6d28dc9f8af567240c6636145ee165343d665024005b1751ebd816b686e47"
+    },
+    {
+      "path": "js/import-export.js",
+      "sha256": "9fa9f34cff69aaf582a0911e3f3e4053c3afbb285ce216665ef2f9ad7c10d034",
+      "r4_sha256": "37145b227980922d8cc340bae2621a054c9b4eb1988049e619e2e449fcd4339a",
+      "r7_sha256": "43ec3ad057bfbeb1ae227dee88d7f45fba0b051801dd676e183fa3654a26990d"
+    },
+    {
+      "path": "js/keyboard.js",
+      "sha256": "4921915b703e0208e23207e6607a44ed54e736b83794413c36883a29f836bba5",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "js/quagga-recovery.js",
+      "sha256": "8e00213f2e9574a41764ca8c9092acbaf41431850adc8e4794ed2052d915d746",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "js/scanner.js",
+      "sha256": "ecebec49964e16faec1a1ded36897474a970f117a7cf3842a4d7c94b6cc3bdd0",
+      "r4_sha256": "4f0813bd69b12e5a8b5635f3f7a0984fcf02183768609efd5eb1ae0ef08e45fc",
+      "r7_sha256": "f1a3ed0321ff00a6cc59b7fd578835a3048935edcd91b9c73cbedfd487679383"
+    },
+    {
+      "path": "js/search.js",
+      "sha256": "01edc4fd8ede701fc3553e61b0d06b461a4ea78096f1a954f2235fd6fbe6db03",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "js/sound-manager.js",
+      "sha256": "ecd6854b8cab34a6a4d0a115649b7e82d48bfcf412355ed54a0d27dbda95ef47",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "js/storage.js",
+      "sha256": "07011945a77d77b22d2eac55c6d337db17a2f4297b5315e6fe84c689f6e9118c",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "js/table.js",
+      "sha256": "b1be96c78cdcf3b518b87c1d4b4cdb05c7c2862aaf7dfbf9feb494050414a92c",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "local-server.cjs",
+      "sha256": "2eb1b3cc31ca0fbac3bf90a86301561a321e4baf26e40a3aea8d70c991e7cc17",
+      "r4_sha256": "14473fb9b2dca1f15597196cbc0e121736d08b8ec2326f7790e021c7778f41d4",
+      "r7_sha256": "2eb1b3cc31ca0fbac3bf90a86301561a321e4baf26e40a3aea8d70c991e7cc17"
+    },
+    {
+      "path": "migration.html",
+      "sha256": "1f6263d29f6ad2a5d334ba9a0d9591ae17eed0402f84ff1c616f10ea25eea031",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "tests/decode-stage-r16.cjs",
+      "sha256": "ae769d49aac76824fe8fa3ffbf459b9c2a91187aa007b25f86664d4fe8d9f153",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "tests/export-freeze-r9.cjs",
+      "sha256": "0a865fd716f744e1c85bac9d6e1cc37e18846873853b3d68b8e1210c32765f1d",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "tests/import-scanner.cjs",
+      "sha256": "6e99b35d9980eef6623b0cbf931d6ace62e2f70f89302f5d0f0ede397fdaa603",
+      "r4_sha256": null,
+      "r7_sha256": "6e99b35d9980eef6623b0cbf931d6ace62e2f70f89302f5d0f0ede397fdaa603"
+    },
+    {
+      "path": "tests/local-server.cjs",
+      "sha256": "57d639f8e6bf3e67fe07be8c15c25cce2c3a5108fcfb14ebdd04c905da1421f2",
+      "r4_sha256": null,
+      "r7_sha256": "13277b1d5dbf002c1693698441c429bddc962be65b599dad53f1a7f05e5ed72f"
+    },
+    {
+      "path": "tests/power-r7.cjs",
+      "sha256": "68f3de80e233eb0d23803c2f487fad0f05c19de0b0b04e1ea6b55693ce5efb63",
+      "r4_sha256": null,
+      "r7_sha256": "971b7bdf451643dd184ec881af06d1cb1e993501d2ee008f3ce285bed65b0dfe"
+    },
+    {
+      "path": "tests/primary-r8.cjs",
+      "sha256": "36f69053c05878f18b86efede92b399b67639bf464cd54eea1c4c5e810b04999",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "tests/release-r6.cjs",
+      "sha256": "18a97daa4c4d7553c1de82f4885c580d03764a89a83764f97670c6946d96b110",
+      "r4_sha256": null,
+      "r7_sha256": "eb236db473961df29a5e9ba912c75cd7680400381772f37ec5d766e41e774053"
+    },
+    {
+      "path": "tests/save-switch.cjs",
+      "sha256": "27a12e0bd57ff294ea8796a7c7b3e0e82e5df67b579b3ffeabd521b55d9075d1",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "tests/scan-gate-r9.cjs",
+      "sha256": "538b324681266d3ec88c7cf5bc7c1d27283d5cd87a0ddf6776d2d6e7365a3cbf",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "tests/supplier-code128.cjs",
+      "sha256": "a0100dc406502324bb73c12c599e1251f3ddf96fa75ed8080ada4aff5693195d",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "tests/viewport-r9.cjs",
+      "sha256": "95268deefa29668cefa190360d0d978c55506a36ec900de9a9804ef49f266a5d",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "vendor/exceljs-4.4.0.min.js",
+      "sha256": "7e49da68588e250dbb8bba190d2caa8ab3787cc0284bda1d8b2f805c4df742c9",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "vendor/exceljs-LICENSE.txt",
+      "sha256": "2ed526b7e7c7681dc2347995b5036ddf73dc27d0539cdea59b6d4a72b63a57a0",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "vendor/papaparse-5.4.1.min.js",
+      "sha256": "b8e870c5d2b29772f10c9fa9a693c8b896aac8540ed6701e3cc6304c683febdb",
+      "r4_sha256": null,
+      "r7_sha256": "b8e870c5d2b29772f10c9fa9a693c8b896aac8540ed6701e3cc6304c683febdb"
+    },
+    {
+      "path": "vendor/papaparse-LICENSE.txt",
+      "sha256": "99aa68e4b42758b09828a46515f70369e5463458ab7a990189f641af2b8d9b4e",
+      "r4_sha256": null,
+      "r7_sha256": "99aa68e4b42758b09828a46515f70369e5463458ab7a990189f641af2b8d9b4e"
+    },
+    {
+      "path": "vendor/quagga2-1.12.1.min.js",
+      "sha256": "ae6c469103c5d427625a9a4c41175bd15420a14aa5579ea57dc1571d42346f4d",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "vendor/quagga2-LICENSE.txt",
+      "sha256": "d11ef91902be5b0b30af65719b36131d0ff9a1cc6844a289967bc8ec172b9962",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "vendor/xlsx-js-style-1.2.0.min.js",
+      "sha256": "1c7abf2993ff2cd61e508f9268e9acda0098c9796f3925d2ba0d2579072653e2",
+      "r4_sha256": null,
+      "r7_sha256": "1c7abf2993ff2cd61e508f9268e9acda0098c9796f3925d2ba0d2579072653e2"
+    },
+    {
+      "path": "vendor/xlsx-js-style-LICENSE.txt",
+      "sha256": "4d2a38ac35cda06a555c84074a819d413339cd3691b822cae50f8f322fe01f64",
+      "r4_sha256": null,
+      "r7_sha256": "4d2a38ac35cda06a555c84074a819d413339cd3691b822cae50f8f322fe01f64"
+    },
+    {
+      "path": "vendor/zxing-0.19.1.min.js",
+      "sha256": "c5837e4858a3775173bab09ee36e6052545c7880c9d7452e2f464770c6e642ce",
+      "r4_sha256": null,
+      "r7_sha256": "c5837e4858a3775173bab09ee36e6052545c7880c9d7452e2f464770c6e642ce"
+    },
+    {
+      "path": "vendor/zxing-LICENSE.txt",
+      "sha256": "4c26c3077daa7ce4d56ad91f279fafc395bf33c3a0f1ba9ab8cf511bad148ea5",
+      "r4_sha256": null,
+      "r7_sha256": "4c26c3077daa7ce4d56ad91f279fafc395bf33c3a0f1ba9ab8cf511bad148ea5"
+    },
+    {
+      "path": "启动飞速盘点.cmd",
+      "sha256": "edb5d59e2fffad574e80cbdbbffce9d28e7ab4d4734088f7ef19e973804b3ab2",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "应用v5.1.2到仓库.cmd",
+      "sha256": "846c7bad5b4f99d7bd39d634e4aa899dd85b265bff11046bac13209a11298a3d",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/使用说明/iPad使用说明.md",
+      "sha256": "150af579d7d6d1d487c8a8001290c8c9b8d60a18b6b12fd139bbac3c9804e8f5",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/使用说明/扫描增强说明.md",
+      "sha256": "572e7c3d376ab1d8e1ebd7119a174d70d17d302e0ff7e66d541052ae2cca937e",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/使用说明/本地历史使用说明.md",
+      "sha256": "2a76f14eec867afdfa0c5235466544d048335305b867050409a1b12509121c25",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/历史版本/R4-兼容与iPhone候选修复说明.md",
+      "sha256": "6edc5598aa55098933c2732b45270f9fde4270893c1def0ef1cb32a7deb13664",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/历史版本/R4修复说明.md",
+      "sha256": "63ba01c9d19bba2b4bf9cc9780f27c8df8ccfffa9a6518c48a45ae64d527fcdb",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/历史版本/R5修复与验证说明.md",
+      "sha256": "06bff7a56d4dd5fe130cd4e591d6fd52b8c09c94ffc5efe8ca0c17bc6c677b88",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/历史版本/R6修复与合并说明.md",
+      "sha256": "97c14ce6bc39ecf8e4401177f5bd439994232746c85f86022d58ad6556c0c899",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/历史版本/R7均衡优化与验证说明.md",
+      "sha256": "9779288da417de1e166bdc7c4482c956cac28966f2bc8c2dca06488a1fb36c66",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "文档/历史版本/R8框内识别与诊断说明.md",
+      "sha256": "1b56b5f8d0c81a7157573f53a27a503291339bfd44b2727abebd9bd53ceb1606",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "盘点引擎分析与整改建议.md",
+      "sha256": "8d836ce7f7514c56e4c9a65083dd28d028ec2c54d71d4c3a452a24d130d7d469",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "耗电审计-v5.0.4.md",
+      "sha256": "b396c9c1a5220a41f60de497f4d35daf73a6164d520ef18f3e20dcb26aadc93f",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "说明-框内识别与视场对齐.md",
+      "sha256": "63603881a772a401a0012eadeb9bbb9fb408c61c167588ace659511aaaa0c2b1",
+      "r4_sha256": null,
+      "r7_sha256": null
+    },
+    {
+      "path": "验收报告-v5.0.4.md",
+      "sha256": "9a2cb894adf6fd6e19fb6830fb1df80d8047d9f7665f877164fe24485f2d0ce9",
+      "r4_sha256": null,
+      "r7_sha256": null
+    }
+  ]
+}

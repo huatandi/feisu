@@ -8,7 +8,7 @@ test('local server delivers every dependency, supports HEAD, and protects privat
   await fs.mkdir(path.join(tmp,'.git'));await fs.writeFile(path.join(tmp,'.git','config'),'PRIVATE');
   child=spawn(process.execPath,[path.join(tmp,'local-server.cjs')],{stdio:['ignore','pipe','pipe']});
   await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Server did not start (is port 18749 occupied?)')),5000);child.once('error',e=>{clearTimeout(timer);reject(e);});child.once('exit',()=>{clearTimeout(timer);reject(Error('Server exited before startup'));});child.stdout.on('data',d=>{if(d.toString().includes('FEISU:')){clearTimeout(timer);resolve();}});});
-  const base='http://127.0.0.1:18749',html=await (await fetch(base)).text();assert.match(html,/v5\.1\.0 · 框内识别版 R16/);
+  const base='http://127.0.0.1:18749',html=await (await fetch(base)).text();assert.match(html,/v5\.1\.2 · 框内识别版 R18/);
   const localPaths=[...html.matchAll(/(?:src|href)="\.\/([^"?]+)(\?[^\"]*)?"/g)].map(m=>'/'+m[1]+(m[2]||''));
   for(const route of localPaths){const r=await fetch(base+route);assert.equal(r.status,200,route);assert.ok((await r.arrayBuffer()).byteLength>0,route);if(route.includes('.js'))assert.match(r.headers.get('content-type'),/javascript/,route);}
   const head=await fetch(base+'/vendor/exceljs-4.4.0.min.js',{method:'HEAD'});assert.equal(head.status,200);assert.ok(Number(head.headers.get('content-length'))>0);assert.equal((await head.arrayBuffer()).byteLength,0);
