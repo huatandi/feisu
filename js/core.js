@@ -1,6 +1,6 @@
 'use strict';
 
-var VERSION = 'FEISU v5.1.12 · R28';
+var VERSION = 'FEISU v5.1.14 · R30';
 var db = [];
 var columns = [];
 var currentPage = 0;

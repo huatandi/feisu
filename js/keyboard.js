@@ -8,6 +8,10 @@ function syncKeyboardInset(){
   else{inset=Math.max(0,Math.round(originalViewportHeight-window.innerHeight));}
   if(inset>0&&inset<80)inset=0;              /* 浏览器工具栏抖动，忽略 */
   document.documentElement.style.setProperty('--kb-inset',inset+'px');
+  /* iOS 自带 ^ v ✓ 辅助条（约 48px）不在 visualViewport 内，需要额外抬高；
+     其它平台没有这条，留 8px 缝隙即可。 */
+  var ios=/iPad|iPhone|iPod/.test(navigator.userAgent||'');
+  document.documentElement.style.setProperty('--kb-gap',(ios?58:8)+'px');
   return inset;
 }
 function setupKeyboardListener(){if(!isMobile)return;
