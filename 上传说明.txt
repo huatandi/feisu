@@ -1,38 +1,35 @@
-FEISU v5.1.18 R34 —— 上传专用（只含网站运行文件）
+FEISU v5.1.19 R35 —— 上传专用（只含网站运行文件）
 
 三步：
 1) 解压到桌面 → 进到文件夹里面，Ctrl+A 全选，Ctrl+C
 2) https://github.com/huatandi/feisu → Add file → Upload files → 粘贴进去 → Commit changes
 3) 等 1 分钟，打开 https://huatandi.github.io/feisu/js/core.js
-   第一行应是 var VERSION = 'FEISU v5.1.18 · R34';
+   第一行应是 var VERSION = 'FEISU v5.1.19 · R35';
 
-R34 针对“开镜就糊”
+R35 修两处（都来自你那份诊断）
 
-一、先问设备能不能定焦（能做到就直接定到 15cm）
-规范里确实有 focusDistance（单位米）这个开关。R34 一开镜就先探测：
-- 设备开放 → 直接 { focusMode:'manual', focusDistance:0.15 }
-  这样镜头不用扫，直接停在近处 → 开镜即清晰。
-- 设备不开放（iPhone Safari 基本都属于这种）→ 退回连续对焦（原来的方案）。
-诊断里的 camera.focus 会直接告诉你结果，例如：
-  "manual|modes:manual/continuous|dist:yes"   ← 定焦成功
-  "continuous|modes:continuous|dist:no"       ← 这台不开放定焦
-把这一格发我，我就能确认 iPhone 到底给不给。
+一、定焦：iPhone 其实给了 focusDistance，是我判错了
+你的诊断： "focus": "continuous|modes:|dist:yes"
+- dist:yes  → 设备开放了 focusDistance（对焦距离，单位米）
+- modes: 空 → 设备不报 focusMode
+R34 我要求“必须报 manual 才定焦”，于是被这个条件挡住，一直没生效。
+R35 改成：只要报 focusDistance，就直接下 focusDistance=0.15（15cm）。
+被拒才补 focusMode:'manual'。
+生效后诊断会变成： "fixed@0.15|modes:|dist:yes"
+如果被拒，会显示 "dist-rejected"。
 
-二、默认给 1.25× 数码变焦（既然定焦不了，就改“等效距离”）
-- 条码在画面里大 25%，相当于把持机距离从 20cm 折算到 15cm 左右，
-  正好落在多数后摄的对焦舒适区，拉风箱会少很多。
-- 同时每个模块拿到的像素更多 → 识别更稳。
-- 你手动点过变焦按钮后，就不再自动设默认值。
-- 设备不支持变焦就自动跳过。
+二、后台解码线程（worker）没起来
+诊断： "worker": {"frames":2,"hits":0,"on":false}
+- 我在 Node 里按 Worker 的方式跑过同一份脚本：能正常解出 WIR-UC07，
+  所以脚本本身没问题，是设备端加载时出的错。
+- R35 增加：onerror 时把错误信息记进诊断（worker.error），并自动重试一次；
+  worker 内部若找不到 ZXing，也会回报具体原因（zxing-missing:...）。
+- worker 起不来时功能仍然正常，只是解码回到主线程（会更卡一点）。
 
-三、没有做预点火
-按你说的，不做 90 秒常开。保活仍是扫完后 20 秒，够连续盘点用。
+上传后请看诊断这三格：
+1. camera.focus —— 是否变成 fixed@0.15（定焦成功）
+2. worker.on —— 是否变成 true
+3. worker.error —— 若还是 false，把这一格里的话发我
 
-包含之前版本：按钮条位置、键盘在场也能开扫、忘记填数量的红色拦截、
-一次点击开扫、后台线程解码、canvas 取景、低对比拉伸、扫描线 0.6s。
-
-验收：
-1. 角标 v5.1.18 · 框内识别版 R34
-2. 打开扫码：画面应比之前“近”一点（1.25× 变焦）
-3. 「📊 复制诊断」里 camera.focus 那一格，把它发我
-4. 如果 focus 显示 dist:yes 且是 manual，开镜应几乎立刻清晰
+其他：保活 20 秒（扫完不关相机，第二件起不糊）、默认 1.25× 变焦、
+按钮条贴键盘辅助条、忘记填数量会标红拦截、一次点击开扫。

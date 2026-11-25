@@ -13,7 +13,7 @@ var Z = self.ZXing || (self.window && self.window.ZXing);
 var readers = {};
 
 if (!Z || !Z.RGBLuminanceSource || !Z.BrowserMultiFormatReader) {
-  self.postMessage({ unsupported: true });
+  self.postMessage({ unsupported: true, reason: 'zxing-missing:' + (typeof Z) + ':' + !!(Z && Z.RGBLuminanceSource) });
 } else {
   self.onmessage = function (e) {
     var d = e.data || {};

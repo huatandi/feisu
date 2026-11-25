@@ -149,7 +149,7 @@ function scanViewDiagnostics(){
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R34':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:(cameraFocusProbe?cameraFocusProbe.mode+'|modes:'+cameraFocusProbe.modes.join('/')+(cameraFocusProbe.hasDistance?'|dist:yes':'|dist:no'):(settings.focusMode||'system'))},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses}};
+  return {version:typeof VERSION==='undefined'?'R35':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:(cameraFocusProbe?cameraFocusProbe.mode+'|modes:'+cameraFocusProbe.modes.join('/')+(cameraFocusProbe.hasDistance?'|dist:yes':'|dist:no'):(settings.focusMode||'system'))},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker,error:scanWorkerLastError||null}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses}};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -242,12 +242,18 @@ async function applyCameraTuning(t){if(!t||!t.getCapabilities)return;var c=t.get
      有就用（直接定到 15cm，开镜即清晰），没有就退回连续对焦。 */
   var focusProbe={modes:(c.focusMode?Array.from(c.focusMode):[]),hasDistance:!!c.focusDistance,mode:'continuous'};
   try{
-    if(c.focusDistance&&c.focusMode&&Array.from(c.focusMode).includes('manual')){
+    if(c.focusDistance){
       var fdMin=Number(c.focusDistance.min)||0, fdMax=Number(c.focusDistance.max)||0;
       if(fdMax>0){
         var want=Math.min(fdMax,Math.max(fdMin,0.15));   /* 目标 15cm */
-        var okFocus=await safeApply(t,[{focusMode:'manual'},{focusDistance:want}]);
-        if(okFocus){focusProbe.mode='manual@'+want.toFixed(2);a=[];}
+        /* v5.1.19：iPhone 会报 focusDistance 但不报 focusMode，
+           所以先只下 focusDistance；被拒再补 manual。 */
+        var okFocus=await safeApply(t,[{focusDistance:want}]);
+        if(!okFocus&&c.focusMode&&Array.from(c.focusMode).includes('manual')){
+          okFocus=await safeApply(t,[{focusMode:'manual'},{focusDistance:want}]);
+        }
+        if(okFocus){focusProbe.mode='fixed@'+want.toFixed(2);a=[];}
+        else focusProbe.mode='dist-rejected';
       }
     }
   }catch(e){}
@@ -403,6 +409,7 @@ function kickVideoPlayback(v){
 /* v5.1.9：把 ZXing 识别挪到 Web Worker，主线程只负责“画一帧 + 取出像素 + 发过去”。
    解码不再占用主线程，相机预览不卡；识别能力不变（同一份 ZXing、同样 hints）。
    取结果的方式：worker 算完先暂存，下一次 ZXing 轮询时直接返回 —— 对外契约不变。 */
+var scanWorkerLastError=null,scanWorkerRetried=false;
 var scanDecodeWorker=null,scanWorkerTried=false,scanWorkerBusy=false,scanWorkerSeq=0,
     scanWorkerSentAt=0,scanWorkerFails=0,scanWorkerResult=null,scanWorkerUnsupported=false;
 function ensureDecodeWorker(){
@@ -414,7 +421,7 @@ function ensureDecodeWorker(){
     scanDecodeWorker.onmessage=function(ev){
       scanWorkerBusy=false;
       var d=(ev&&ev.data)||{};
-      if(d.unsupported){scanWorkerUnsupported=true;scanDecodeWorker=null;return;}
+      if(d.unsupported){scanWorkerUnsupported=true;scanWorkerLastError=d.reason||'unsupported';scanDecodeWorker=null;return;}
       if(d.text){
         scanWorkerFails=0;
         scanWorkerResult={
@@ -429,7 +436,13 @@ function ensureDecodeWorker(){
         if(scanWorkerFails>=30)scanDecodeWorker=null;   /* 连续失败 → 永久退回主线程 */
       }
     };
-    scanDecodeWorker.onerror=function(){scanDecodeWorker=null;scanWorkerBusy=false;};
+    scanDecodeWorker.onerror=function(ev){
+      scanWorkerLastError=(ev&&(ev.message||ev.filename))||'worker error';
+      scanDecodeWorker=null;scanWorkerBusy=false;
+      /* 只自动重试一次，避免死循环烧电 */
+      if(!scanWorkerRetried){scanWorkerRetried=true;scanWorkerTried=false;
+        try{var w2=ensureDecodeWorker();if(w2)scanWorkerLastError+=' (retried)';}catch(e){}}
+    };
   }catch(e){scanDecodeWorker=null;}
   return scanDecodeWorker;
 }
