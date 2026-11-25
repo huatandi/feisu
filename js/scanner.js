@@ -149,7 +149,7 @@ function scanViewDiagnostics(){
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R33':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses}};
+  return {version:typeof VERSION==='undefined'?'R34':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:(cameraFocusProbe?cameraFocusProbe.mode+'|modes:'+cameraFocusProbe.modes.join('/')+(cameraFocusProbe.hasDistance?'|dist:yes':'|dist:no'):(settings.focusMode||'system'))},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses}};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -236,9 +236,37 @@ function stopScanningAndJump(i){pendingJump=i;lastScannedRow=i;stopScanning(true
 function cap(t,n){try{var c=t&&t.getCapabilities?t.getCapabilities():null;return c&&c[n];}catch(e){return null;}}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 async function safeApply(t,a){if(!t||!a.length)return false;try{await t.applyConstraints({advanced:a});return true;}catch(e){console.info('[Camera] constraint skipped',e&&e.name);return false;}}
-async function applyCameraTuning(t){if(!t||!t.getCapabilities)return;var c=t.getCapabilities(),s=t.getSettings?t.getSettings():{},a=[];if(c.focusMode&&Array.from(c.focusMode).includes('continuous'))a.push({focusMode:'continuous'});if(c.exposureMode&&Array.from(c.exposureMode).includes('continuous'))a.push({exposureMode:'continuous'});if(c.whiteBalanceMode&&Array.from(c.whiteBalanceMode).includes('continuous'))a.push({whiteBalanceMode:'continuous'});await safeApply(t,a);if(!scanning||t!==cameraTrack)return;scheduleFocusKick();if(warmReusedThisStart){kickContinuousFocus();}else{primeCameraFocus(t).catch(function(){});}requestBarcodeFocus().catch(function(){});if(c.zoom){currentZoom=clamp(Number(s.zoom)||Number(c.zoom.min)||1,c.zoom.min,c.zoom.max);updateZoomUI(c.zoom);}}
+async function applyCameraTuning(t){if(!t||!t.getCapabilities)return;var c=t.getCapabilities(),s=t.getSettings?t.getSettings():{},a=[];if(c.focusMode&&Array.from(c.focusMode).includes('continuous'))a.push({focusMode:'continuous'});if(c.exposureMode&&Array.from(c.exposureMode).includes('continuous'))a.push({exposureMode:'continuous'});if(c.whiteBalanceMode&&Array.from(c.whiteBalanceMode).includes('continuous'))a.push({whiteBalanceMode:'continuous'});/* v5.1.18：先问设备要“定焦”。
+     MediaTrackConstraints 规范里有 focusDistance（米）+ focusMode:'manual'，
+     但 iPhone Safari 通常不开放；Android Chrome 部分机型开放。
+     有就用（直接定到 15cm，开镜即清晰），没有就退回连续对焦。 */
+  var focusProbe={modes:(c.focusMode?Array.from(c.focusMode):[]),hasDistance:!!c.focusDistance,mode:'continuous'};
+  try{
+    if(c.focusDistance&&c.focusMode&&Array.from(c.focusMode).includes('manual')){
+      var fdMin=Number(c.focusDistance.min)||0, fdMax=Number(c.focusDistance.max)||0;
+      if(fdMax>0){
+        var want=Math.min(fdMax,Math.max(fdMin,0.15));   /* 目标 15cm */
+        var okFocus=await safeApply(t,[{focusMode:'manual'},{focusDistance:want}]);
+        if(okFocus){focusProbe.mode='manual@'+want.toFixed(2);a=[];}
+      }
+    }
+  }catch(e){}
+  cameraFocusProbe=focusProbe;
+  await safeApply(t,a);if(!scanning||t!==cameraTrack)return;scheduleFocusKick();if(warmReusedThisStart){kickContinuousFocus();}else{primeCameraFocus(t).catch(function(){});}requestBarcodeFocus().catch(function(){});if(c.zoom){
+    currentZoom=clamp(Number(s.zoom)||Number(c.zoom.min)||1,c.zoom.min,c.zoom.max);
+    /* v5.1.18：默认给一点数码变焦（1.25×）。
+       条码在画面里大 25%，等于把持机距离从 20cm 折算到 15cm 左右，
+       正好落在多数手机后摄的舒适对焦区间；同时每个模块拿到的像素更多，更好读。
+       用户手动点过变焦就不再用默认值。 */
+    if(!cameraZoomUserSet&&currentZoom<=c.zoom.min+0.01&&c.zoom.max>=1.25){
+      var dz=clamp(1.25,c.zoom.min,c.zoom.max);
+      if(Math.abs(dz-currentZoom)>0.01&&await safeApply(t,[{zoom:dz}]))currentZoom=dz;
+    }
+    updateZoomUI(c.zoom);
+  }}
 function updateZoomUI(c){var l=document.getElementById('zoomLabel'),m=document.getElementById('zoomOutBtn'),p=document.getElementById('zoomInBtn'),ok=!!c;[l,m,p].forEach(function(x){if(x)x.hidden=!ok;});if(l)l.textContent=currentZoom.toFixed(1)+'×';if(m)m.disabled=!ok||currentZoom<=c.min+.01;if(p)p.disabled=!ok||currentZoom>=c.max-.01;}
-async function changeCameraZoom(d){var c=cap(cameraTrack,'zoom');if(!c){showToast('当前浏览器不支持相机变焦',true);return;}var n=clamp(currentZoom+d*Math.max(Number(c.step)||.1,.2),c.min,c.max);if(await safeApply(cameraTrack,[{zoom:n}])){currentZoom=n;updateZoomUI(c);}}
+var cameraZoomUserSet=false;
+async function changeCameraZoom(d){cameraZoomUserSet=true;var c=cap(cameraTrack,'zoom');if(!c){showToast('当前浏览器不支持相机变焦',true);return;}var n=clamp(currentZoom+d*Math.max(Number(c.step)||.1,.2),c.min,c.max);if(await safeApply(cameraTrack,[{zoom:n}])){currentZoom=n;updateZoomUI(c);}}
 async function requestFocusReset(event){if(!cameraTrack)return;if(await requestBarcodeFocus(event)){showToast("🎯 已请求条码区域对焦，请保持约半秒");return;}if(!scanning||!cameraTrack)return;var m=cap(cameraTrack,'focusMode');if(m&&Array.from(m).includes('continuous')){await safeApply(cameraTrack,[{focusMode:'continuous'}]);showToast('🎯 正在连续对焦，请保持约半秒');}else showToast('此设备由系统自动对焦');}
 function kickContinuousFocus(){if(!cameraTrack)return;var a=[],fm=cap(cameraTrack,'focusMode'),em=cap(cameraTrack,'exposureMode');if(fm&&Array.from(fm).includes('continuous'))a.push({focusMode:'continuous'});if(em&&Array.from(em).includes('continuous'))a.push({exposureMode:'continuous'});if(a.length)safeApply(cameraTrack,a);}
 /* v5.1.10：开镜时 iOS 的自动对焦要从无穷远“扫”到 10–20cm，肉眼就是先糊 1–2 秒。
@@ -405,7 +433,7 @@ function ensureDecodeWorker(){
   }catch(e){scanDecodeWorker=null;}
   return scanDecodeWorker;
 }
-var scanPreviewRAF=null,scanPreviewLast=0,scanPreviewFrames=0,warmReusedThisStart=false;
+var scanPreviewRAF=null,scanPreviewLast=0,scanPreviewFrames=0,warmReusedThisStart=false,cameraFocusProbe=null;
 /* v5.1.7：低对比条码（打印浅、磨损、反光）靠“灰度满幅拉伸”救回来。
    做法：取这块 ROI 的灰度矩阵，按 min..max 线性映射到 0..255，
    再交给自适应二值化（HybridBinarizer）——黑白不分明时这一下差别很大。
