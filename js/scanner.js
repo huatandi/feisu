@@ -149,7 +149,7 @@ function scanViewDiagnostics(){
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R27':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker}:null};
+  return {version:typeof VERSION==='undefined'?'R28':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker}:null};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -366,7 +366,7 @@ function ensureDecodeWorker(){
   }catch(e){scanDecodeWorker=null;}
   return scanDecodeWorker;
 }
-var scanPreviewRAF=null,scanPreviewLast=0;
+var scanPreviewRAF=null,scanPreviewLast=0,scanPreviewFrames=0;
 /* v5.1.7：低对比条码（打印浅、磨损、反光）靠“灰度满幅拉伸”救回来。
    做法：取这块 ROI 的灰度矩阵，按 min..max 线性映射到 0..255，
    再交给自适应二值化（HybridBinarizer）——黑白不分明时这一下差别很大。
@@ -452,15 +452,17 @@ function startScanPreview(){
   scanPreviewLast=0;
   (function loop(ts){
     if(!scanning){scanPreviewRAF=null;return;}
-    if(!scanPreviewLast||ts-scanPreviewLast>=45){   /* 约 22fps，够看且省电 */
-      scanPreviewLast=ts;
-      try{drawScanPreview();}catch(e){}
-      scanPreviewFrames=(scanPreviewFrames||0)+1;
-      if(scanPreviewFrames%6===0){                    /* 约 250ms 判一次清晰度 */
-        var sh=measureSharpness();
-        if(sh!==null)updateFocusHint(sh>=14);
+    try{
+      if(!scanPreviewLast||ts-scanPreviewLast>=45){   /* 约 22fps，够看且省电 */
+        scanPreviewLast=ts;
+        drawScanPreview();
+        scanPreviewFrames++;
+        if(scanPreviewFrames%6===0){                  /* 约 250ms 判一次清晰度 */
+          var sh=measureSharpness();
+          if(sh!==null)updateFocusHint(sh>=14);
+        }
       }
-    }
+    }catch(e){/* 任何异常都不允许让预览停掉 */}
     scanPreviewRAF=requestAnimationFrame(loop);
   })(0);
 }
