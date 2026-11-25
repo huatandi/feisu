@@ -99,6 +99,9 @@
         /* v5.1.4：预览改为 canvas 绘制，视频元素只作为解码源留在下层。
    iOS 上 <video> 的缩放/object-fit 不可靠，canvas 画的像素等于最终显示。 */
         /* 忘记填数量的行：整行标红，直到填上 */
+        /* iOS 不允许无手势弹键盘时，给数量框一个脉冲提示，告诉用户点这里 */
+        .qty-needs-tap { animation: qtyPulse .7s ease-in-out 3; box-shadow: 0 0 0 3px #3b82f6 !important; }
+        @keyframes qtyPulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
         .row-warn, tr.row-warn > td { background: #fee2e2 !important; }
         tr.row-warn > td { box-shadow: inset 0 0 0 2px #ef4444; }
         .focus-hint { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #92400e; background: #fef3c7; animation: focusPulse 1s ease-in-out infinite; }

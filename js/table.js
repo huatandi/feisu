@@ -39,7 +39,27 @@ function updateQty(rowIndex,value){if(db[rowIndex]){pushUndo({type:'cell',rowInd
 function updatePrice(rowIndex,value){if(db[rowIndex]){pushUndo({type:'cell',rowIndex:rowIndex,col:'实际价格',oldValue:db[rowIndex]['实际价格'],newValue:value});db[rowIndex]['实际价格']=value;renderDashboard();scheduleAutoSave();showToast('价格已更新');hideKeyboard();}}
 function updateCell(rowIndex,col,value){if(db[rowIndex]){pushUndo({type:'cell',rowIndex:rowIndex,col:col,oldValue:db[rowIndex][col],newValue:value});db[rowIndex][col]=value;if(col===sourceQtyColumn)db[rowIndex].__feisuReviewed=false;rebuildSearchIndex();renderPage();scheduleAutoSave();}}
 function autoAdjustColumns(){var table=document.getElementById('mainTable');if(!table)return;var visible=columns.length;if(!visible)return;var headers=table.querySelectorAll('thead th'),rows=table.querySelectorAll('tbody tr'),widths=new Array(visible).fill(0);headers.forEach(function(th,idx){if(idx<visible)widths[idx]=Math.max(widths[idx],Math.min((th.textContent||'').length*14+40,220));});rows.forEach(function(row){row.querySelectorAll('td').forEach(function(cell,idx){if(idx>=visible)return;var input=cell.querySelector('input'),text=input?(input.value||input.placeholder||''):(cell.textContent||''),w=Math.max(80,Math.min(260,text.length*10+30));if(w>widths[idx])widths[idx]=w;});});headers.forEach(function(th,idx){if(widths[idx]>0){th.style.width=widths[idx]+'px';th.style.minWidth=widths[idx]+'px';}});}
-function jumpToRowAndFocusQty(foundIndex){var rowEl=document.getElementById('row-'+foundIndex);if(!rowEl){currentInventoryFilter='all';pendingJump=foundIndex;renderPage();return false;}document.querySelectorAll('#mainTable tbody tr').forEach(function(tr){tr.classList.remove('row-focus');});rowEl.classList.add('row-focus');rowEl.scrollIntoView({behavior:'smooth',block:'center'});var qty=document.getElementById('qty-'+foundIndex);if(qty){currentInputElement=qty;setTimeout(function(){qty.focus();qty.select();},100);}return true;}
+function jumpToRowAndFocusQty(foundIndex){var rowEl=document.getElementById('row-'+foundIndex);if(!rowEl){currentInventoryFilter='all';pendingJump=foundIndex;renderPage();return false;}document.querySelectorAll('#mainTable tbody tr').forEach(function(tr){tr.classList.remove('row-focus');});rowEl.classList.add('row-focus');rowEl.scrollIntoView({behavior:'smooth',block:'center'});var qty=document.getElementById('qty-'+foundIndex);
+  if(qty){
+    currentInputElement=qty;
+    /* iOS 只在“用户手势的同一轮”里允许程序化聚焦弹出键盘。
+       扫码结果是相机回调里来的，没有手势，所以先同步 focus（有时还能赶上），
+       再补两次延时重试；都失败时把该框高亮，提示用户点一下。 */
+    try{qty.focus();qty.select();}catch(e){}
+    setTimeout(function(){try{qty.focus();qty.select();}catch(e){}},90);
+    setTimeout(function(){
+      try{
+        if(document.activeElement!==qty){
+          qty.focus();qty.select();
+          if(document.activeElement!==qty){
+            qty.classList.add('qty-needs-tap');
+            setTimeout(function(){qty.classList.remove('qty-needs-tap');},2500);
+          }
+        }
+      }catch(e){}
+    },260);
+  }
+  return true;}
 /* v5.0.3 连扫计数（可选，默认关）：
    扫码命中即 +1、相机不关闭、不重建整张表；非精确匹配仍退回人工确认。 */
 function flashScanFrame(){var frame=document.getElementById('scanFrame');if(!frame)return;frame.classList.add('scan-success');setTimeout(function(){frame.classList.remove('scan-success');},200);}

@@ -23,6 +23,18 @@ function bindAppEvents(){
     var btn=document.getElementById('scanBtn');
     if(!btn)return;
     var lastTap=0;
+    function beginScan(attemptsLeft){
+      var p=startScanning();
+      if(!p||typeof p.then!=='function')return;
+      p.catch(function(err){
+        var name=(err&&(err.name||err.message))||'';
+        if(attemptsLeft>0){                       /* 一次失败先重试，别让用户再点一遍 */
+          setTimeout(function(){beginScan(attemptsLeft-1);},320);
+          return;
+        }
+        if(typeof showToast==='function')showToast('⚠️ 相机启动失败：'+(name||'未知错误'),true);
+      });
+    }
     function onScanTap(e){
       if(Date.now()-lastTap<350)return;
       lastTap=Date.now();
@@ -30,8 +42,12 @@ function bindAppEvents(){
       if(window.SoundManager)SoundManager.unlock();
       if(scanning){stopScanning(true);return;}
       if(typeof requireQtyBeforeScan==='function'&&!requireQtyBeforeScan())return;
+      /* v5.1.17：键盘在场时直接开相机会被 iOS 的键盘收起动画打断（相机还没起，
+         视觉上就成了“只是把键盘收了”）。所以先收键盘，等它落定再开相机。 */
+      var kbOpen=document.body.classList.contains('keyboard-open');
       hideKeyboard();
-      startScanning();
+      if(kbOpen)setTimeout(function(){beginScan(1);},240);
+      else beginScan(1);
     }
     btn.addEventListener('pointerdown',onScanTap,{passive:false});
     btn.addEventListener('touchstart',onScanTap,{passive:false});
