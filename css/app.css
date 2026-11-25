@@ -28,7 +28,7 @@
         /* v5.1.13：iOS 那根 ^ v ✓ 辅助条不在页面里，visualViewport 的高度不含它，
    所以要在键盘高度之上再加 --kb-gap（默认 58px＝辅助条高度+缝隙）。
    这样按钮条正好贴着黑色辅助条的上沿。 */
-        .keyboard-open .bottom-fixed-btns { bottom: calc(var(--kb-inset, 0px) + var(--kb-gap, 74px)); }
+        .keyboard-open .bottom-fixed-btns { bottom: calc(var(--kb-inset, 0px) + var(--kb-gap, 89px)); }
 
         .scrollable-area {
             flex: 1; overflow-y: auto; overflow-x: hidden;
@@ -98,6 +98,9 @@
         .scan-viewport { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 96%); height: var(--scan-view-h, min(56.25vw, 240px)); overflow: hidden; border-radius: 20px; background: #000; z-index: 5; }
         /* v5.1.4：预览改为 canvas 绘制，视频元素只作为解码源留在下层。
    iOS 上 <video> 的缩放/object-fit 不可靠，canvas 画的像素等于最终显示。 */
+        /* 忘记填数量的行：整行标红，直到填上 */
+        .row-warn, tr.row-warn > td { background: #fee2e2 !important; }
+        tr.row-warn > td { box-shadow: inset 0 0 0 2px #ef4444; }
         .focus-hint { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #92400e; background: #fef3c7; animation: focusPulse 1s ease-in-out infinite; }
         @keyframes focusPulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
         .focus-hint[hidden] { display: none !important; }
@@ -139,7 +142,7 @@
             .scrollable-area { padding: 0 12px 16px 12px; }
             .scan-enhance-btn { padding: 12px 24px; font-size: 18px; }
         }
-        .keyboard-open .scrollable-area { padding-bottom: calc(var(--kb-inset, 0px) + var(--kb-gap, 74px) + 96px); }
+        .keyboard-open .scrollable-area { padding-bottom: calc(var(--kb-inset, 0px) + var(--kb-gap, 89px) + 96px); }
         .prefix-hit { background: #fef08a !important; box-shadow: inset 0 0 0 2px #f59e0b; }
         .scan-tool-btn { background: #1e3a8a; color: #fff; border: 1px solid #60a5fa; border-radius: 9999px; padding: 8px 12px; font-size: 12px; font-weight: 700; }
 .scan-tool-btn.active { background: #f59e0b; border-color: #fcd34d; color: #111827; }

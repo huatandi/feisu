@@ -149,7 +149,7 @@ function scanViewDiagnostics(){
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R31':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses}};
+  return {version:typeof VERSION==='undefined'?'R32':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:settings.focusMode||'system'},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses}};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -193,11 +193,50 @@ function stopScannerForBackground(){
   if(scanning||cameraSwitching||cameraRestartTimer){stopScanning(true);return true;}
   return false;
 }
-function stopScanningAndJump(i){pendingJump=i;stopScanning(true);var p=Math.floor(i/pageSize);if(p!==currentPage){currentPage=p;renderPage();}setTimeout(function(){jumpToRowAndFocusQty(i);pendingJump=null;},150);}
+/* v5.1.16：扫完一个商品后光标停在该行“实际数量”，如果用户忘了填就点扫码，
+   不静默失败，也不跳走：把该行标红 + 提示，光标留在框里。
+   3 秒内再点一次视作“跳过”，不阻塞正常流程。 */
+var lastScannedRow=null;
+if(typeof document!=='undefined'&&document&&typeof document.addEventListener==='function')document.addEventListener('input',function(e){
+  var t=e&&e.target;
+  if(!t||!t.closest)return;
+  var tr=t.closest('tr');
+  if(tr&&tr.classList.contains('row-warn')&&String(t.value||'').trim()!=='')tr.classList.remove('row-warn');
+},true);
+function clearRowWarn(){
+  var nodes=document.querySelectorAll('.row-warn');
+  for(var i=0;i<nodes.length;i++)nodes[i].classList.remove('row-warn');
+}
+function requireQtyBeforeScan(){
+  if(typeof scanCountMode!=='undefined'&&scanCountMode)return true;   /* 连扫模式不拦 */
+  if(lastScannedRow===null||lastScannedRow===undefined||lastScannedRow<0)return true;
+  var row=db&&db[lastScannedRow];
+  if(!row)return true;
+  var val=String(row['实际数量']==null?'':row['实际数量']).trim();
+  if(val!==''){
+    clearRowWarn();
+    /* 已填好：允许开扫，并清掉“待填”标记 */
+    if(row.__feisuPendingQty)delete row.__feisuPendingQty;
+    return true;
+  }
+  var el=document.getElementById('row-'+lastScannedRow);
+  if(el)el.classList.add('row-warn');
+  var warnedAt=requireQtyBeforeScan.warnedAt||0;
+  if(warnedAt&&Date.now()-warnedAt<3000){
+    requireQtyBeforeScan.warnedAt=0;
+    clearRowWarn();
+    return true;   /* 再点一次＝跳过 */
+  }
+  requireQtyBeforeScan.warnedAt=Date.now();
+  showToast('❌ 这个商品还没填实际数量（3 秒内再点扫码可跳过）',true);
+  if(typeof jumpToRowAndFocusQty==='function')jumpToRowAndFocusQty(lastScannedRow);
+  return false;
+}
+function stopScanningAndJump(i){pendingJump=i;lastScannedRow=i;stopScanning(true);var p=Math.floor(i/pageSize);if(p!==currentPage){currentPage=p;renderPage();}setTimeout(function(){jumpToRowAndFocusQty(i);pendingJump=null;},150);}
 function cap(t,n){try{var c=t&&t.getCapabilities?t.getCapabilities():null;return c&&c[n];}catch(e){return null;}}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 async function safeApply(t,a){if(!t||!a.length)return false;try{await t.applyConstraints({advanced:a});return true;}catch(e){console.info('[Camera] constraint skipped',e&&e.name);return false;}}
-async function applyCameraTuning(t){if(!t||!t.getCapabilities)return;var c=t.getCapabilities(),s=t.getSettings?t.getSettings():{},a=[];if(c.focusMode&&Array.from(c.focusMode).includes('continuous'))a.push({focusMode:'continuous'});if(c.exposureMode&&Array.from(c.exposureMode).includes('continuous'))a.push({exposureMode:'continuous'});if(c.whiteBalanceMode&&Array.from(c.whiteBalanceMode).includes('continuous'))a.push({whiteBalanceMode:'continuous'});await safeApply(t,a);if(!scanning||t!==cameraTrack)return;scheduleFocusKick();primeCameraFocus(t).catch(function(){});requestBarcodeFocus().catch(function(){});if(c.zoom){currentZoom=clamp(Number(s.zoom)||Number(c.zoom.min)||1,c.zoom.min,c.zoom.max);updateZoomUI(c.zoom);}}
+async function applyCameraTuning(t){if(!t||!t.getCapabilities)return;var c=t.getCapabilities(),s=t.getSettings?t.getSettings():{},a=[];if(c.focusMode&&Array.from(c.focusMode).includes('continuous'))a.push({focusMode:'continuous'});if(c.exposureMode&&Array.from(c.exposureMode).includes('continuous'))a.push({exposureMode:'continuous'});if(c.whiteBalanceMode&&Array.from(c.whiteBalanceMode).includes('continuous'))a.push({whiteBalanceMode:'continuous'});await safeApply(t,a);if(!scanning||t!==cameraTrack)return;scheduleFocusKick();if(warmReusedThisStart){kickContinuousFocus();}else{primeCameraFocus(t).catch(function(){});}requestBarcodeFocus().catch(function(){});if(c.zoom){currentZoom=clamp(Number(s.zoom)||Number(c.zoom.min)||1,c.zoom.min,c.zoom.max);updateZoomUI(c.zoom);}}
 function updateZoomUI(c){var l=document.getElementById('zoomLabel'),m=document.getElementById('zoomOutBtn'),p=document.getElementById('zoomInBtn'),ok=!!c;[l,m,p].forEach(function(x){if(x)x.hidden=!ok;});if(l)l.textContent=currentZoom.toFixed(1)+'×';if(m)m.disabled=!ok||currentZoom<=c.min+.01;if(p)p.disabled=!ok||currentZoom>=c.max-.01;}
 async function changeCameraZoom(d){var c=cap(cameraTrack,'zoom');if(!c){showToast('当前浏览器不支持相机变焦',true);return;}var n=clamp(currentZoom+d*Math.max(Number(c.step)||.1,.2),c.min,c.max);if(await safeApply(cameraTrack,[{zoom:n}])){currentZoom=n;updateZoomUI(c);}}
 async function requestFocusReset(event){if(!cameraTrack)return;if(await requestBarcodeFocus(event)){showToast("🎯 已请求条码区域对焦，请保持约半秒");return;}if(!scanning||!cameraTrack)return;var m=cap(cameraTrack,'focusMode');if(m&&Array.from(m).includes('continuous')){await safeApply(cameraTrack,[{focusMode:'continuous'}]);showToast('🎯 正在连续对焦，请保持约半秒');}else showToast('此设备由系统自动对焦');}
@@ -366,7 +405,7 @@ function ensureDecodeWorker(){
   }catch(e){scanDecodeWorker=null;}
   return scanDecodeWorker;
 }
-var scanPreviewRAF=null,scanPreviewLast=0,scanPreviewFrames=0;
+var scanPreviewRAF=null,scanPreviewLast=0,scanPreviewFrames=0,warmReusedThisStart=false;
 /* v5.1.7：低对比条码（打印浅、磨损、反光）靠“灰度满幅拉伸”救回来。
    做法：取这块 ROI 的灰度矩阵，按 min..max 线性映射到 0..255，
    再交给自适应二值化（HybridBinarizer）——黑白不分明时这一下差别很大。
@@ -483,7 +522,7 @@ window.addEventListener('pagehide',function(){releaseWarmStream();});
 window.addEventListener('resize',function(){if(scanViewResizeTimer)clearTimeout(scanViewResizeTimer);scanViewResizeTimer=setTimeout(function(){scanViewResizeTimer=null;if(scanning)scanViewLayout();},120);});
   window.addEventListener('orientationchange',function(){if(scanning)scanViewLayout();});
 }
-async function startScanning(){var sessionToken=scannerRecoveryEpoch,sessionReader=null,sessionStream=null;if(scanning){showToast('扫描器已在运行');return;}var f=document.getElementById('scanFrame'),v=document.getElementById('video');if(f)f.style.top='';document.getElementById('scanUI').style.display='flex';updateScanBoot();scanSessionCount=0;if(typeof updateScanCountLabel==='function')updateScanCountLabel();bindScanViewport(v);scanViewLayout();scanning=true;startScanPreview();consecutiveFailures=0;if(reader){try{await reader.reset();}catch(e){}reader=null;}var badge=document.getElementById('enhanceBadge');if(badge)badge.classList.toggle('hidden',!enhanceMode);try{var h=new Map();if(enhanceMode)h.set(ZXing.DecodeHintType.TRY_HARDER,true);h.set(ZXing.DecodeHintType.ALSO_INVERTED,true);h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_93,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.ITF,ZXing.BarcodeFormat.CODABAR]);sessionReader=new ZXing.BrowserMultiFormatReader(h);sessionReader.__scannerHints=h;sessionReader.__scannerHarder=!!enhanceMode;reader=sessionReader;installPrimaryROIDecoder(sessionReader,v,f);reader.timeBetweenDecodingAttempts=scannerPowerProfile().retry;updateScanPowerUI();kickVideoPlayback(v);if(scanBootTimer)clearTimeout(scanBootTimer);scanBootTimer=setTimeout(function(){scanBootTimer=null;if(scanning){scanViewLayout();if(!updateScanBoot())kickVideoPlayback(v);}},1500);sessionStream=(takeWarmStream()||await getScannerCameraStream());if(!scanning||sessionToken!==scannerRecoveryEpoch){releaseCameraSession(sessionReader,sessionStream,v);return;}await sessionReader.decodeFromStream(sessionStream,'video',async function(r){if(!scanning||sessionToken!==scannerRecoveryEpoch)return;if(r&&r.getText){acceptDecodedBarcode(r.getText(),r.getBarcodeFormat?String(r.getBarcodeFormat()):'ZXing-JS');return;}consecutiveFailures++;launchSupplementalRecovery(v,f).catch(function(e){console.info('[Scanner] recovery skipped',e&&e.name);});});if(!scanning||sessionToken!==scannerRecoveryEpoch){releaseCameraSession(sessionReader,sessionStream,v);return;}var t=v&&v.srcObject&&v.srcObject.getVideoTracks()[0];if(t){setupCameraControls(t);await applyScannerPowerProfile();scanViewLayout();setTimeout(scanViewLayout,300);setTimeout(scanViewLayout,900);await applyCameraTuning(t);if(!scanning||sessionToken!==scannerRecoveryEpoch){releaseCameraSession(sessionReader,sessionStream,v);return;}console.info('[Camera] settings',t.getSettings?t.getSettings():{});}showToast('极速扫码已启动'+(enhanceMode?' · WASM增强':' · 自动对焦'));}catch(e){releaseCameraSession(sessionReader,sessionStream,v);if(sessionToken!==scannerRecoveryEpoch)return;console.error('相机错误:',e);var msg=e&&e.name==='NotAllowedError'?'摄像头权限被拒绝':e&&e.name==='NotFoundError'?'未找到后置摄像头':'无法启动摄像头';showToast(msg+'，请检查权限与 HTTPS',true);stopScanning(true);}}
+async function startScanning(){var sessionToken=scannerRecoveryEpoch,sessionReader=null,sessionStream=null;if(scanning){showToast('扫描器已在运行');return;}var f=document.getElementById('scanFrame'),v=document.getElementById('video');if(f)f.style.top='';document.getElementById('scanUI').style.display='flex';updateScanBoot();scanSessionCount=0;if(typeof updateScanCountLabel==='function')updateScanCountLabel();bindScanViewport(v);scanViewLayout();scanning=true;startScanPreview();consecutiveFailures=0;if(reader){try{await reader.reset();}catch(e){}reader=null;}var badge=document.getElementById('enhanceBadge');if(badge)badge.classList.toggle('hidden',!enhanceMode);try{var h=new Map();if(enhanceMode)h.set(ZXing.DecodeHintType.TRY_HARDER,true);h.set(ZXing.DecodeHintType.ALSO_INVERTED,true);h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_93,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.ITF,ZXing.BarcodeFormat.CODABAR]);sessionReader=new ZXing.BrowserMultiFormatReader(h);sessionReader.__scannerHints=h;sessionReader.__scannerHarder=!!enhanceMode;reader=sessionReader;installPrimaryROIDecoder(sessionReader,v,f);reader.timeBetweenDecodingAttempts=scannerPowerProfile().retry;updateScanPowerUI();kickVideoPlayback(v);if(scanBootTimer)clearTimeout(scanBootTimer);scanBootTimer=setTimeout(function(){scanBootTimer=null;if(scanning){scanViewLayout();if(!updateScanBoot())kickVideoPlayback(v);}},1500);warmReusedThisStart=false;var __warm=takeWarmStream();if(__warm)warmReusedThisStart=true;sessionStream=(__warm||await getScannerCameraStream());if(!scanning||sessionToken!==scannerRecoveryEpoch){releaseCameraSession(sessionReader,sessionStream,v);return;}await sessionReader.decodeFromStream(sessionStream,'video',async function(r){if(!scanning||sessionToken!==scannerRecoveryEpoch)return;if(r&&r.getText){acceptDecodedBarcode(r.getText(),r.getBarcodeFormat?String(r.getBarcodeFormat()):'ZXing-JS');return;}consecutiveFailures++;launchSupplementalRecovery(v,f).catch(function(e){console.info('[Scanner] recovery skipped',e&&e.name);});});if(!scanning||sessionToken!==scannerRecoveryEpoch){releaseCameraSession(sessionReader,sessionStream,v);return;}var t=v&&v.srcObject&&v.srcObject.getVideoTracks()[0];if(t){setupCameraControls(t);await applyScannerPowerProfile();scanViewLayout();setTimeout(scanViewLayout,300);setTimeout(scanViewLayout,900);await applyCameraTuning(t);if(!scanning||sessionToken!==scannerRecoveryEpoch){releaseCameraSession(sessionReader,sessionStream,v);return;}console.info('[Camera] settings',t.getSettings?t.getSettings():{});}showToast('极速扫码已启动'+(enhanceMode?' · WASM增强':' · 自动对焦'));}catch(e){releaseCameraSession(sessionReader,sessionStream,v);if(sessionToken!==scannerRecoveryEpoch)return;console.error('相机错误:',e);var msg=e&&e.name==='NotAllowedError'?'摄像头权限被拒绝':e&&e.name==='NotFoundError'?'未找到后置摄像头':'无法启动摄像头';showToast(msg+'，请检查权限与 HTTPS',true);stopScanning(true);}}
 function acceptDecodedBarcode(v,f){if(!scanning)return;scannerSuccessCount++;scannerRecoveryMisses=0;scannerRecoveryLastSuccess=Date.now();scannerRecoveryFocusRequested=false;scannerRecoveryPhase=0;var s=String(v||'').trim();if(!s)return;console.info('[Scanner] decoded:',{code:s,format:f,length:s.length});handleBarcode(s,true);consecutiveFailures=0;}
 /* v5.1.14 相机保活：连续盘点时，扫完一个商品不立刻关相机，
    保留 20 秒。下一次开扫直接复用这条流 —— 对焦状态还在，

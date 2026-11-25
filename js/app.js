@@ -16,7 +16,27 @@ function bindAppEvents(){
 
   document.getElementById('confirmBtn').onclick=function(){if(window.SoundManager)SoundManager.unlock();var input=document.getElementById('manualInput'),val=input.value.trim();if(val){handleBarcode(val,false);input.value='';}hideKeyboard();};
   document.getElementById('manualInput').addEventListener('keydown',function(e){if(e.key==='Enter'){if(window.SoundManager)SoundManager.unlock();var val=e.target.value.trim();if(val){handleBarcode(val,false);e.target.value='';}hideKeyboard();}});
-  document.getElementById('scanBtn').onclick=function(){if(window.SoundManager)SoundManager.unlock();if(scanning)stopScanning(true);else startScanning();hideKeyboard();};
+  /* v5.1.16：键盘开着时点“扫码”，第一下只把键盘收起来——因为按钮条会随键盘高度下移，
+     手指抬起时按钮已经不在原处，点击落空。改成 pointerdown 就处理并 preventDefault，
+     阻止焦点变化/滚动，按钮不会动，一次点击必然生效。 */
+  (function(){
+    var btn=document.getElementById('scanBtn');
+    if(!btn)return;
+    var lastTap=0;
+    function onScanTap(e){
+      if(Date.now()-lastTap<350)return;
+      lastTap=Date.now();
+      if(e&&e.cancelable)try{e.preventDefault();}catch(err){}
+      if(window.SoundManager)SoundManager.unlock();
+      if(scanning){stopScanning(true);return;}
+      if(typeof requireQtyBeforeScan==='function'&&!requireQtyBeforeScan())return;
+      hideKeyboard();
+      startScanning();
+    }
+    btn.addEventListener('pointerdown',onScanTap,{passive:false});
+    btn.addEventListener('touchstart',onScanTap,{passive:false});
+    btn.onclick=onScanTap;
+  })();
   document.getElementById('showKeyboardBtn').onclick=showKeyboard;
   var enhance=document.getElementById('scanEnhanceBtn');if(enhance)enhance.onclick=toggleEnhanceMode;var soundBtn=document.getElementById('scanSoundBtn');if(soundBtn)soundBtn.onclick=function(e){e.stopPropagation();if(window.SoundManager){SoundManager.unlock();var on=SoundManager.toggle();showToast(on?'🔊 扫码提示音已开启':'🔇 扫码提示音已关闭');}};
   var scrollArea=document.querySelector('.scrollable-area'),bottomBar=document.querySelector('.bottom-fixed-btns'),lastScroll=scrollArea.scrollTop;

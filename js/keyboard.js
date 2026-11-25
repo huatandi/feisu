@@ -11,7 +11,7 @@ function syncKeyboardInset(){
   /* iOS 自带 ^ v ✓ 辅助条（约 48px）不在 visualViewport 内，需要额外抬高；
      其它平台没有这条，留 8px 缝隙即可。 */
   var ios=/iPad|iPhone|iPod/.test(navigator.userAgent||'');
-  document.documentElement.style.setProperty('--kb-gap',(ios?74:8)+'px');
+  document.documentElement.style.setProperty('--kb-gap',(ios?89:8)+'px');
   return inset;
 }
 function setupKeyboardListener(){if(!isMobile)return;
