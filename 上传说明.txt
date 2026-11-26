@@ -1,35 +1,25 @@
-FEISU v5.1.19 R35 —— 上传专用（只含网站运行文件）
+FEISU v5.1.21 R37 —— 上传专用（只含网站运行文件）
 
 三步：
 1) 解压到桌面 → 进到文件夹里面，Ctrl+A 全选，Ctrl+C
 2) https://github.com/huatandi/feisu → Add file → Upload files → 粘贴进去 → Commit changes
 3) 等 1 分钟，打开 https://huatandi.github.io/feisu/js/core.js
-   第一行应是 var VERSION = 'FEISU v5.1.19 · R35';
+   第一行应是 var VERSION = 'FEISU v5.1.21 · R37';
 
-R35 修两处（都来自你那份诊断）
+R37 只改一处：去掉「🎯 对焦中…」提示
 
-一、定焦：iPhone 其实给了 focusDistance，是我判错了
-你的诊断： "focus": "continuous|modes:|dist:yes"
-- dist:yes  → 设备开放了 focusDistance（对焦距离，单位米）
-- modes: 空 → 设备不报 focusMode
-R34 我要求“必须报 manual 才定焦”，于是被这个条件挡住，一直没生效。
-R35 改成：只要报 focusDistance，就直接下 focusDistance=0.15（15cm）。
-被拒才补 focusMode:'manual'。
-生效后诊断会变成： "fixed@0.15|modes:|dist:yes"
-如果被拒，会显示 "dist-rejected"。
+- 扫码头部那一小块黄色提示条已移除（HTML、CSS 一起删干净）。
+- 相机行为不变：仍然会强制一轮对焦 + 多次催焦，只是不再显示文字。
+- 顺手把清晰度数值保留进诊断：view.sharp
+  一般 >20 表示已对上焦，<10 表示画面明显模糊。
+  以后讨论“糊不糊”就有客观数字，不靠感觉。
 
-二、后台解码线程（worker）没起来
-诊断： "worker": {"frames":2,"hits":0,"on":false}
-- 我在 Node 里按 Worker 的方式跑过同一份脚本：能正常解出 WIR-UC07，
-  所以脚本本身没问题，是设备端加载时出的错。
-- R35 增加：onerror 时把错误信息记进诊断（worker.error），并自动重试一次；
-  worker 内部若找不到 ZXing，也会回报具体原因（zxing-missing:...）。
-- worker 起不来时功能仍然正常，只是解码回到主线程（会更卡一点）。
+其余与 R36 相同：
+- 西班牙语表头 Código Barras 已能被识别（重音归一化）
+- worker 后台解码、canvas 取景、保活 20 秒、1.25× 变焦、
+  数量未填标红拦截、按钮条贴键盘辅助条
 
-上传后请看诊断这三格：
-1. camera.focus —— 是否变成 fixed@0.15（定焦成功）
-2. worker.on —— 是否变成 true
-3. worker.error —— 若还是 false，把这一格里的话发我
-
-其他：保活 20 秒（扫完不关相机，第二件起不糊）、默认 1.25× 变焦、
-按钮条贴键盘辅助条、忘记填数量会标红拦截、一次点击开扫。
+验收：
+1. 角标 v5.1.21 · 框内识别版 R37
+2. 打开扫码：头部不再出现「🎯 对焦中…」
+3. 诊断里多了 view.sharp（数字），可用来判断对焦情况

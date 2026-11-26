@@ -144,12 +144,12 @@ function scanViewDiagnostics(){
     var v=document.getElementById('video'),f=document.getElementById('scanFrame');
     if(!v||!f||!v.videoWidth||!v.videoHeight)return null;
     var r=getFrameROI(v,f);
-    return {readyState:v.readyState,frameY:(scanViewBox?Math.round(scanViewBox.center-scanViewBox.h/2):null),elemW:(function(){try{var b=v.getBoundingClientRect();return Math.round(b.width)+'x'+Math.round(b.height);}catch(e){return null;}})(),frameW:scanViewBox?scanViewBox.w:null,frameH:scanViewBox?scanViewBox.h:null,sensorW:v.videoWidth,sensorH:v.videoHeight,roiW:r?r.w:null,roiH:r?r.h:null,roiShare:r?Math.round(r.w*r.h/(v.videoWidth*v.videoHeight)*1000)/10:null};
+    return {readyState:v.readyState,frameY:(scanViewBox?Math.round(scanViewBox.center-scanViewBox.h/2):null),sharp:lastSharpness||null,elemW:(function(){try{var b=v.getBoundingClientRect();return Math.round(b.width)+'x'+Math.round(b.height);}catch(e){return null;}})(),frameW:scanViewBox?scanViewBox.w:null,frameH:scanViewBox?scanViewBox.h:null,sensorW:v.videoWidth,sensorH:v.videoHeight,roiW:r?r.w:null,roiH:r?r.h:null,roiShare:r?Math.round(r.w*r.h/(v.videoWidth*v.videoHeight)*1000)/10:null};
   }catch(e){return null;}
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R35':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:(cameraFocusProbe?cameraFocusProbe.mode+'|modes:'+cameraFocusProbe.modes.join('/')+(cameraFocusProbe.hasDistance?'|dist:yes':'|dist:no'):(settings.focusMode||'system'))},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker,error:scanWorkerLastError||null}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses}};
+  return {version:typeof VERSION==='undefined'?'R37':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:(cameraFocusProbe?cameraFocusProbe.mode+'|modes:'+cameraFocusProbe.modes.join('/')+(cameraFocusProbe.hasDistance?'|dist:yes':'|dist:no'):(settings.focusMode||'system'))},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker,error:scanWorkerLastError||null}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses}};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -480,7 +480,7 @@ function stopScanPreview(){
 }
 /* v5.1.11：给用户一个“正在对焦”的明确提示（AF 是硬件行为，无法瞬间清晰，
    但至少让人知道系统在干活，而不是以为卡了）。 */
-var focusHintEl=null,focusHintSharp=0,sharpCanvas=null;
+var focusHintEl=null,focusHintSharp=0,sharpCanvas=null,lastSharpness=0;
 /* 在 160x90 的小图上算相邻像素灰度差；糊的画面差很小，对上焦会突然变大。 */
 function measureSharpness(){
   try{
@@ -499,14 +499,11 @@ function measureSharpness(){
     return n?sum/n:null;
   }catch(e){return null;}
 }
+/* v5.1.21：不再显示“对焦中”提示（用户要求去掉）。
+   清晰度数值改为只写进诊断（view.sharp），用来客观判断画面糊不糊：
+   一般 >20 表示已对上焦，<10 表示明显模糊。 */
 function updateFocusHint(sharp){
-  if(!focusHintEl){
-    focusHintEl=document.getElementById('focusHint');
-    if(!focusHintEl)return;
-  }
-  focusHintSharp=sharp?focusHintSharp+1:0;
-  var show=!sharp&&focusHintSharp<6;
-  if(focusHintEl.hidden===show){focusHintEl.hidden=!show;}
+  lastSharpness=sharp?1:0;
 }
 function drawScanPreview(){
   var v=document.getElementById('video'),cv=document.getElementById('scanCanvas'),f=document.getElementById('scanFrame');
@@ -539,7 +536,7 @@ function startScanPreview(){
         scanPreviewFrames++;
         if(scanPreviewFrames%6===0){                  /* 约 250ms 判一次清晰度 */
           var sh=measureSharpness();
-          if(sh!==null)updateFocusHint(sh>=14);
+          if(sh!==null)lastSharpness=Math.round(sh);   /* 只记录，不显示任何提示 */
         }
       }
     }catch(e){/* 任何异常都不允许让预览停掉 */}

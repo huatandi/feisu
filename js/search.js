@@ -104,7 +104,7 @@ function strictBarcodeKey(value){
   return d;
 }
 function strictKeyOf(value){
-  var s=String(value==null?'':value).trim();
+  var s=String(value==null?'':value).replace(/[\u200b-\u200d\ufeff]/g,'').trim();
   if(!s) return null;
   return /^\d+$/.test(s)?strictBarcodeKey(s):'#'+s.toUpperCase();
 }
@@ -154,7 +154,11 @@ function findFragmentBarcodeRow(fragment){
   return {tier:'none',count:hits.length};
 }
 function normColumnKey(key){
-  return String(typeof displayColumnName==='function'?displayColumnName(key):key).toUpperCase().replace(/[\s._\-\/\\:：()（）]+/g,'');
+  var s=String(typeof displayColumnName==='function'?displayColumnName(key):key);
+  /* v5.1.20：西班牙语单据的表头带重音（Código Barras / Descripción），
+     不去掉重音就永远匹配不到 CODIGOBARRAS 这类白名单，整份文件会被判成“没有条码列”。 */
+  try{if(s.normalize)s=s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');}catch(e){}
+  return s.toUpperCase().replace(/[\s._\-\/\\:：()（）]+/g,'');
 }
 /* v5.1：列名识别。供应商常见的"条形码CODIGO DE BARRA"以前完全认不出来，
    导致整个文件被当成"没有条码列"，扫什么都提示不存在。 */
