@@ -75,6 +75,11 @@ function installPrimaryROIDecoder(target,v,f){
          用一点耗电换难读条码的命中率（用户已确认接受）。 */
       var hard=(stats.frames%4===3);
       var scale=Math.min(1,(hard?SCAN_ROI_MAX_WIDTH_HI:SCAN_ROI_MAX_WIDTH)/r.w);
+      if(barcodeAngleHint&&consecutiveFailures>=15)barcodeAngleHint=0;   /* 猜错了就丢掉 */
+      /* v5.1.23：不再用梯度估角（实测在真实图上会估错，反而更糟）。
+         角度只来自"扫角度扫中了"这一确定事实，见 tryLocalTiltRecovery。 */
+      if(barcodeAngleHint&&consecutiveFailures>=15)barcodeAngleHint=0;
+      var ang=barcodeAngleActive();
       var cw=Math.max(1,Math.round(r.w*scale)),ch=Math.max(1,Math.round(r.h*scale));
       if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
       ctx.imageSmoothingEnabled=scale<1;
@@ -99,15 +104,24 @@ function installPrimaryROIDecoder(target,v,f){
         }
       }catch(e){}
       /* ---- 优先：交给后台线程解码（主线程不再被 30–100ms 的解码卡住） ---- */
+      /* 有角度记忆 → 把这一块转正后再解码（横平的时候 ang=0，完全不走这条路） */
+      var workCanvas=canvas,workW=cw,workH=ch;
+      if(ang){
+        try{
+          workCanvas=rotateCropToCanvas(canvas,ang,700);
+          workW=workCanvas.width;workH=workCanvas.height;
+          stats.rotatedFrames=(stats.rotatedFrames||0)+1;
+        }catch(e){workCanvas=canvas;workW=cw;workH=ch;}
+      }
       var wk=ensureDecodeWorker();
       if(wk){
         if(scanWorkerResult){var wr=scanWorkerResult;scanWorkerResult=null;stats.workerHits=(stats.workerHits||0)+1;return wr;}
         if(scanWorkerBusy&&Date.now()-scanWorkerSentAt>1500){scanWorkerBusy=false;scanWorkerFails+=2;}
         if(!scanWorkerBusy){
           try{
-            var idata=ctx.getImageData(0,0,cw,ch);
+            var idata=workCanvas.getContext('2d').getImageData(0,0,workW,workH);
             scanWorkerBusy=true;scanWorkerSentAt=Date.now();scanWorkerSeq++;
-            wk.postMessage({id:scanWorkerSeq,w:cw,h:ch,buf:idata.data.buffer,
+            wk.postMessage({id:scanWorkerSeq,w:workW,h:workH,buf:idata.data.buffer,
               formats:(typeof fm!=='undefined'&&fm)?fm:null,harder:!!hard},[idata.data.buffer]);
             stats.workerFrames=(stats.workerFrames||0)+1;
           }catch(e){scanDecodeWorker=null;scanWorkerBusy=false;}
@@ -115,7 +129,7 @@ function installPrimaryROIDecoder(target,v,f){
         /* 本轮还没有结果：按“未命中”处理，让 ZXing 继续轮询，下一轮来取 */
         throw new ZXing.NotFoundException();
       }
-      var lumSrc=new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+      var lumSrc=new ZXing.HTMLCanvasElementLuminanceSource(workCanvas);
       if(hard){try{if(stretchContrast(lumSrc))stats.contrastFrames=(stats.contrastFrames||0)+1;}catch(e){}}
       var bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lumSrc));
       try{
@@ -149,7 +163,7 @@ function scanViewDiagnostics(){
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R37':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:(cameraFocusProbe?cameraFocusProbe.mode+'|modes:'+cameraFocusProbe.modes.join('/')+(cameraFocusProbe.hasDistance?'|dist:yes':'|dist:no'):(settings.focusMode||'system'))},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker,error:scanWorkerLastError||null}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses}};
+  return {version:typeof VERSION==='undefined'?'R39':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:(cameraFocusProbe?cameraFocusProbe.mode+'|modes:'+cameraFocusProbe.modes.join('/')+(cameraFocusProbe.hasDistance?'|dist:yes':'|dist:no'):(settings.focusMode||'system'))},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker,error:scanWorkerLastError||null}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses},angle:{deg:barcodeAngleHint,hits:barcodeAngleHits,sweeps:angleSweeps,rotated:s?(s.rotatedFrames||0):0}};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -446,6 +460,41 @@ function ensureDecodeWorker(){
   }catch(e){scanDecodeWorker=null;}
   return scanDecodeWorker;
 }
+/* v5.1.22 P2：倾斜自适应的三件套
+   ① 估角：小图上算梯度方向，条纹垂直/倾斜都能估出来（3–6ms）
+   ② 记忆：读到一次就把角度记 10 秒，之后直接转正再解，同一批货不再多花时间
+   ③ 扫描：只在连续读不出时轮换角度（每轮上限 2 次），正常扫码零开销 */
+var barcodeAngleHint=0,barcodeAngleAt=0,barcodeAngleHits=0,angleSweeps=0,angleCanvas=null;
+var SCAN_ANGLE_TTL=10000;
+function normalizeAngle(deg){
+  var a=deg%180;if(a>90)a-=180;if(a<=-90)a+=180;return a;
+}
+function setBarcodeAngle(deg,fromSweep){
+  var a=normalizeAngle(deg);
+  if(Math.abs(a)<8)a=0;
+  barcodeAngleHint=a;barcodeAngleAt=Date.now();
+  if(fromSweep)angleSweeps++;
+}
+function barcodeAngleActive(){
+  if(!barcodeAngleHint)return 0;
+  if(Date.now()-barcodeAngleAt>SCAN_ANGLE_TTL){barcodeAngleHint=0;return 0;}
+  return barcodeAngleHint;
+}
+/* 把裁剪图旋转成画布（白底，避免黑边产生假条纹） */
+function rotateCropToCanvas(src,deg,maxSide){
+  var rad=Math.abs(deg)*Math.PI/180,sw=src.width,sh=src.height;
+  var w=Math.abs(sw*Math.cos(rad))+Math.abs(sh*Math.sin(rad));
+  var h=Math.abs(sw*Math.sin(rad))+Math.abs(sh*Math.cos(rad));
+  var scale=Math.min(1,maxSide/Math.max(w,h));
+  w=Math.max(8,Math.round(w*scale));h=Math.max(8,Math.round(h*scale));
+  var cv=document.createElement('canvas');cv.width=w;cv.height=h;
+  var x=cv.getContext('2d');
+  x.fillStyle='#ffffff';x.fillRect(0,0,w,h);
+  x.translate(w/2,h/2);x.rotate(deg*Math.PI/180);
+  x.imageSmoothingEnabled=true;
+  x.drawImage(src,-sw*scale/2,-sh*scale/2,sw*scale,sh*scale);
+  return cv;
+}
 var scanPreviewRAF=null,scanPreviewLast=0,scanPreviewFrames=0,warmReusedThisStart=false,cameraFocusProbe=null;
 /* v5.1.7：低对比条码（打印浅、磨损、反光）靠“灰度满幅拉伸”救回来。
    做法：取这块 ROI 的灰度矩阵，按 min..max 线性映射到 0..255，
@@ -741,11 +790,12 @@ function tryLocalTiltRecovery(v,r,token){
   localTiltLastAt=Date.now();
   try{
     if(!localTiltReader||localTiltHarder!==!!enhanceMode){var hints=new Map();if(enhanceMode)hints.set(ZXing.DecodeHintType.TRY_HARDER,true);localTiltHarder=!!enhanceMode;hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.UPC_E,ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_93,ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.ITF,ZXing.BarcodeFormat.CODABAR]);localTiltReader=new ZXing.BrowserMultiFormatReader(hints);}
-    var step=localTiltAngle++,angles=[0,-12,12,-24,24,-36,36,-45,45,90];
+    var step=localTiltAngle++,angles=[0,-12,12,-24,24,-36,36,-45,45,90,-10,10,-20,20];
     var image=captureROI(v,expandedBarcodeROI(v,r),step%2?'local':false),angle=angles[step%angles.length];
     var canvas=angle?rotateBarcodeCanvas(image,angle):image;
     var bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(canvas)));
     var result=localTiltReader.decodeBitmap(bitmap);
+    if(result&&Math.abs(angle)>=10){setBarcodeAngle(angle,true);barcodeAngleHits++;}
     return scanning&&token===scannerRecoveryEpoch&&result?result.getText():null;
   }catch(e){return null;}
 }
