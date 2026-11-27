@@ -104,6 +104,9 @@
         @keyframes qtyPulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
         .row-warn, tr.row-warn > td { background: #fee2e2 !important; }
         tr.row-warn > td { box-shadow: inset 0 0 0 2px #ef4444; }
+        /* v5.1.25：工具条默认收起，点 ⚙️ 才展开 */
+        .scan-gear-panel { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
+        .scan-gear-panel[hidden] { display: none !important; }
         .scan-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: #000; z-index: 2; }
         .scanner-video { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: var(--scan-video-w, 100%); height: var(--scan-video-h, 100%); object-fit: cover; background: #000; }
         .scan-frame { position: absolute; top: var(--scan-view-center, 30%); left: 50%; transform: translate(-50%, -50%); width: var(--scan-view-w, 96%); height: var(--scan-view-h, min(56.25vw, 240px)); border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 0 1px rgba(59,130,246,0.35), 0 10px 30px rgba(0,0,0,0.45); z-index: 10; pointer-events: none; }

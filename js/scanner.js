@@ -78,13 +78,16 @@ function installPrimaryROIDecoder(target,v,f){
       if(barcodeAngleHint&&consecutiveFailures>=15)barcodeAngleHint=0;   /* 猜错了就丢掉 */
       /* v5.1.23：不再用梯度估角（实测在真实图上会估错，反而更糟）。
          角度只来自"扫角度扫中了"这一确定事实，见 tryLocalTiltRecovery。 */
-      if(barcodeAngleHint&&scanMisses>=20){barcodeAngleHint=0;scanMisses=0;}   /* 记错的角度丢掉 */
+      if(barcodeAngleHint&&scanMisses>=40){barcodeAngleHint=0;scanMisses=0;}   /* 记错的角度丢掉 */
       var ang=barcodeAngleActive();
       /* 没有记住的角度、且已经连失 4 次 → 开始轮转角度（每次尝试试一个） */
-      if(!ang&&scanMisses>=4){
-        ang=TILT_ANGLES[barcodeTiltIdx++%TILT_ANGLES.length];
-        if(!ang)ang=0;
-        stats.sweepFrames=(stats.sweepFrames||0)+1;
+      if(!ang&&scanMisses>=6){
+        /* 每两次失败才转一次：一半尝试保持横平，避免“一直转、从不试正角” */
+        if(scanMisses%2===0){
+          ang=TILT_ANGLES[barcodeTiltIdx++%TILT_ANGLES.length];
+          if(!ang)ang=0;
+          stats.sweepFrames=(stats.sweepFrames||0)+1;
+        }
       }
       var cw=Math.max(1,Math.round(r.w*scale)),ch=Math.max(1,Math.round(r.h*scale));
       if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
@@ -114,7 +117,7 @@ function installPrimaryROIDecoder(target,v,f){
       var workCanvas=canvas,workW=cw,workH=ch;
       if(ang){
         try{
-          workCanvas=rotateCropToCanvas(canvas,ang,700);
+          workCanvas=rotateCropToCanvas(canvas,ang,560);   /* 560 够用，比 700 省 36% 像素 */
           workW=workCanvas.width;workH=workCanvas.height;
           stats.rotatedFrames=(stats.rotatedFrames||0)+1;
         }catch(e){workCanvas=canvas;workW=cw;workH=ch;}
@@ -179,7 +182,7 @@ function scanViewDiagnostics(){
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R40':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:(cameraFocusProbe?cameraFocusProbe.mode+'|modes:'+cameraFocusProbe.modes.join('/')+(cameraFocusProbe.hasDistance?'|dist:yes':'|dist:no'):(settings.focusMode||'system'))},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker,error:scanWorkerLastError||null}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses},angle:{deg:barcodeAngleHint,hits:barcodeAngleHits,sweeps:s?(s.sweepFrames||0):0,rotated:s?(s.rotatedFrames||0):0}};
+  return {version:typeof VERSION==='undefined'?'R41':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:(cameraFocusProbe?cameraFocusProbe.mode+'|modes:'+cameraFocusProbe.modes.join('/')+(cameraFocusProbe.hasDistance?'|dist:yes':'|dist:no'):(settings.focusMode||'system'))},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker,error:scanWorkerLastError||null}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses},angle:{deg:barcodeAngleHint,hits:barcodeAngleHits,sweeps:s?(s.sweepFrames||0):0,rotated:s?(s.rotatedFrames||0):0}};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -213,6 +216,23 @@ function applyScannerPowerProfile(){
     catch(e){console.info('[Camera] power profile unsupported',e&&e.name);return false;}
   });
   return scannerProfilePending;
+}
+/* v5.1.25：⚙️ 展开/收起工具条 */
+function toggleScanGear(){
+  var p=document.getElementById('scanGearPanel'),b=document.getElementById('scanGearBtn');
+  if(!p)return;
+  var open=p.hidden;
+  /* 默认收起：第一次进来先把面板藏好 */
+  p.hidden=!open;
+  if(b)b.classList.toggle('active',open);
+}
+function initScanGear(){
+  var p=document.getElementById('scanGearPanel');
+  if(p)p.hidden=true;
+}
+if(typeof document!=='undefined'&&document&&document.addEventListener){
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initScanGear,false);
+  else initScanGear();
 }
 function toggleScannerPower(){
   if(enhanceMode){scannerPowerSave=false;toggleEnhanceMode();}else{scannerPowerSave=!scannerPowerSave;applyScannerPowerProfile();}
@@ -251,14 +271,8 @@ function requireQtyBeforeScan(){
   }
   var el=document.getElementById('row-'+lastScannedRow);
   if(el)el.classList.add('row-warn');
-  var warnedAt=requireQtyBeforeScan.warnedAt||0;
-  if(warnedAt&&Date.now()-warnedAt<3000){
-    requireQtyBeforeScan.warnedAt=0;
-    clearRowWarn();
-    return true;   /* 再点一次＝跳过 */
-  }
   requireQtyBeforeScan.warnedAt=Date.now();
-  showToast('❌ 这个商品还没填实际数量（3 秒内再点扫码可跳过）',true);
+  showToast('❌ 这个商品还没填实际数量，填写后才能扫下一个',true);
   if(typeof jumpToRowAndFocusQty==='function')jumpToRowAndFocusQty(lastScannedRow);
   return false;
 }
@@ -474,7 +488,12 @@ function ensureDecodeWorker(){
       if(!scanWorkerRetried){scanWorkerRetried=true;scanWorkerTried=false;
         try{var w2=ensureDecodeWorker();if(w2)scanWorkerLastError+=' (retried)';}catch(e){}}
     };
-  }catch(e){scanDecodeWorker=null;}
+  }catch(e){
+    scanWorkerLastError='ctor:'+((e&&(e.name||e.message))||'unknown');
+    scanDecodeWorker=null;
+    /* 构造失败往往是瞬时的（页面刚加载/资源还没就绪），3 秒后允许再试一次 */
+    setTimeout(function(){if(!scanDecodeWorker){scanWorkerTried=false;scanWorkerRetried=false;}},3000);
+  }
   return scanDecodeWorker;
 }
 /* v5.1.22 P2：倾斜自适应的三件套
