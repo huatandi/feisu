@@ -78,8 +78,14 @@ function installPrimaryROIDecoder(target,v,f){
       if(barcodeAngleHint&&consecutiveFailures>=15)barcodeAngleHint=0;   /* 猜错了就丢掉 */
       /* v5.1.23：不再用梯度估角（实测在真实图上会估错，反而更糟）。
          角度只来自"扫角度扫中了"这一确定事实，见 tryLocalTiltRecovery。 */
-      if(barcodeAngleHint&&consecutiveFailures>=15)barcodeAngleHint=0;
+      if(barcodeAngleHint&&scanMisses>=20){barcodeAngleHint=0;scanMisses=0;}   /* 记错的角度丢掉 */
       var ang=barcodeAngleActive();
+      /* 没有记住的角度、且已经连失 4 次 → 开始轮转角度（每次尝试试一个） */
+      if(!ang&&scanMisses>=4){
+        ang=TILT_ANGLES[barcodeTiltIdx++%TILT_ANGLES.length];
+        if(!ang)ang=0;
+        stats.sweepFrames=(stats.sweepFrames||0)+1;
+      }
       var cw=Math.max(1,Math.round(r.w*scale)),ch=Math.max(1,Math.round(r.h*scale));
       if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
       ctx.imageSmoothingEnabled=scale<1;
@@ -115,26 +121,36 @@ function installPrimaryROIDecoder(target,v,f){
       }
       var wk=ensureDecodeWorker();
       if(wk){
-        if(scanWorkerResult){var wr=scanWorkerResult;scanWorkerResult=null;stats.workerHits=(stats.workerHits||0)+1;return wr;}
+        if(scanWorkerResult){
+          var wr=scanWorkerResult;scanWorkerResult=null;stats.workerHits=(stats.workerHits||0)+1;
+          scanMisses=0;
+          if(wr.__angle&&Math.abs(wr.__angle)>=10){setBarcodeAngle(wr.__angle,true);barcodeAngleHits++;}
+          return wr;
+        }
         if(scanWorkerBusy&&Date.now()-scanWorkerSentAt>1500){scanWorkerBusy=false;scanWorkerFails+=2;}
         if(!scanWorkerBusy){
           try{
             var idata=workCanvas.getContext('2d').getImageData(0,0,workW,workH);
-            scanWorkerBusy=true;scanWorkerSentAt=Date.now();scanWorkerSeq++;
+            scanWorkerBusy=true;scanWorkerSentAt=Date.now();scanWorkerSeq++;barcodeAngleSeq[scanWorkerSeq]=ang||0;
             wk.postMessage({id:scanWorkerSeq,w:workW,h:workH,buf:idata.data.buffer,
               formats:(typeof fm!=='undefined'&&fm)?fm:null,harder:!!hard},[idata.data.buffer]);
             stats.workerFrames=(stats.workerFrames||0)+1;
           }catch(e){scanDecodeWorker=null;scanWorkerBusy=false;}
         }
         /* 本轮还没有结果：按“未命中”处理，让 ZXing 继续轮询，下一轮来取 */
+        scanMisses++;   /* 走 worker 也要计失败，否则倾斜扫描永远不触发 */
         throw new ZXing.NotFoundException();
       }
       var lumSrc=new ZXing.HTMLCanvasElementLuminanceSource(workCanvas);
       if(hard){try{if(stretchContrast(lumSrc))stats.contrastFrames=(stats.contrastFrames||0)+1;}catch(e){}}
       var bitmap=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lumSrc));
       try{
-        return target.decodeBitmap(bitmap);
+        var okRes=target.decodeBitmap(bitmap);
+        scanMisses=0;
+        if(ang&&Math.abs(ang)>=10){setBarcodeAngle(ang,true);barcodeAngleHits++;}
+        return okRes;
       }catch(err){
+        scanMisses++;
         /* 硬档兜底：换个二值化算法再试一次（同一块像素，不额外采集） */
         if(hard&&ZXing.GlobalHistogramBinarizer){
           try{return target.decodeBitmap(new ZXing.BinaryBitmap(new ZXing.GlobalHistogramBinarizer(lumSrc)));}catch(e2){}
@@ -163,7 +179,7 @@ function scanViewDiagnostics(){
 }
 function scannerDiagnostics(){
   var p=scannerPowerProfile(),settings=cameraTrack&&cameraTrack.getSettings?cameraTrack.getSettings():{},s=scannerPrimaryStats,view=scanViewDiagnostics(),seconds=s&&s.startedAt?Math.max(.001,((s.stoppedAt||Date.now())-s.startedAt)/1000):0;
-  return {version:typeof VERSION==='undefined'?'R39':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:(cameraFocusProbe?cameraFocusProbe.mode+'|modes:'+cameraFocusProbe.modes.join('/')+(cameraFocusProbe.hasDistance?'|dist:yes':'|dist:no'):(settings.focusMode||'system'))},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker,error:scanWorkerLastError||null}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses},angle:{deg:barcodeAngleHint,hits:barcodeAngleHits,sweeps:angleSweeps,rotated:s?(s.rotatedFrames||0):0}};
+  return {version:typeof VERSION==='undefined'?'R40':VERSION,mode:p.mode,running:scanning,camera:{width:settings.width||null,height:settings.height||null,fps:settings.frameRate||null,torch:settings.torch===true,focus:(cameraFocusProbe?cameraFocusProbe.mode+'|modes:'+cameraFocusProbe.modes.join('/')+(cameraFocusProbe.hasDistance?'|dist:yes':'|dist:no'):(settings.focusMode||'system'))},view:view,seconds:Math.round(seconds),frames:s?s.frames:0,decodeFps:s&&seconds>=1?Math.round(s.frames/seconds*10)/10:0,meanInputPixels:s&&s.frames?Math.round(s.pixels/s.frames):0,roiFrames:s?s.roiFrames:0,fullFrames:s?s.fullFrames:0,meanDecodeMs:s&&s.frames?Math.round(s.totalMs/s.frames*10)/10:0,maxDecodeMs:s?Math.round(s.maxMs*10)/10:0,primaryTimeShare:s&&seconds?Math.round(s.totalMs/(seconds*1000)*1000)/10:0,recoveryStarts:scannerRecoveryStarts,successes:scannerSuccessCount,lastSuccessAgoMs:scannerRecoveryLastSuccess?Date.now()-scannerRecoveryLastSuccess:null,band:s?s.band:null,roiScale:s?s.scale:null,recoveryGapMs:scannerRecoveryGap(),columns:(typeof barcodeColumnKeys==='function'?{barcode:barcodeColumnKeys(),model:(typeof modelColumnKeys==='function'?modelColumnKeys():[])}:null),stagedFormats:s?{fast:s.fastFrames||0,hard:s.hardFrames||0,contrast:s.contrastFrames||0}:null,worker:s?{frames:s.workerFrames||0,hits:s.workerHits||0,on:!!scanDecodeWorker,error:scanWorkerLastError||null}:null,warm:{active:!!warmStream,holds:warmHolds,reuses:warmReuses},angle:{deg:barcodeAngleHint,hits:barcodeAngleHits,sweeps:s?(s.sweepFrames||0):0,rotated:s?(s.rotatedFrames||0):0}};
 }
 async function copyScannerDiagnostics(){
   var d=scannerDiagnostics(),text=JSON.stringify(d,null,2)+'\n主识别计时占比不是电量或整机 CPU 测量；不含条码和商品数据。';
@@ -439,6 +455,7 @@ function ensureDecodeWorker(){
       if(d.text){
         scanWorkerFails=0;
         scanWorkerResult={
+          __angle:barcodeAngleSeq[d.id]||0,
           getText:function(){return d.text;},
           getBarcodeFormat:function(){return d.format;},
           getResultMetadata:function(){return null;},
@@ -465,6 +482,12 @@ function ensureDecodeWorker(){
    ② 记忆：读到一次就把角度记 10 秒，之后直接转正再解，同一批货不再多花时间
    ③ 扫描：只在连续读不出时轮换角度（每轮上限 2 次），正常扫码零开销 */
 var barcodeAngleHint=0,barcodeAngleAt=0,barcodeAngleHits=0,angleSweeps=0,angleCanvas=null;
+/* v5.1.24：倾斜扫描搬进主循环。
+   之前只在"恢复路径"里每个 250ms 试一个角度，而且恢复本身还有 850ms 门槛 + 轮转，
+   一轮 14 个角度要 ~20 秒才转完 —— 等于没有。
+   现在：连续 4 次解不出，就直接在主循环里轮角度，~8 次/秒，一轮约 1.8 秒。 */
+var scanMisses=0,barcodeTiltIdx=0,barcodeAngleSeq={};
+var TILT_ANGLES=[10,-10,20,-20,30,-30,40,-40,45,-45,90];
 var SCAN_ANGLE_TTL=10000;
 function normalizeAngle(deg){
   var a=deg%180;if(a>90)a-=180;if(a<=-90)a+=180;return a;
